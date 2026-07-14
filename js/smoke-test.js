@@ -46,6 +46,7 @@ window.fetch = (url) => { fetchCalls.push(String(url)); return Promise.reject(ne
 const M = (f) => fs.readFileSync(path.join(__dirname, f), "utf8");
 window.eval(M("data.js"));
 window.eval(M("iea-data.js"));
+window.eval(M("news-data.js"));
 // modules are classic scripts sharing one global scope in the browser; eval
 // does not, so concatenate them here in index.html load order.
 window.eval([
@@ -139,6 +140,9 @@ setTimeout(() => {
   ok(networkRestored === networkTotal, "network bars restore full total when filter cleared");
   ok(!!doc.querySelector("#analytics-markets .markets-fallback"), "markets shows fallback state without an API key");
   ok(!fetchCalls.some((u) => u.includes("finnhub.io")), "markets never calls the Finnhub API when FINNHUB_KEY is empty");
+  ok(doc.querySelectorAll("#analytics-news .news-card").length === (window.HYDROGEN_NEWS || []).length && (window.HYDROGEN_NEWS || []).length > 0, "news cards render from HYDROGEN_NEWS");
+  click(analyticsBtn);
+  ok(!!analyticsPanel && analyticsPanel.hidden && !analyticsBtn.classList.contains("active"), "analytics panel closes on second click");
 
   setTimeout(() => {
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");

@@ -104,6 +104,22 @@ function stopMarketsPolling() {
   marketsInterval = null;
 }
 
+function renderNews() {
+  const el = document.getElementById("analytics-news");
+  if (!el) return;
+  const items = window.HYDROGEN_NEWS || [];
+  if (!items.length) {
+    el.innerHTML = `<div class="news-empty">No cached headlines — run build-news.py to refresh.</div>`;
+    return;
+  }
+  el.innerHTML = items.map((n) => `
+    <a class="news-card" href="${escapeAttr(n.url)}" target="_blank" rel="noopener">
+      <span class="news-source">${escapeHtml(n.source)}</span>
+      <span class="news-headline">${escapeHtml(n.summary || n.headline)}</span>
+      <span class="news-date">${escapeHtml(n.date || "")}</span>
+    </a>`).join("");
+}
+
 function wireAnalyticsToggle() {
   const btn = document.getElementById("analytics-btn");
   const panel = document.getElementById("analytics-panel");
@@ -114,6 +130,7 @@ function wireAnalyticsToggle() {
     btn.classList.toggle("active", opening);
     if (opening) {
       renderNetworkBars();
+      renderNews();
       startMarketsPolling();
     } else {
       stopMarketsPolling();
@@ -125,6 +142,7 @@ function initAnalyticsPanel() {
   wireAnalyticsToggle();
   renderNetworkBars();
   renderMarkets();
+  renderNews();
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initAnalyticsPanel);
