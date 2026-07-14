@@ -48,16 +48,20 @@ function renderNetworkBars() {
   }).join("");
 }
 
-// Free tier: https://finnhub.io/register — this ships empty (unlike NREL's
-// DEMO_KEY, Finnhub has no public demo key) and shows a "configure API key"
-// fallback until you set it.
-const FINNHUB_KEY = "";
+// Free tier: https://finnhub.io/register — unlike NREL's DEMO_KEY, Finnhub
+// has no public demo key, so this is a personal key. Visible in the page
+// source like any client-side key on a static site with no backend.
+const FINNHUB_KEY = "d9asl71r01qp4bhsd5dgd9asl71r01qp4bhsd5e0";
+// Finnhub's free tier only resolves US-listed tickers — ITM Power (LSE:
+// ITM.L) and Nel ASA (OSE: NEL.OL) 403 on it, so this uses US-tradeable
+// stand-ins: Fusion Fuel Green (pure-play green hydrogen) and Air Liquide's
+// US ADR (industrial-gas major, alongside Linde/Air Products).
 const STOCK_TICKERS = [
   { symbol: "PLUG", name: "Plug Power" },
   { symbol: "BE", name: "Bloom Energy" },
   { symbol: "BLDP", name: "Ballard Power" },
-  { symbol: "ITM.L", name: "ITM Power" },
-  { symbol: "NEL.OL", name: "Nel ASA" },
+  { symbol: "HTOO", name: "Fusion Fuel Green" },
+  { symbol: "AIQUY", name: "Air Liquide" },
   { symbol: "FCEL", name: "FuelCell Energy" },
   { symbol: "APD", name: "Air Products" },
   { symbol: "LIN", name: "Linde" },
@@ -80,7 +84,9 @@ async function renderMarkets() {
     return;
   }
   try {
-    const quotes = await Promise.all(STOCK_TICKERS.map((t) => fetchQuote(t.symbol).then((q) => ({ ...t, q }))));
+    const settled = await Promise.allSettled(STOCK_TICKERS.map((t) => fetchQuote(t.symbol).then((q) => ({ ...t, q }))));
+    const quotes = settled.filter((r) => r.status === "fulfilled").map((r) => r.value);
+    if (!quotes.length) throw new Error("All ticker quotes failed");
     el.innerHTML = quotes.map(({ symbol, name, q }) => {
       const up = (q.dp || 0) >= 0;
       return `<div class="stock-row">

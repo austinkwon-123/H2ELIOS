@@ -138,14 +138,29 @@ setTimeout(() => {
   click(doc.querySelector('#status-seg .seg-btn[data-status="all"]'));
   const networkRestored = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
   ok(networkRestored === networkTotal, "network bars restore full total when filter cleared");
-  ok(!!doc.querySelector("#analytics-markets .markets-fallback"), "markets shows fallback state without an API key");
-  ok(!fetchCalls.some((u) => u.includes("finnhub.io")), "markets never calls the Finnhub API when FINNHUB_KEY is empty");
   ok(doc.querySelectorAll("#analytics-news .news-card").length === (window.HYDROGEN_NEWS || []).length && (window.HYDROGEN_NEWS || []).length > 0, "news cards render from HYDROGEN_NEWS");
   ok(Array.from(doc.querySelectorAll("#analytics-news .news-card")).every((el) => el.tagName === "A"), "all sample news cards render as real links (all sample URLs are https)");
   click(analyticsBtn);
   ok(!!analyticsPanel && analyticsPanel.hidden && !analyticsBtn.classList.contains("active"), "analytics panel closes on second click");
 
   setTimeout(() => {
+    // renderMarkets() is async once a real key is configured (it awaits a
+    // fetch), so its fallback/row DOM only lands after this delay — unlike
+    // the synchronous no-key early-return, checking it right after the
+    // click (as the earlier assertions do) would race the promise chain.
+    // jsdom's window.eval doesn't share const/let bindings across separate
+    // eval calls (verified empirically), so FINNHUB_KEY can't be read back
+    // directly here — the two renderMarkets() branches render distinct
+    // copy, so use that as the observable signal instead.
+    const marketsFallbackEl = doc.querySelector("#analytics-markets .markets-fallback");
+    ok(!!marketsFallbackEl, "markets shows fallback state (no key configured, or the fetch failed)");
+    const finnhubCalled = fetchCalls.some((u) => u.includes("finnhub.io"));
+    const noKeyBranch = !!marketsFallbackEl && marketsFallbackEl.textContent.includes("Configure a free Finnhub API key");
+    if (noKeyBranch) {
+      ok(!finnhubCalled, "markets never calls the Finnhub API when FINNHUB_KEY is empty");
+    } else {
+      ok(finnhubCalled, "markets calls the Finnhub API when FINNHUB_KEY is configured");
+    }
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");
     console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
     process.exit(failures === 0 ? 0 : 1);
