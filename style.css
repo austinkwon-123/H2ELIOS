@@ -541,3 +541,8 @@ button { font-family: inherit; color: inherit; }
 }
 @keyframes slideInLeft { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
 #analytics-panel .stats-head:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.bar-row { display: grid; grid-template-columns: 62px 1fr 26px; align-items: center; gap: 8px; margin: 7px 0; font-size: 11px; }
+.bar-label { color: var(--text-muted); }
+.bar-track { height: 6px; border-radius: 3px; background: rgba(120, 160, 200, 0.09); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+.bar-count { text-align: right; color: var(--text-hi); font-variant-numeric: tabular-nums; }

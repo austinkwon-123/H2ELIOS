@@ -127,6 +127,15 @@ setTimeout(() => {
   ok(!!analyticsPanel && analyticsPanel.hidden, "analytics panel starts hidden");
   if (analyticsBtn) click(analyticsBtn);
   ok(!!analyticsPanel && !analyticsPanel.hidden && analyticsBtn.classList.contains("active"), "analytics panel opens on click");
+  ok(doc.querySelectorAll("#analytics-network .bar-row").length === 7, "network bars render all 7 taxonomy tiers");
+  const networkTotal = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
+  ok(networkTotal > 0, "network bars show nonzero total count");
+  click(doc.querySelector('#status-seg .seg-btn[data-status="operating"]'));
+  const networkFiltered = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
+  ok(networkFiltered <= networkTotal, "network bars recompute on status filter change");
+  click(doc.querySelector('#status-seg .seg-btn[data-status="all"]'));
+  const networkRestored = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
+  ok(networkRestored === networkTotal, "network bars restore full total when filter cleared");
 
   setTimeout(() => {
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");
