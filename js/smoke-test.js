@@ -40,7 +40,8 @@ class StubPopup {
 }
 window.maplibregl = { Map: StubMap, NavigationControl: class {}, AttributionControl: class {}, Popup: StubPopup };
 window.requestAnimationFrame = () => 0;
-window.fetch = () => Promise.reject(new Error("offline test"));
+const fetchCalls = [];
+window.fetch = (url) => { fetchCalls.push(String(url)); return Promise.reject(new Error("offline test")); };
 
 const M = (f) => fs.readFileSync(path.join(__dirname, f), "utf8");
 window.eval(M("data.js"));
@@ -137,6 +138,7 @@ setTimeout(() => {
   const networkRestored = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
   ok(networkRestored === networkTotal, "network bars restore full total when filter cleared");
   ok(!!doc.querySelector("#analytics-markets .markets-fallback"), "markets shows fallback state without an API key");
+  ok(!fetchCalls.some((u) => u.includes("finnhub.io")), "markets never calls the Finnhub API when FINNHUB_KEY is empty");
 
   setTimeout(() => {
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");
