@@ -15,9 +15,11 @@ index.html            markup + script/style load order
 style.css             design tokens + all UI styling (mission-control dark)
 hud.css               boot / reticle / scanline accents
 build-iea.py          regenerates js/iea-data.js from the IEA Excel databases
+build-news.py          regenerates js/news-data.js from hydrogen-relevant RSS feeds
 js/
   data.js             curated 138 verified nodes (hand-edited, cited)
   iea-data.js         3,338 IEA "announced" records (generated — don't hand-edit)
+  news-data.js        cached hydrogen news headlines (generated — don't hand-edit)
   01-core.js          config, tokens, globe init, state, geometry, utils, load,
                         theme, idle spin
   02-layers.js        network web, hubs, flow arcs, point/line builders, animations
@@ -29,6 +31,7 @@ js/
   07-live.js          DOE AFDC live stations, star-field zoom fade
   iea-layer.js        IEA announced-tier clustering (extends filters)
   hud.js              boot sequence, targeting reticle, decode-text
+  08-analytics.js     analytics panel — network bars, live stock tracker, news feed
   smoke-test.js       headless test (node js/smoke-test.js, needs jsdom)
 ```
 
@@ -40,3 +43,7 @@ js/
   patches `applyFilters`; `hud.js` patches `selectFacility`/`showDetail` (detail) —
   both must stay last.
 - Refresh IEA data: drop new IEA `.xlsx` files in Downloads, rerun `build-iea.py`.
+- Refresh hydrogen news: rerun `python3 build-news.py` (set `ANTHROPIC_API_KEY`
+  for LLM-written one-line summaries; without it, falls back to each feed's own
+  snippet). Regenerates `js/news-data.js` — review the diff before committing,
+  it isn't automatic.
