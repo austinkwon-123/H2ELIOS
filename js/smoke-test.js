@@ -136,6 +136,7 @@ setTimeout(() => {
   click(doc.querySelector('#status-seg .seg-btn[data-status="all"]'));
   const networkRestored = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
   ok(networkRestored === networkTotal, "network bars restore full total when filter cleared");
+  ok(!!doc.querySelector("#analytics-markets .markets-fallback"), "markets shows fallback state without an API key");
 
   setTimeout(() => {
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");

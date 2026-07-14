@@ -45,6 +45,65 @@ function renderNetworkBars() {
   }).join("");
 }
 
+// Free tier: https://finnhub.io/register — this ships empty (unlike NREL's
+// DEMO_KEY, Finnhub has no public demo key) and shows a "configure API key"
+// fallback until you set it.
+const FINNHUB_KEY = "";
+const STOCK_TICKERS = [
+  { symbol: "PLUG", name: "Plug Power" },
+  { symbol: "BE", name: "Bloom Energy" },
+  { symbol: "BLDP", name: "Ballard Power" },
+  { symbol: "ITM.L", name: "ITM Power" },
+  { symbol: "NEL.OL", name: "Nel ASA" },
+  { symbol: "FCEL", name: "FuelCell Energy" },
+  { symbol: "APD", name: "Air Products" },
+  { symbol: "LIN", name: "Linde" },
+  { symbol: "CMI", name: "Cummins" },
+  { symbol: "GTLS", name: "Chart Industries" }
+];
+let marketsInterval = null;
+
+async function fetchQuote(symbol) {
+  const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_KEY}`);
+  if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
+  return res.json(); // { c: current price, dp: percent change, ... }
+}
+
+async function renderMarkets() {
+  const el = document.getElementById("analytics-markets");
+  if (!el) return;
+  if (!FINNHUB_KEY) {
+    el.innerHTML = `<div class="markets-fallback">Configure a free Finnhub API key in js/08-analytics.js for live quotes. <a href="https://finnhub.io/register" target="_blank" rel="noopener">Get one free</a></div>`;
+    return;
+  }
+  try {
+    const quotes = await Promise.all(STOCK_TICKERS.map((t) => fetchQuote(t.symbol).then((q) => ({ ...t, q }))));
+    el.innerHTML = quotes.map(({ symbol, name, q }) => {
+      const up = (q.dp || 0) >= 0;
+      return `<div class="stock-row">
+        <span class="stock-symbol">${escapeHtml(symbol)}</span>
+        <span class="stock-name">${escapeHtml(name)}</span>
+        <span class="stock-price">${q.c != null ? q.c.toFixed(2) : "—"}</span>
+        <span class="stock-change ${up ? "up" : "down"}">${q.dp != null ? (up ? "+" : "") + q.dp.toFixed(2) + "%" : "—"}</span>
+      </div>`;
+    }).join("");
+  } catch (err) {
+    console.warn("Markets fetch failed:", err);
+    el.innerHTML = `<div class="markets-fallback">Live quotes unavailable — check your connection or API key.</div>`;
+  }
+}
+
+function startMarketsPolling() {
+  renderMarkets();
+  if (marketsInterval) clearInterval(marketsInterval);
+  marketsInterval = setInterval(renderMarkets, 60000);
+}
+
+function stopMarketsPolling() {
+  if (marketsInterval) clearInterval(marketsInterval);
+  marketsInterval = null;
+}
+
 function wireAnalyticsToggle() {
   const btn = document.getElementById("analytics-btn");
   const panel = document.getElementById("analytics-panel");
@@ -53,13 +112,19 @@ function wireAnalyticsToggle() {
     const opening = panel.hidden;
     panel.hidden = !opening;
     btn.classList.toggle("active", opening);
-    if (opening) renderNetworkBars();
+    if (opening) {
+      renderNetworkBars();
+      startMarketsPolling();
+    } else {
+      stopMarketsPolling();
+    }
   });
 }
 
 function initAnalyticsPanel() {
   wireAnalyticsToggle();
   renderNetworkBars();
+  renderMarkets();
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initAnalyticsPanel);

@@ -29,6 +29,9 @@ Internet required: MapLibre GL v5, CARTO tiles, Google Fonts, AFDC live fetch.
 2. `iea-data.js` is ~1.2 MB — enable gzip/brotli on your host (Netlify/Vercel do
    this automatically; it compresses to ~180 KB).
 3. Keep the IEA CC BY 4.0 attribution visible (already in the footer + ticker link).
+4. Get a free Finnhub API key (https://finnhub.io/register) and set `FINNHUB_KEY`
+   in `js/08-analytics.js` to enable live quotes in the analytics panel's Markets
+   section — it ships empty and shows a "configure API key" fallback until you do.
 
 ## v7 visual system
 Single dark mission-control theme (light mode retired). All styling flows from
