@@ -133,6 +133,50 @@ function renderNews() {
   }).join("");
 }
 
+// One-time TradingView embed: HYDR (Global X Hydrogen ETF) overlaid with
+// the NASDAQ Composite and S&P 500 on one normalized % scale (compareSymbols
+// with position:"SameScale" — verified directly against TradingView's
+// widget builder, since "Symbol Overview" only tabs between symbols one at
+// a time and doesn't actually overlay them). Injected once on init, not
+// re-rendered on toggle/poll — it's a persistent third-party widget, unlike
+// the innerHTML-replaced ticker rows below it.
+function initMarketsChart() {
+  const el = document.getElementById("analytics-markets-chart");
+  if (!el) return;
+  el.innerHTML = `<div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div></div>`;
+  const script = document.createElement("script");
+  script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+  script.async = true;
+  script.text = JSON.stringify({
+    allow_symbol_change: true,
+    calendar: false,
+    details: false,
+    hide_side_toolbar: true,
+    hide_top_toolbar: true,
+    hide_legend: false,
+    hide_volume: true,
+    hotlist: false,
+    interval: "D",
+    locale: "en",
+    save_image: false,
+    style: "2", // line chart — clearer than candles with 3 overlaid series
+    symbol: "NASDAQ:HYDR",
+    theme: "dark",
+    timezone: "Etc/UTC",
+    backgroundColor: "#0F0F0F",
+    gridColor: "rgba(242, 242, 242, 0.06)",
+    watchlist: [],
+    withdateranges: false,
+    compareSymbols: [
+      { symbol: "NASDAQ:IXIC", position: "SameScale" },
+      { symbol: "SP:SPX", position: "SameScale" }
+    ],
+    studies: [],
+    autosize: true
+  });
+  el.querySelector(".tradingview-widget-container").appendChild(script);
+}
+
 function wireAnalyticsToggle() {
   const btn = document.getElementById("analytics-btn");
   const panel = document.getElementById("analytics-panel");
@@ -163,6 +207,7 @@ function wireIeaDockRerender() {
 function initAnalyticsPanel() {
   wireAnalyticsToggle();
   wireIeaDockRerender();
+  initMarketsChart();
   renderNetworkBars();
   renderNews();
 }

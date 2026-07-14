@@ -546,6 +546,7 @@ button { font-family: inherit; color: inherit; }
 .bar-track { height: 6px; border-radius: 3px; background: rgba(120, 160, 200, 0.09); overflow: hidden; }
 .bar-fill { display: block; height: 100%; border-radius: 3px; transition: width 0.5s ease; }
 .bar-count { text-align: right; color: var(--text-hi); font-variant-numeric: tabular-nums; }
+.markets-chart { height: 260px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
 .markets-fallback { font-size: 11px; line-height: 1.6; color: var(--text-muted); padding: 8px 0; }
 .markets-fallback a { color: var(--cyan); }
 .stock-row { display: grid; grid-template-columns: 44px 1fr 52px 56px; align-items: center; gap: 6px; margin: 6px 0; font-size: 11px; }
