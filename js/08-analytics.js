@@ -18,6 +18,9 @@ function computeColorCounts() {
     ...D.upstream.features, ...D.production.features, ...D.manufacturing.features,
     ...D.storagePoints.features, ...D.pipelines.features, ...D.endUse.features
   ];
+  if (window.IEA_DATA && typeof layerVisible === "function" && layerVisible("iea")) {
+    feats.push(...window.IEA_DATA.features);
+  }
   const counts = {};
   TAXONOMY_ORDER.forEach((k) => { counts[k] = 0; });
   feats.forEach((f) => {
@@ -112,12 +115,16 @@ function renderNews() {
     el.innerHTML = `<div class="news-empty">No cached headlines — run build-news.py to refresh.</div>`;
     return;
   }
-  el.innerHTML = items.map((n) => `
-    <a class="news-card" href="${escapeAttr(n.url)}" target="_blank" rel="noopener">
+  el.innerHTML = items.map((n) => {
+    const safeUrl = /^https?:\/\//i.test(n.url || "") ? n.url : null;
+    const tag = safeUrl ? "a" : "div";
+    const linkAttrs = safeUrl ? ` href="${escapeAttr(safeUrl)}" target="_blank" rel="noopener"` : "";
+    return `<${tag} class="news-card"${linkAttrs}>
       <span class="news-source">${escapeHtml(n.source)}</span>
       <span class="news-headline">${escapeHtml(n.summary || n.headline)}</span>
       <span class="news-date">${escapeHtml(n.date || "")}</span>
-    </a>`).join("");
+    </${tag}>`;
+  }).join("");
 }
 
 function wireAnalyticsToggle() {
@@ -138,10 +145,15 @@ function wireAnalyticsToggle() {
   });
 }
 
+function wireIeaDockRerender() {
+  const ieaToggle = document.querySelector('.dock-btn[data-layer="iea"]');
+  if (ieaToggle) ieaToggle.addEventListener("click", renderNetworkBars);
+}
+
 function initAnalyticsPanel() {
   wireAnalyticsToggle();
+  wireIeaDockRerender();
   renderNetworkBars();
-  renderMarkets();
   renderNews();
 }
 

@@ -12,6 +12,7 @@ Usage:
 """
 import json, os, re, sys, urllib.request
 import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 
 FEEDS = [
     ("IEA", "https://www.iea.org/news/rss"),
@@ -37,6 +38,16 @@ def fetch_feed(url, timeout=15):
         return resp.read()
 
 
+def normalize_date(raw):
+    """Normalize an RSS pubDate to YYYY-MM-DD, matching the format already
+    used in js/news-data.js. Falls back to the raw string if it can't be
+    parsed, so an unusual feed format degrades instead of crashing the run."""
+    try:
+        return parsedate_to_datetime(raw).strftime("%Y-%m-%d")
+    except (TypeError, ValueError):
+        return raw
+
+
 def parse_rss(xml_bytes):
     """Return [{title, link, summary, date}] from an RSS 2.0 payload."""
     root = ET.fromstring(xml_bytes)
@@ -46,7 +57,7 @@ def parse_rss(xml_bytes):
         link = (item.findtext("link") or "").strip()
         summary = (item.findtext("description") or "").strip()
         summary = re.sub(r"<[^>]+>", "", summary)  # strip any embedded HTML
-        date = (item.findtext("pubDate") or "").strip()
+        date = normalize_date((item.findtext("pubDate") or "").strip())
         if title and link:
             items.append({"title": title, "link": link, "summary": summary, "date": date})
     return items
@@ -140,11 +151,12 @@ def selftest():
     entries = parse_rss(sample_xml)
     assert len(entries) == 2, f"expected 2 items, got {len(entries)}"
     assert entries[0]["summary"] == "A new electrolyzer facility begins operating.", entries[0]["summary"]
+    assert entries[0]["date"] == "2026-07-01", f"expected normalized ISO date, got {entries[0]['date']!r}"
     rel = [e for e in entries if relevant(e)]
     assert len(rel) == 1 and rel[0]["title"].startswith("Green hydrogen"), "keyword filter should keep only the hydrogen item"
     summary = summarize({**rel[0], "source": "Test"}, api_key="")
     assert summary == "A new electrolyzer facility begins operating.", "no-key fallback should reuse the snippet"
-    print("PASS  selftest: RSS parse, keyword filter, no-key summary fallback")
+    print("PASS  selftest: RSS parse, date normalization, keyword filter, no-key summary fallback")
 
 
 def main():

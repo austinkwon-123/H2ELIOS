@@ -141,6 +141,7 @@ setTimeout(() => {
   ok(!!doc.querySelector("#analytics-markets .markets-fallback"), "markets shows fallback state without an API key");
   ok(!fetchCalls.some((u) => u.includes("finnhub.io")), "markets never calls the Finnhub API when FINNHUB_KEY is empty");
   ok(doc.querySelectorAll("#analytics-news .news-card").length === (window.HYDROGEN_NEWS || []).length && (window.HYDROGEN_NEWS || []).length > 0, "news cards render from HYDROGEN_NEWS");
+  ok(Array.from(doc.querySelectorAll("#analytics-news .news-card")).every((el) => el.tagName === "A"), "all sample news cards render as real links (all sample URLs are https)");
   click(analyticsBtn);
   ok(!!analyticsPanel && analyticsPanel.hidden && !analyticsBtn.classList.contains("active"), "analytics panel closes on second click");
 
