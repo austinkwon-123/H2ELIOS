@@ -83,8 +83,11 @@ fallback (see `07-live.js`).
     open only (no background polling when collapsed, to conserve the free
     rate limit).
 - Each row: ticker, last price, % change (green/red via existing
-  `--green-ok`/`--red` tokens), tiny inline sparkline bar sized by the
-  day's range.
+  `--green-ok`/`--red` tokens). **Amended 2026-07-14, post-implementation
+  review:** the per-row sparkline originally specified here was dropped —
+  symbol/price/%-change already convey the key signal, and a sparkline
+  would need Finnhub's day-high/low fields plus real rendering complexity
+  for a nice-to-have. Not built.
 - `DEPLOY.md` gets a new "Before public launch" bullet: obtain a personal
   Finnhub free-tier key, same treatment as the existing NREL `DEMO_KEY`
   note.
