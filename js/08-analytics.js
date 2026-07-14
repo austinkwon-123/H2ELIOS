@@ -147,7 +147,11 @@ function wireAnalyticsToggle() {
 
 function wireIeaDockRerender() {
   const ieaToggle = document.querySelector('.dock-btn[data-layer="iea"]');
-  if (ieaToggle) ieaToggle.addEventListener("click", renderNetworkBars);
+  // wireDock()'s own listener (attached later, inside the async
+  // map.on("load", ...) handler in 01-core.js) is what actually toggles
+  // .active — deferring with setTimeout guarantees this runs after that
+  // class change regardless of which listener attached first.
+  if (ieaToggle) ieaToggle.addEventListener("click", () => setTimeout(renderNetworkBars, 0));
 }
 
 function initAnalyticsPanel() {
