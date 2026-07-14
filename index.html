@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>H₂Grid OS — The Global Hydrogen Network</title>
+<meta name="description" content="A living 3D globe of the global hydrogen economy: energy sources, production, gigafactories, storage, pipelines, hubs and end use across the Americas, Europe, MEA and Asia-Pacific." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="hud.css" />
+</head>
+<body>
+
+<main id="map"></main>
+
+<!-- Top-left: identity capsule -->
+<div class="glass capsule" id="brand-capsule">
+  <div class="logo-mark">H<sub>2</sub></div>
+  <div class="logo-text">
+    <h1>H₂Grid</h1>
+    <span class="subtitle">The global hydrogen network</span>
+  </div>
+  <div class="brand-stats">
+    <span><b id="stat-facilities">0</b> nodes</span>
+    <span class="dot-sep">·</span>
+    <span><b id="stat-operating">0</b> live</span>
+    <span class="dot-sep">·</span>
+    <span><b id="stat-stations">–</b> stations</span>
+    <span class="dot-sep">·</span>
+    <span><b id="stat-iea">–</b> announced</span>
+  </div>
+</div>
+
+<!-- Top-center: search -->
+<div class="glass capsule" id="search-capsule">
+  <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
+  <input id="search-box" type="search" placeholder="Search the network…" autocomplete="off" />
+  <div class="glass" id="search-results" hidden></div>
+</div>
+
+<!-- Top-right: theme + tour + live status -->
+<div class="glass capsule" id="action-capsule">
+  <button id="tour-btn" class="tour-button">▶ Tour</button>
+  <span id="api-status" class="pill">Loading…</span>
+</div>
+
+<!-- Left: layer dock -->
+<nav class="glass" id="layer-dock" aria-label="Layers">
+  <button class="dock-btn active" data-layer="upstream" title="Upstream energy sources"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></button>
+  <button class="dock-btn active" data-layer="production" title="Production plants"><svg viewBox="0 0 24 24"><path d="M2 20h20M4 20V10l4 3v-3l4 3v-3l4 3V6h4v14"/></svg></button>
+  <button class="dock-btn active" data-layer="manufacturing" title="Electrolyzer gigafactories"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></button>
+  <button class="dock-btn active" data-layer="storage" title="Storage & terminals"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+  <button class="dock-btn active" data-layer="pipelines" title="Pipelines"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-7 4 14 3-7h6"/></svg></button>
+  <button class="dock-btn active" data-layer="endUse" title="End use"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg></button>
+  <button class="dock-btn active" data-layer="fuelingStations" title="Fueling stations (live)"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M2 21h14M6 8h6M14 10h2a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V9l-2-2"/></svg></button>
+  <button class="dock-btn active" data-layer="hubs" title="DOE hydrogen hubs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+  <button class="dock-btn active" data-layer="flows" title="Real supply-chain flows"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
+  <button class="dock-btn active" data-layer="iea" title="IEA announced projects (3,300+ records)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
+  <div class="dock-sep"></div>
+  <button class="dock-btn active" data-layer="web" title="Network web (illustrative)"><svg viewBox="0 0 24 24"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="9" cy="19" r="2"/><path d="M7 6l10 .8M6.4 6.8 8.4 17M17.6 8.7 10.7 18"/></svg></button>
+</nav>
+
+<!-- Bottom-center: segmented filters -->
+<div class="glass" id="filter-dock">
+  <div class="seg-group" id="status-seg">
+    <button class="seg-btn active" data-status="all">All</button>
+    <button class="seg-btn" data-status="operating">Live</button>
+    <button class="seg-btn" data-status="construction">Building</button>
+    <button class="seg-btn" data-status="planned">Planned</button>
+    <button class="seg-btn" data-status="atrisk">At risk</button>
+  </div>
+  <div class="seg-sep"></div>
+  <div class="seg-group" id="region-seg">
+    <button class="seg-btn active" data-region="all">🌐 All</button>
+    <button class="seg-btn" data-region="americas">Americas</button>
+    <button class="seg-btn" data-region="europe">Europe</button>
+    <button class="seg-btn" data-region="mena">MEA</button>
+    <button class="seg-btn" data-region="apac">Asia-Pac</button>
+  </div>
+</div>
+
+<!-- Bottom-left: taxonomy legend -->
+<div class="glass" id="legend" title="Hydrogen color taxonomy — click to filter">
+  <button class="legend-dot" data-color="green" title="Green — renewable electrolysis"><span class="swatch sw-green"></span><em>Green</em></button>
+  <button class="legend-dot" data-color="blue" title="Blue — SMR + carbon capture"><span class="swatch sw-blue"></span><em>Blue</em></button>
+  <button class="legend-dot" data-color="pink" title="Pink — nuclear electrolysis"><span class="swatch sw-pink"></span><em>Pink</em></button>
+  <button class="legend-dot" data-color="turquoise" title="Turquoise — methane pyrolysis"><span class="swatch sw-turquoise"></span><em>Turq.</em></button>
+  <button class="legend-dot" data-color="gray_blue" title="Gray / mixed — SMR or legacy"><span class="swatch sw-gray"></span><em>Gray</em></button>
+  <button class="legend-dot" data-color="brown" title="Brown / black — coal gasification"><span class="swatch sw-brown"></span><em>Brown</em></button>
+  <button class="legend-dot" data-color="mfg" title="Electrolyzer gigafactory (manufacturing)"><span class="swatch sw-mfg"></span><em>Mfg</em></button>
+</div>
+
+<!-- Right: detail sheet -->
+<div class="glass" id="detail-card" hidden>
+  <button id="detail-close" title="Close">✕</button>
+  <div id="detail-content"></div>
+</div>
+
+<!-- Tour narration -->
+<div class="glass" id="tour-card" hidden>
+  <div class="tour-progress" id="tour-progress"></div>
+  <h3 id="tour-title"></h3>
+  <p id="tour-text"></p>
+  <div class="tour-nav">
+    <button id="tour-prev">←</button>
+    <span id="tour-step-label"></span>
+    <button id="tour-next">Next →</button>
+    <button id="tour-exit" title="Exit tour">✕</button>
+  </div>
+</div>
+
+<!-- Bottom-right: global intel ticker -->
+<a class="glass capsule" id="insight-ticker" href="https://www.iea.org/data-and-statistics/data-tools/hydrogen-tracker" target="_blank" rel="noopener" title="IEA Hydrogen Tracker / Global Hydrogen Review 2026 + July 2026 global assessment">
+  <span class="ticker-tag">INTEL</span>
+  <span id="ticker-text">Loading global hydrogen pulse…</span>
+</a>
+
+<div id="attribution">Data: DOE · IEA Hydrogen Tracker · EIA · GEM · company sources — see citations · © OpenStreetMap © CARTO · Web lines are illustrative · Prototype</div>
+
+<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+
+<!-- data -->
+<script src="js/data.js"></script>
+<script src="js/iea-data.js"></script>
+
+<!-- app modules (load order = dependency order; see README) -->
+<script src="js/01-core.js"></script>
+<script src="js/02-layers.js"></script>
+<script src="js/03-filters.js"></script>
+<script src="js/04-search.js"></script>
+<script src="js/05-detail.js"></script>
+<script src="js/06-tour.js"></script>
+<script src="js/07-live.js"></script>
+
+<!-- feature overlays (depend on app modules above) -->
+<script src="js/iea-layer.js"></script>
+<script src="js/hud.js"></script>
+</body>
+</html>

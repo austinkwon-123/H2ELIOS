@@ -1,0 +1,99 @@
+/* H₂Grid v7 — restrained console accents (additive to style.css) */
+
+/* fine scanlines + vignette — almost invisible */
+body::after {
+  content: "";
+  position: fixed; inset: 0; z-index: 12;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(180, 210, 240, 0.012) 0 1px, transparent 1px 4px),
+    radial-gradient(130% 130% at 50% 50%, transparent 68%, rgba(2, 5, 12, 0.42) 100%);
+}
+
+/* ---------- Boot sequence: quiet systems check ---------- */
+#boot {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px;
+  background: rgba(5, 7, 13, 0.94);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  cursor: pointer;
+  transition: opacity 0.5s ease;
+  font-family: "Space Grotesk", "Inter", monospace;
+}
+#boot.boot-out { opacity: 0; pointer-events: none; }
+
+.boot-core { position: relative; width: 72px; height: 72px; }
+.boot-logo {
+  position: absolute; inset: 15px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 16px; color: #04232a;
+  background: #3fd6e8;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(63, 214, 232, 0.4), 0 0 20px rgba(63, 214, 232, 0.3);
+}
+.boot-logo sub { font-size: 10px; }
+.boot-ring {
+  position: absolute; inset: 0;
+  border: 1px dashed rgba(63, 214, 232, 0.45);
+  border-radius: 12px;
+  animation: retspin 3.2s linear infinite;
+}
+.boot-lines { text-align: center; font-size: 11px; color: #67748c; line-height: 2.1; min-height: 92px; letter-spacing: 0.04em; }
+.boot-line:first-child { color: #e7edf6; font-size: 13px; letter-spacing: 0.22em; }
+.boot-line span { color: #3fd6e8; }
+.boot-bar {
+  width: 190px; height: 2px; border-radius: 1px;
+  background: rgba(148, 180, 210, 0.12);
+  overflow: hidden;
+}
+.boot-fill {
+  height: 100%; width: 0;
+  background: #3fd6e8;
+  animation: bootfill 2.4s ease forwards;
+  box-shadow: 0 0 8px rgba(63, 214, 232, 0.6);
+}
+@keyframes bootfill { to { width: 100%; } }
+
+/* ---------- Targeting reticle: thin, precise ---------- */
+.reticle { width: 52px; height: 52px; position: relative; pointer-events: none; }
+.ret-ring { position: absolute; border-radius: 50%; }
+.ret-ring.r1 {
+  inset: 0;
+  border: 1px dashed rgba(63, 214, 232, 0.7);
+  animation: retspin 6s linear infinite;
+}
+.ret-ring.r2 {
+  inset: 9px;
+  border: 1px solid rgba(63, 214, 232, 0.4);
+  border-left-color: transparent; border-right-color: transparent;
+  animation: retspin 3s linear infinite reverse;
+}
+.ret-x {
+  position: absolute; inset: 22px;
+  border-radius: 50%;
+  box-shadow: 0 0 2px 1px rgba(63, 214, 232, 0.9), 0 0 10px 3px rgba(63, 214, 232, 0.25);
+  animation: retpulse 1.8s ease-in-out infinite;
+}
+@keyframes retspin { to { transform: rotate(360deg); } }
+@keyframes retpulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+/* ---------- Hairline corner brackets on the inspector ---------- */
+#detail-card::after {
+  content: "";
+  position: absolute; inset: 5px;
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: 0.4;
+  background:
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 top 0 / 12px 1px,
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 top 0 / 1px 12px,
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 top 0 / 12px 1px,
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 top 0 / 1px 12px,
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 bottom 0 / 12px 1px,
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 bottom 0 / 1px 12px,
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 bottom 0 / 12px 1px,
+    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 bottom 0 / 1px 12px;
+  background-repeat: no-repeat;
+}
