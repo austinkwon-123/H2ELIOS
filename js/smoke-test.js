@@ -49,7 +49,8 @@ window.eval(M("iea-data.js"));
 // does not, so concatenate them here in index.html load order.
 window.eval([
   "01-core.js", "02-layers.js", "03-filters.js", "04-search.js",
-  "05-detail.js", "06-tour.js", "07-live.js", "iea-layer.js", "hud.js"
+  "05-detail.js", "06-tour.js", "07-live.js", "iea-layer.js", "hud.js",
+  "08-analytics.js"
 ].map(M).join("\n;\n"));
 
 setTimeout(() => {
@@ -118,6 +119,14 @@ setTimeout(() => {
   click(doc.getElementById("tour-next"));
 
   ok((window.HYDROGEN_DATA.ieaGlobal.facts || []).length >= 8, "intel ticker facts present");
+
+  // Analytics panel (Network / Markets / Intel)
+  const analyticsBtn = doc.getElementById("analytics-btn");
+  const analyticsPanel = doc.getElementById("analytics-panel");
+  ok(!!analyticsBtn && !!analyticsPanel, "analytics toggle + panel present");
+  ok(!!analyticsPanel && analyticsPanel.hidden, "analytics panel starts hidden");
+  if (analyticsBtn) click(analyticsBtn);
+  ok(!!analyticsPanel && !analyticsPanel.hidden && analyticsBtn.classList.contains("active"), "analytics panel opens on click");
 
   setTimeout(() => {
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");
