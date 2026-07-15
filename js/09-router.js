@@ -33,10 +33,14 @@ function navigateTo(route) {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.route === route);
   });
-  if (entry.init && !loadedRoutes[route] && typeof window[entry.init] === "function") {
-    window[entry.init]();
+  if (entry.init && !loadedRoutes[route]) {
+    if (typeof window[entry.init] === "function") {
+      window[entry.init]();
+      loadedRoutes[route] = true;
+    } else {
+      console.warn(`Router: ${entry.init}() not defined yet for route "${route}"`);
+    }
   }
-  loadedRoutes[route] = true;
   if (route === "map" && typeof map !== "undefined" && map.resize) {
     requestAnimationFrame(() => map.resize());
   }
