@@ -80,7 +80,7 @@ body::after {
 @keyframes retpulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
 /* ---------- Hairline corner brackets on the inspector + analytics panel ---------- */
-#detail-card::after, #analytics-panel::after {
+#detail-card::after, #analytics-panel::after, #markets-panel::after {
   content: "";
   position: absolute; inset: 5px;
   border-radius: 8px;

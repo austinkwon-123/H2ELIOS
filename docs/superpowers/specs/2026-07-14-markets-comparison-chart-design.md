@@ -1,15 +1,14 @@
 # Markets Comparison Chart — Design Spec
 
 Date: 2026-07-14
-Status: Approved by user
+Status: Approved by user (amended same day, see below)
 
 ## Summary
 
-Add a TradingView "Symbol Overview" comparison chart to the analytics
-panel's Markets section, showing the Global X Hydrogen ETF against two
-broad-market benchmarks. Sits above the existing per-ticker price rows
-(built in the original analytics-panel feature) — additive, not a
-replacement.
+Add a TradingView comparison chart to the Markets section, showing the
+Global X Hydrogen ETF against two broad-market benchmarks, overlaid on one
+normalized % scale. Sits above the existing per-ticker price rows (built in
+the original analytics-panel feature) — additive, not a replacement.
 
 ## Symbols (verified directly against TradingView's widget builder)
 
@@ -19,22 +18,45 @@ replacement.
 
 ## Implementation
 
-- New `<div id="analytics-markets-chart">` inside `#analytics-markets`,
-  above the existing quote rows.
-- TradingView's embed script
-  (`https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js`)
-  injected once, with a JSON config matching the verified symbols above.
-- `colorTheme: "dark"`, `isTransparent: true` so it sits on the panel's own
-  background rather than a solid block.
-- `upColor`/`downColor` set to the project's existing `--green-ok`
-  (`#4cc38a`) / `--red` (`#e5635c`) hex values (widget config can't read
-  CSS custom properties, so the hex values are duplicated into the JSON —
-  same tradeoff as `COLORS` in `js/01-core.js` already duplicating the
-  `--h-*` taxonomy hexes for use in Mapbox expressions).
-- `fontFamily` set to match the project's `--font` stack.
-- Roughly 200px fixed height, `width: "100%"` (fills the 320px panel).
-- Loaded once on panel init (not re-created on every toggle open/close —
-  TradingView's iframe-based widget persists in the DOM once inserted).
+- New `<div id="analytics-markets-chart">` inside the Markets panel, above
+  the existing quote rows.
+- TradingView's **Advanced Chart** embed script
+  (`https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js`),
+  `symbol: "NASDAQ:HYDR"` with `compareSymbols: [{symbol: "NASDAQ:IXIC",
+  position: "SameScale"}, {symbol: "SP:SPX", position: "SameScale"}]` — this
+  is what actually overlays all three as one normalized line chart.
+  (**Amendment:** the original plan below specified the "Symbol Overview"
+  widget instead; verification against the live widget builder showed that
+  widget only tabs between symbols one at a time rather than overlaying
+  them, so it was swapped for Advanced Chart before shipping.)
+- `theme: "dark"`, `backgroundColor: "#0F0F0F"` matching the panel's own
+  background; top toolbar, side toolbar, and volume hidden for a compact
+  embedded look; `style: "2"` (line chart, not candles — clearer with 3
+  overlaid series).
+- Loaded once, lazily on first Markets-panel open (not at page load) —
+  matches the "no background fetch until opened" convention the rest of
+  the panel already follows, and avoids loading a third-party script the
+  user may never see.
+
+## Amendment 2026-07-14: Markets is its own panel, not part of Analytics
+
+After shipping, the user found the original placement — stacked inside the
+same 320px-wide left-docked Analytics panel as Network/Intel — too narrow
+for the chart to be useful. Markets was split out into its own panel:
+
+- New `#markets-btn` toggle button in `#action-capsule`, alongside
+  `#analytics-btn` and `#tour-btn`.
+- New `#markets-panel`, bottom-docked and centered (`bottom: 64px; left:
+  50%; transform: translateX(-50%)`), **560px wide** (vs. the 320px
+  Analytics panel) — landscape charts read better wide than tall.
+  `max-height: 420px`, sits just above `#filter-dock`.
+- `#analytics-panel` keeps only Network Composition and Intel; the
+  `MARKETS` `.stats-head`, `#analytics-markets-chart`, and
+  `#analytics-markets` blocks all moved into `#markets-panel`.
+- Independent open/close lifecycle: opening `#markets-panel` lazily injects
+  the TradingView chart (first open only) and starts the 60s quote-polling
+  loop; closing stops polling. Opening/closing `#analytics-panel` no longer
+  has any effect on Markets, and vice versa.
 
 ## Out of scope
 

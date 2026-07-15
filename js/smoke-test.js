@@ -122,7 +122,7 @@ setTimeout(() => {
 
   ok((window.HYDROGEN_DATA.ieaGlobal.facts || []).length >= 8, "intel ticker facts present");
 
-  // Analytics panel (Network / Markets / Intel)
+  // Analytics panel (Network / Intel)
   const analyticsBtn = doc.getElementById("analytics-btn");
   const analyticsPanel = doc.getElementById("analytics-panel");
   ok(!!analyticsBtn && !!analyticsPanel, "analytics toggle + panel present");
@@ -143,6 +143,14 @@ setTimeout(() => {
   click(analyticsBtn);
   ok(!!analyticsPanel && analyticsPanel.hidden && !analyticsBtn.classList.contains("active"), "analytics panel closes on second click");
 
+  // Markets panel — separate toggle/panel from Analytics (wider, bottom-docked)
+  const marketsBtn = doc.getElementById("markets-btn");
+  const marketsPanel = doc.getElementById("markets-panel");
+  ok(!!marketsBtn && !!marketsPanel, "markets toggle + panel present");
+  ok(!!marketsPanel && marketsPanel.hidden, "markets panel starts hidden");
+  if (marketsBtn) click(marketsBtn);
+  ok(!!marketsPanel && !marketsPanel.hidden && marketsBtn.classList.contains("active"), "markets panel opens on click");
+
   setTimeout(() => {
     // renderMarkets() is async once a real key is configured (it awaits a
     // fetch), so its fallback/row DOM only lands after this delay — unlike
@@ -161,6 +169,8 @@ setTimeout(() => {
     } else {
       ok(finnhubCalled, "markets calls the Finnhub API when FINNHUB_KEY is configured");
     }
+    if (marketsBtn) click(marketsBtn);
+    ok(!!marketsPanel && marketsPanel.hidden && !marketsBtn.classList.contains("active"), "markets panel closes on second click");
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");
     console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
     process.exit(failures === 0 ? 0 : 1);

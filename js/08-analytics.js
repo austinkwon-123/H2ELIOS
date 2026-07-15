@@ -188,6 +188,30 @@ function wireAnalyticsToggle() {
     if (opening) {
       renderNetworkBars();
       renderNews();
+    }
+  });
+}
+
+// Markets has its own toggle + panel (wider, bottom-docked — the TradingView
+// chart needs more horizontal room than the narrow left-side Network/Intel
+// column can give it). The chart itself is only injected on first open, not
+// at page load, matching the "no background fetch until opened" convention
+// the Network/Intel toggle already follows.
+let marketsChartLoaded = false;
+
+function wireMarketsToggle() {
+  const btn = document.getElementById("markets-btn");
+  const panel = document.getElementById("markets-panel");
+  if (!btn || !panel) return;
+  btn.addEventListener("click", () => {
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    btn.classList.toggle("active", opening);
+    if (opening) {
+      if (!marketsChartLoaded) {
+        initMarketsChart();
+        marketsChartLoaded = true;
+      }
       startMarketsPolling();
     } else {
       stopMarketsPolling();
@@ -206,8 +230,8 @@ function wireIeaDockRerender() {
 
 function initAnalyticsPanel() {
   wireAnalyticsToggle();
+  wireMarketsToggle();
   wireIeaDockRerender();
-  initMarketsChart();
   renderNetworkBars();
   renderNews();
 }

@@ -44,6 +44,7 @@
 <!-- Top-right: theme + tour + live status -->
 <div class="glass capsule" id="action-capsule">
   <button id="analytics-btn" class="tour-button">▤ Analytics</button>
+  <button id="markets-btn" class="tour-button">📈 Markets</button>
   <button id="tour-btn" class="tour-button">▶ Tour</button>
   <span id="api-status" class="pill">Loading…</span>
 </div>
@@ -100,15 +101,19 @@
   <div id="detail-content"></div>
 </div>
 
-<!-- Left: analytics panel (Network / Markets / Intel) -->
+<!-- Left: analytics panel (Network / Intel) -->
 <div class="glass" id="analytics-panel" hidden>
   <div class="stats-head">NETWORK COMPOSITION</div>
   <div id="analytics-network" class="bar-list"></div>
+  <div class="stats-head">INTEL</div>
+  <div id="analytics-news" class="news-list"></div>
+</div>
+
+<!-- Bottom-center (above filter dock): markets panel, wider for the chart -->
+<div class="glass" id="markets-panel" hidden>
   <div class="stats-head">MARKETS</div>
   <div id="analytics-markets-chart" class="markets-chart"></div>
   <div id="analytics-markets" class="stock-list"></div>
-  <div class="stats-head">INTEL</div>
-  <div id="analytics-news" class="news-list"></div>
 </div>
 
 <!-- Tour narration -->
