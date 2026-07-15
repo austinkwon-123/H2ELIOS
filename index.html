@@ -14,6 +14,18 @@
 </head>
 <body>
 
+<!-- Persistent across all pages: switches between Map and the placeholder feature tabs -->
+<nav class="glass" id="tab-nav">
+  <button class="tab-btn active" data-route="map">🗺 Map</button>
+  <button class="tab-btn" data-route="market">💹 Market &amp; Economics</button>
+  <button class="tab-btn" data-route="technology">⚙ Technology</button>
+  <button class="tab-btn" data-route="demand-transport">🚚 Demand &amp; Transport</button>
+  <button class="tab-btn" data-route="policy">📜 Policy</button>
+  <button class="tab-btn" data-route="companies">🤝 Companies &amp; Partners</button>
+  <button class="tab-btn" data-route="tools">🧮 Tools</button>
+</nav>
+
+<section id="page-map" class="page">
 <main id="map"></main>
 
 <!-- Top-left: identity capsule -->
@@ -136,6 +148,31 @@
 </a>
 
 <div id="attribution">Data: DOE · IEA Hydrogen Tracker · EIA · GEM · company sources — see citations · © OpenStreetMap © CARTO · Web lines are illustrative · Prototype</div>
+</section>
+
+<section id="page-market" class="page" hidden>
+  <div class="page-placeholder"><h2>Market &amp; Economics</h2><p>Coming soon.</p></div>
+</section>
+
+<section id="page-technology" class="page" hidden>
+  <div class="page-placeholder"><h2>Technology</h2><p>Coming soon.</p></div>
+</section>
+
+<section id="page-demand-transport" class="page" hidden>
+  <div class="page-placeholder"><h2>Demand &amp; Transport</h2><p>Coming soon.</p></div>
+</section>
+
+<section id="page-policy" class="page" hidden>
+  <div class="page-placeholder"><h2>Policy</h2><p>Coming soon.</p></div>
+</section>
+
+<section id="page-companies" class="page" hidden>
+  <div class="page-placeholder"><h2>Companies &amp; Partners</h2><p>Coming soon.</p></div>
+</section>
+
+<section id="page-tools" class="page" hidden>
+  <div class="page-placeholder"><h2>Tools</h2><p>Coming soon.</p></div>
+</section>
 
 <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
 

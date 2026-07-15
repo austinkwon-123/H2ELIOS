@@ -172,6 +172,14 @@ setTimeout(() => {
     if (marketsBtn) click(marketsBtn);
     ok(!!marketsPanel && marketsPanel.hidden && !marketsBtn.classList.contains("active"), "markets panel closes on second click");
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");
+
+  // Tab/router shell — page structure (Task 1 of the router plan)
+  const pageIds = ["page-map", "page-market", "page-technology", "page-demand-transport", "page-policy", "page-companies", "page-tools"];
+  pageIds.forEach((id) => ok(!!doc.getElementById(id), `page section exists: ${id}`));
+  ok(!doc.getElementById("page-map").hidden, "page-map visible by default");
+  pageIds.slice(1).forEach((id) => ok(doc.getElementById(id).hidden, `${id} hidden by default`));
+  ok(doc.querySelectorAll("#tab-nav .tab-btn").length === 7, "tab nav has 7 buttons");
+  ok(!!doc.querySelector('.tab-btn[data-route="map"]') && doc.querySelector('.tab-btn[data-route="map"]').classList.contains("active"), "Map tab active by default");
     console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
     process.exit(failures === 0 ? 0 : 1);
   }, 60);
