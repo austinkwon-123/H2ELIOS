@@ -34,6 +34,7 @@ class StubMap {
   getCenter() { return { lng: 15, lat: 20 }; }
   setSky(s) { this.sky = s; }
   getCanvas() { return { style: {} }; }
+  resize() {}
 }
 class StubPopup {
   setLngLat() { return this; } setHTML() { return this; } addTo() { return this; } remove() { return this; }
@@ -52,7 +53,7 @@ window.eval(M("news-data.js"));
 window.eval([
   "01-core.js", "02-layers.js", "03-filters.js", "04-search.js",
   "05-detail.js", "06-tour.js", "07-live.js", "iea-layer.js", "hud.js",
-  "08-analytics.js"
+  "08-analytics.js", "09-router.js"
 ].map(M).join("\n;\n"));
 
 setTimeout(() => {
@@ -180,6 +181,24 @@ setTimeout(() => {
   pageIds.slice(1).forEach((id) => ok(doc.getElementById(id).hidden, `${id} hidden by default`));
   ok(doc.querySelectorAll("#tab-nav .tab-btn").length === 7, "tab nav has 7 buttons");
   ok(!!doc.querySelector('.tab-btn[data-route="map"]') && doc.querySelector('.tab-btn[data-route="map"]').classList.contains("active"), "Map tab active by default");
+
+  // Tab/router shell — router behavior (Task 2 of the router plan)
+  click(doc.querySelector('.tab-btn[data-route="technology"]'));
+  ok(window.location.hash === "#technology", "clicking a tab updates the URL hash");
+  ok(!doc.getElementById("page-technology").hidden, "technology page shown after click");
+  ok(doc.getElementById("page-map").hidden, "map page hidden after navigating away");
+  ok(doc.querySelector('.tab-btn[data-route="technology"]').classList.contains("active"), "technology tab marked active");
+  ok(!doc.querySelector('.tab-btn[data-route="map"]').classList.contains("active"), "map tab no longer active");
+
+  window.location.hash = "#policy";
+  window.dispatchEvent(new window.Event("hashchange"));
+  ok(!doc.getElementById("page-policy").hidden, "direct hash navigation shows the policy page");
+  ok(doc.getElementById("page-technology").hidden, "previous page hidden after hash navigation");
+
+  window.location.hash = "#map";
+  window.dispatchEvent(new window.Event("hashchange"));
+  ok(!doc.getElementById("page-map").hidden, "navigating back to #map shows page-map again");
+  ok(!!doc.getElementById("map"), "map container still present after returning to the Map tab");
     console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
     process.exit(failures === 0 ? 0 : 1);
   }, 60);
