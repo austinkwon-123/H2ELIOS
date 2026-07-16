@@ -499,7 +499,10 @@ button { font-family: inherit; color: inherit; }
 .tab-btn:hover:not(.active) { color: var(--text); }
 .tab-btn:focus-visible { outline: 1px solid var(--cyan); }
 
-.page[hidden] { display: none; }
+/* !important so a page's own #id display rule (e.g. #page-tools display:flex,
+   ID specificity) can't override the hidden state (class+attr specificity) —
+   a hidden page must always stay hidden regardless of per-page styling. */
+.page[hidden] { display: none !important; }
 
 /* ---------- Hydrogen calculator (Tools tab) ---------- */
 #page-tools { padding: 90px 20px 40px; min-height: 100vh; display: flex; justify-content: center; }
