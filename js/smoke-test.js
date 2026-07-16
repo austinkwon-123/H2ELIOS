@@ -229,6 +229,47 @@ setTimeout(() => {
   ok(doc.getElementById("eff-out-lhv").textContent === "—", "efficiency: zero input renders — not Infinity");
   effSec.value = "55";
   effSec.dispatchEvent(new window.Event("input", { bubbles: true }));
+
+  // Hydrogen calculator — Task 2: CAPEX/OPEX, LCOH, Current Density
+  click(doc.querySelector('.calc-tab[data-calc="capex"]'));
+  ok(!doc.getElementById("calc-capex").hidden, "CAPEX/OPEX panel shown after click");
+  ok(doc.getElementById("co-out-total").textContent === "12000000.00", "capex/opex: defaults render total CAPEX 12000000.00");
+  const coRate = doc.getElementById("co-rate");
+  coRate.value = "0";
+  coRate.dispatchEvent(new window.Event("input", { bubbles: true }));
+  ok(doc.getElementById("co-out-annCapex").textContent === "600000.00", "capex/opex: 0% discount rate gives annualized CAPEX = total/lifetime = 600000.00");
+  const coLife = doc.getElementById("co-life");
+  coLife.value = "0";
+  coLife.dispatchEvent(new window.Event("input", { bubbles: true }));
+  ok(doc.getElementById("co-out-annCapex").textContent === "—", "capex/opex: zero lifetime renders — not Infinity/NaN");
+  ok(doc.getElementById("co-out-total").textContent === "12000000.00", "capex/opex: total CAPEX unaffected by lifetime (independent calc)");
+  coLife.value = "20";
+  coLife.dispatchEvent(new window.Event("input", { bubbles: true }));
+  coRate.value = "8";
+  coRate.dispatchEvent(new window.Event("input", { bubbles: true }));
+
+  click(doc.querySelector('.calc-tab[data-calc="lcoh"]'));
+  ok(!doc.getElementById("calc-lcoh").hidden, "LCOH panel shown after click");
+  ok(doc.getElementById("lc-out-prod").textContent !== "—", "lcoh: defaults render a finite annual production figure");
+  ok(doc.getElementById("lc-out-lcoh").textContent !== "—", "lcoh: defaults render a finite LCOH figure");
+  const lcSec = doc.getElementById("lc-sec");
+  lcSec.value = "0";
+  lcSec.dispatchEvent(new window.Event("input", { bubbles: true }));
+  ok(doc.getElementById("lc-out-prod").textContent === "—", "lcoh: zero specific energy consumption renders — not Infinity");
+  ok(doc.getElementById("lc-out-lcoh").textContent === "—", "lcoh: LCOH also — when production is undefined");
+  lcSec.value = "55";
+  lcSec.dispatchEvent(new window.Event("input", { bubbles: true }));
+
+  click(doc.querySelector('.calc-tab[data-calc="density"]'));
+  ok(!doc.getElementById("calc-density").hidden, "Current Density panel shown after click");
+  ok(doc.getElementById("cd-out-density").textContent === "0.667", "current density: 200A / 300cm2 defaults render 0.667 A/cm2");
+  ok(doc.getElementById("cd-out-stack").textContent === "18.00", "current density: 50 cells * 1.8V * 200A / 1000 renders 18.00 kW stack power");
+  const cdArea = doc.getElementById("cd-area");
+  cdArea.value = "0";
+  cdArea.dispatchEvent(new window.Event("input", { bubbles: true }));
+  ok(doc.getElementById("cd-out-density").textContent === "—", "current density: zero area renders — not Infinity");
+  ok(doc.getElementById("cd-out-stack").textContent === "18.00", "current density: stack power unaffected by area (independent calc)");
+
     console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
     process.exit(failures === 0 ? 0 : 1);
   }, 60);
