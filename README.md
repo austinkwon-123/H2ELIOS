@@ -33,6 +33,8 @@ js/
   hud.js              boot sequence, targeting reticle, decode-text
   08-analytics.js     analytics panel — network bars, live stock tracker, news feed
   09-router.js        hash-based tab router (page show/hide, tab nav, map.resize on return)
+  10-calculator.js    hydrogen calculator (Tools tab) — 5 independent live-recompute
+                        sub-calcs: unit conversion, efficiency, CAPEX/OPEX, LCOH, current density
   smoke-test.js       headless test (node js/smoke-test.js, needs jsdom)
 ```
 
