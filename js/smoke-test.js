@@ -53,7 +53,7 @@ window.eval(M("news-data.js"));
 window.eval([
   "01-core.js", "02-layers.js", "03-filters.js", "04-search.js",
   "05-detail.js", "06-tour.js", "07-live.js", "iea-layer.js", "hud.js",
-  "08-analytics.js", "09-router.js"
+  "08-analytics.js", "09-router.js", "10-calculator.js"
 ].map(M).join("\n;\n"));
 
 setTimeout(() => {
@@ -199,6 +199,36 @@ setTimeout(() => {
   window.dispatchEvent(new window.Event("hashchange"));
   ok(!doc.getElementById("page-map").hidden, "navigating back to #map shows page-map again");
   ok(!!doc.getElementById("map"), "map container still present after returning to the Map tab");
+
+  // Hydrogen calculator (Tools tab) — Task 1: shell + Unit Conversion + Efficiency
+  click(doc.querySelector('.tab-btn[data-route="tools"]'));
+  ok(!doc.getElementById("page-tools").hidden, "tools page shown after clicking Tools tab");
+  ok(doc.querySelectorAll(".calc-tab").length === 5, "calculator has 5 sub-tabs");
+  ok(doc.querySelector('.calc-tab[data-calc="unit"]').classList.contains("active"), "Unit Conversion sub-tab active by default");
+  ok(!doc.getElementById("calc-unit").hidden, "Unit Conversion panel visible by default");
+  ok(doc.getElementById("calc-efficiency").hidden, "Efficiency panel hidden by default");
+
+  ok(doc.getElementById("uc-out-kg").textContent === "1.0000", "unit conversion: 1 kg default renders 1.0000 kg");
+  ok(doc.getElementById("uc-out-kwh_lhv").textContent === "33.33", "unit conversion: 1 kg = 33.33 kWh (LHV)");
+  const ucValue = doc.getElementById("uc-value");
+  ucValue.value = "";
+  ucValue.dispatchEvent(new window.Event("input", { bubbles: true }));
+  ok(doc.getElementById("uc-out-kg").textContent === "—", "unit conversion: empty input renders — not NaN");
+  ucValue.value = "1";
+  ucValue.dispatchEvent(new window.Event("input", { bubbles: true }));
+
+  click(doc.querySelector('.calc-tab[data-calc="efficiency"]'));
+  ok(doc.querySelector('.calc-tab[data-calc="efficiency"]').classList.contains("active"), "Efficiency sub-tab becomes active on click");
+  ok(!doc.getElementById("calc-efficiency").hidden, "Efficiency panel shown after click");
+  ok(doc.getElementById("calc-unit").hidden, "Unit Conversion panel hidden after switching tabs");
+  ok(doc.getElementById("eff-out-lhv").textContent === "60.6", "efficiency: 55 kWh/kg default renders 60.6% vs LHV");
+  ok(doc.getElementById("eff-out-hhv").textContent === "71.6", "efficiency: 55 kWh/kg default renders 71.6% vs HHV");
+  const effSec = doc.getElementById("eff-sec");
+  effSec.value = "0";
+  effSec.dispatchEvent(new window.Event("input", { bubbles: true }));
+  ok(doc.getElementById("eff-out-lhv").textContent === "—", "efficiency: zero input renders — not Infinity");
+  effSec.value = "55";
+  effSec.dispatchEvent(new window.Event("input", { bubbles: true }));
     console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
     process.exit(failures === 0 ? 0 : 1);
   }, 60);
