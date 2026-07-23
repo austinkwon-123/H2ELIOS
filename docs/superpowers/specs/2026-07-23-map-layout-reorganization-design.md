@@ -5,8 +5,8 @@ Status: Approved by user
 
 ## Summary
 
-Four positioning fixes to the Map page HUD, discovered via hands-on browser
-QA of the previous UI overlay work:
+Three positioning fixes to the Map page HUD, discovered via hands-on
+browser QA of the previous UI overlay work:
 
 1. The bottom-center filter panel (Status/Region/Color) sits directly over
    the globe, obscuring facility markers. It moves to the left rail, as
@@ -15,12 +15,22 @@ QA of the previous UI overlay work:
 2. The search island (top-right, floating) visually overlaps
    `#regional-ai-panel` and `#detail-card`, which share the same corner.
    Search moves into the top command ribbon instead of floating.
-3. `#detail-card` and `#regional-ai-panel` can independently overlap each
-   other (both top-right, only 50px apart) if a user triggers both. They
-   get a deterministic stacking rule.
-4. `#markets-panel` (the ribbon's small stock/crypto ticker popup) claims
+3. `#markets-panel` (the ribbon's small stock/crypto ticker popup) claims
    the bottom-center space the filter panel vacates, and grows, so it has
    room for a future news feed (separate spec).
+
+**Dropped during plan-writing:** an earlier version of this spec had a 4th
+item — a deterministic stacking rule for `#detail-card` and
+`#regional-ai-panel`, which visually overlap only 50px apart in CSS. While
+translating the design into an implementation plan, tracing the actual
+show/hide code in `js/05-detail.js` and `js/16-ai-features.js` turned up
+that both panels **already force-close each other** whenever either opens
+(`js/16-ai-features.js:150-158` closes detail-card when the AI panel
+opens; `js/16-ai-features.js:289-297` monkey-patches `showDetail` to close
+the AI panel when detail-card opens). The two can never actually be
+visible together, so the overlap was only a hypothetical read from CSS
+positions in isolation, not a reachable bug. Confirmed with the user and
+dropped rather than building dead stacking logic for an unreachable state.
 
 Also fixed in passing: `#search-results` (the facility-match dropdown) is
 currently invisible in the real browser — a child of `#search-capsule`,
@@ -200,35 +210,7 @@ and from a `window.addEventListener("resize", ...)`. No changes to the
 actual facility-matching logic (`allFacilities`, `matchesFilters`, the
 `.filter()` in `renderSearchResults`).
 
-### 3. Detail-card / AI-panel stacking
-
-**`js/05-detail.js`** (owns `selectFacility`/detail-card show-hide) and
-**`js/16-ai-features.js`** (owns the regional AI panel show-hide) both
-call a new shared `repositionRightPanels()` function (added to
-`js/01-core.js`, since both files already run after it and it needs no
-per-file state):
-
-```js
-function repositionRightPanels() {
-  const detail = document.getElementById("detail-card");
-  const ai = document.getElementById("regional-ai-panel");
-  if (!detail.hidden && !ai.hidden) {
-    const gap = 14;
-    const detailBottom = detail.getBoundingClientRect().bottom;
-    ai.style.top = `${detailBottom + gap}px`;
-  } else {
-    ai.style.top = "";  // falls back to the CSS default (top: 74px)
-  }
-}
-```
-
-Called once at the end of both files' existing show/hide handlers
-(whenever either panel's `hidden` attribute changes). `#detail-card`
-never reads or reacts to `#regional-ai-panel`'s state — the stacking is
-one-directional, matching the "detail-card is primary" rule from the
-approved design.
-
-### 4. Markets panel repositioning
+### 3. Markets panel repositioning
 
 **`style.css`:** `#markets-panel`'s `bottom: 64px` becomes `bottom: 12px`
 (the exact value `#filter-dock` used to occupy), and `width: 560px`
@@ -247,8 +229,10 @@ is an implementation-detail check, not a separate design decision.
   DOM and how their container opens/closes.
 - No changes to search matching/ranking logic — only where the results
   list renders and how its position is computed.
-- No changes to what `#regional-ai-panel` or `#detail-card` *contain* —
-  only their relative vertical position when both are shown.
+- No changes to `#detail-card`/`#regional-ai-panel` show-hide logic or
+  their existing mutual-exclusion behavior — they're already fully
+  mutually exclusive (see "Dropped during plan-writing" above), so no
+  stacking/repositioning work is needed for them.
 - The Markets popup panel's *content* (tickers, chart) and the future
   energy-news feed are out of scope — covered by a separate spec, per the
   user's explicit scope split.
