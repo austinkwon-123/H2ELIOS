@@ -12,9 +12,11 @@ const ROUTES = {
   market: { page: "page-market", init: "initMarketPage" },
   technology: { page: "page-technology", init: "initTechnologyPage" },
   "demand-transport": { page: "page-demand-transport", init: "initDemandTransportPage" },
+  "macro-flow": { page: "page-macro-flow", init: "initMacroFlowPage" },
   policy: { page: "page-policy", init: "initPolicyPage" },
   companies: { page: "page-companies", init: "initCompaniesPage" },
-  tools: { page: "page-tools", init: "initToolsPage" }
+  tools: { page: "page-tools", init: "initToolsPage" },
+  timeline: { page: "page-timeline", init: "initTimelinePage" }
 };
 const loadedRoutes = {};
 

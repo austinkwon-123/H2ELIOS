@@ -8,17 +8,23 @@
 // ---- Search --------------------------------------------------------------------------------------
 function allFacilities() {
   const items = [];
-  const push = (layerKey, label, features) => {
-    if (!layerVisible(layerKey)) return;
-    features.forEach((f) => items.push({ label, f }));
+  const push = (label, features) => {
+    if (features) features.forEach((f) => items.push({ label, f }));
   };
-  push("upstream", "Upstream", D.upstream.features);
-  push("production", "Production", D.production.features);
-  push("manufacturing", "Gigafactory", D.manufacturing.features);
-  push("storage", "Storage", D.storagePoints.features);
-  push("pipelines", "Pipeline", D.pipelines.features);
-  push("endUse", "End use", D.endUse.features);
-  if (layerVisible("hubs")) {
+  push("Upstream", D.upstream.features);
+  push("Production", D.production.features);
+  push("Gigafactory", D.manufacturing.features);
+  push("Storage", D.storagePoints.features);
+  push("Pipeline", D.pipelines.features);
+  push("End use", D.endUse.features);
+  
+  if (window.IEA_DATA) {
+    window.IEA_DATA.features.forEach((f) => {
+      items.push({ label: "Announced (IEA)", f });
+    });
+  }
+
+  if (Array.isArray(D.hubs)) {
     D.hubs.forEach((h) => items.push({
       label: "DOE Hub",
       f: { geometry: { type: "Point", coordinates: h.center }, properties: hubProps(h) }
@@ -102,6 +108,7 @@ function renderStats() {
 
 function countUp(id, target) {
   const el = document.getElementById(id);
+  if (!el) return; // ribbon telemetry readout removed - harmless no-op
   const t0 = performance.now(), dur = 900;
   function tick(now) {
     const k = Math.min(1, (now - t0) / dur);
@@ -112,7 +119,8 @@ function countUp(id, target) {
 }
 
 function setStationCount(n) {
-  document.getElementById("stat-stations").textContent = n;
+  const el = document.getElementById("stat-stations");
+  if (el) el.textContent = n; // ribbon telemetry readout removed - harmless no-op
 }
 
 function startTicker() {

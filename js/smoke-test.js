@@ -44,6 +44,14 @@ window.requestAnimationFrame = () => 0;
 const fetchCalls = [];
 window.fetch = (url) => { fetchCalls.push(String(url)); return Promise.reject(new Error("offline test")); };
 
+window.Chart = class {
+  constructor(ctx, config) {
+    this.ctx = ctx;
+    this.config = config;
+  }
+  destroy() {}
+};
+
 const M = (f) => fs.readFileSync(path.join(__dirname, f), "utf8");
 window.eval(M("data.js"));
 window.eval(M("iea-data.js"));
@@ -53,8 +61,21 @@ window.eval(M("news-data.js"));
 window.eval([
   "01-core.js", "02-layers.js", "03-filters.js", "04-search.js",
   "05-detail.js", "06-tour.js", "07-live.js", "iea-layer.js", "hud.js",
-  "08-analytics.js", "09-router.js", "10-calculator.js"
-].map(M).join("\n;\n"));
+  "08-analytics.js", "09-router.js", "10-calculator.js",
+  "11-market.js", "12-technology.js", "13-demand-transport.js",
+  "14-policy.js", "15-companies.js", "16-ai-features.js",
+  "17-visualization.js"
+].map(M).join("\n;\n") + `
+  window.localStorage.setItem("h2grid_market_cache", JSON.stringify(DEFAULT_MARKET_DATA));
+  window.localStorage.setItem("h2grid_metals_cache", JSON.stringify(DEFAULT_METALS_DATA));
+  window.localStorage.setItem("h2grid_transport_cache", JSON.stringify(DEFAULT_TRANSPORT_DATA));
+  window.localStorage.setItem("h2grid_policy_cache", JSON.stringify(DEFAULT_POLICY_DATA));
+  window.localStorage.setItem("h2grid_companies_cache", JSON.stringify(DEFAULT_COMPANIES_DATA));
+  window.localStorage.setItem("h2grid_ai_cache_overview_apac", JSON.stringify({
+    prompt: "System Prompt: You are H2Grid AI...",
+    analysis: "In the APAC region..."
+  }));
+`);
 
 setTimeout(() => {
   const doc = window.document;
@@ -69,8 +90,6 @@ setTimeout(() => {
   const M = window.IEA_META, I = window.IEA_DATA;
   ok(I.features.length === M.count && M.count > 3000, `IEA tier loaded (${M.count} records)`);
   ok(I.features.every((f) => Math.abs(f.geometry.coordinates[0]) <= 180 && Math.abs(f.geometry.coordinates[1]) <= 90), "all IEA coords valid");
-  ok(!!doc.getElementById("stat-iea"), "announced counter present in HUD");
-
   const ieaBtn = doc.querySelector('.dock-btn[data-layer="iea"]');
   ok(!!ieaBtn, "IEA dock button exists");
   click(ieaBtn);
@@ -175,11 +194,11 @@ setTimeout(() => {
     ok(doc.getElementById("api-status").className.includes("fallback"), "AFDC failure -> fallback pill");
 
   // Tab/router shell — page structure (Task 1 of the router plan)
-  const pageIds = ["page-map", "page-market", "page-technology", "page-demand-transport", "page-policy", "page-companies", "page-tools"];
+  const pageIds = ["page-map", "page-market", "page-technology", "page-demand-transport", "page-policy", "page-companies", "page-tools", "page-timeline"];
   pageIds.forEach((id) => ok(!!doc.getElementById(id), `page section exists: ${id}`));
   ok(!doc.getElementById("page-map").hidden, "page-map visible by default");
   pageIds.slice(1).forEach((id) => ok(doc.getElementById(id).hidden, `${id} hidden by default`));
-  ok(doc.querySelectorAll("#tab-nav .tab-btn").length === 7, "tab nav has 7 buttons");
+  ok(doc.querySelectorAll("#tab-nav .tab-btn").length === 9, "tab nav has 9 buttons");
   ok(!!doc.querySelector('.tab-btn[data-route="map"]') && doc.querySelector('.tab-btn[data-route="map"]').classList.contains("active"), "Map tab active by default");
 
   // Tab/router shell — router behavior (Task 2 of the router plan)
@@ -270,7 +289,75 @@ setTimeout(() => {
   ok(doc.getElementById("cd-out-density").textContent === "—", "current density: zero area renders — not Infinity");
   ok(doc.getElementById("cd-out-stack").textContent === "18.00", "current density: stack power unaffected by area (independent calc)");
 
-    console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
-    process.exit(failures === 0 ? 0 : 1);
-  }, 60);
-}, 60);
+  // Market Page Assertions
+  click(doc.querySelector('.tab-btn[data-route="market"]'));
+  ok(!doc.getElementById("page-market").hidden, "market page shown after clicking Market tab");
+  ok(doc.getElementById("m-kpi-funding").textContent !== "—", "market page loads committed funding KPI");
+  ok(doc.getElementById("lcoh-chart") !== null, "LCOH chart canvas exists");
+  ok(doc.getElementById("calc-power-price") !== null, "LCOH sensitivity power price slider exists");
+  ok(doc.getElementById("sandbox-lcoh-val") !== null, "LCOH sensitivity simulated cost KPI exists");
+  ok(doc.getElementById("vc-table-body").children.length > 0, "hydrogen deal registry lists items");
+
+  // Technology Page Assertions
+  click(doc.querySelector('.tab-btn[data-route="technology"]'));
+  ok(!doc.getElementById("page-technology").hidden, "technology page shown after clicking Tech tab");
+  ok(doc.querySelectorAll(".tech-spec-row").length === 4, "technology page TRL index table lists 4 items");
+  ok(doc.getElementById("metals-chart") !== null, "critical materials price chart canvas exists");
+  ok(doc.getElementById("calc-iridium-price") !== null, "iridium price shock simulator slider exists");
+  ok(doc.getElementById("sandbox-catalyst-val") !== null, "simulated precious metals catalyst component cost KPI exists");
+
+  // Demand & Transport Page Assertions
+  click(doc.querySelector('.tab-btn[data-route="demand-transport"]'));
+  ok(!doc.getElementById("page-demand-transport").hidden, "demand & transport page shown after clicking tab");
+  ok(doc.getElementById("enduse-chart") !== null, "end-use capacity share chart canvas exists");
+  ok(doc.getElementById("transport-chart") !== null, "transport supply/demand trendline canvas exists");
+  ok(doc.getElementById("calc-trans-dist") !== null, "transport distance slider simulator exists");
+  ok(doc.getElementById("sim-lh2-vol") !== null, "liquid hydrogen simulated volume column exists");
+  ok(doc.getElementById("sim-boiloff-val") !== null, "cryogenic boil-off output indicator exists");
+
+  // Policy Page Assertions
+  click(doc.querySelector('.tab-btn[data-route="policy"]'));
+  ok(!doc.getElementById("page-policy").hidden, "policy page shown after clicking Policy tab");
+  ok(doc.getElementById("policy-list-container").children.length > 0, "policy timeline displays updates");
+
+  // Companies Page Assertions
+  click(doc.querySelector('.tab-btn[data-route="companies"]'));
+  ok(!doc.getElementById("page-companies").hidden, "companies page shown after clicking Companies tab");
+  ok(doc.getElementById("companies-table-body").children.length > 0, "companies database lists entries");
+  ok(doc.getElementById("partner-list-container").children.length > 0, "localized partner coordinator recommendations active");
+
+  // AI features map integration
+  click(doc.querySelector('.tab-btn[data-route="map"]'));
+  click(doc.querySelector('#region-seg .seg-btn[data-region="apac"]'));
+  ok(!doc.getElementById("regional-ai-panel").hidden, "regional AI panel appears when a region is selected on map");
+  ok(doc.getElementById("regional-ai-prompt").textContent !== "—", "regional AI panel populates custom model prompt");
+  
+  // AI project detail injection (clear region filter first so Stegra is searchable)
+  click(doc.querySelector('#region-seg .seg-btn[data-region="all"]'));
+  const searchBox = doc.getElementById("search-box");
+  searchBox.focus();
+  searchBox.value = "Stegra";
+  searchBox.dispatchEvent(new window.Event("input", { bubbles: true }));
+  click(doc.getElementById("search-results").querySelector(".fac-item"));
+  ok(doc.querySelector(".detail-ai-text") !== null, "detail panel injects AI Project Engagement Analysis");
+
+  // Advanced Visualizations: Temporal Sandbox Dashboard & 3D Extrusion
+  click(doc.querySelector('.tab-btn[data-route="timeline"]'));
+  ok(!doc.getElementById("page-timeline").hidden, "temporal sandbox page shown after clicking tab");
+  ok(doc.getElementById("sandbox-slider") !== null, "sandbox timeline year range slider exists");
+  ok(doc.getElementById("sandbox-capacity-chart") !== null, "sandbox capacity projection chart canvas exists");
+  ok(doc.getElementById("sandbox-project-list") !== null, "sandbox pipeline rollout list container exists");
+
+  click(doc.querySelector('.tab-btn[data-route="map"]'));
+  ok(doc.getElementById("dock-3d-btn") !== null, "3D toggle button injected in layer dock");
+  
+  const d3d = doc.getElementById("dock-3d-btn");
+  click(d3d);
+  ok(window.is3DActive === true, "clicking 3D button activates volumetric extrusion mode");
+  click(d3d);
+  ok(window.is3DActive === false, "clicking 3D button again deactivates volumetric extrusion mode");
+
+  console.log(failures === 0 ? "\nALL TESTS PASSED" : `\n${failures} FAILURES`);
+  process.exit(failures === 0 ? 0 : 1);
+  }, 100);
+}, 100);

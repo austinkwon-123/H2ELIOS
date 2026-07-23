@@ -1,0 +1,26 @@
+services:
+  db:
+    # timescale/timescaledb-postgis never published tags past PG13, so it can't be used here.
+    # timescaledb-ha:pg16 is the maintained image that bundles TimescaleDB + PostGIS on PG16;
+    # despite the "ha" name it uses the same official postgres entrypoint for single-container
+    # use, so POSTGRES_USER/PASSWORD/DB still behave exactly as usual (Patroni is opt-in, not
+    # required to run standalone like this).
+    image: timescale/timescaledb-ha:pg16
+    container_name: h2grid-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-h2grid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-h2grid_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-h2grid}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-h2grid} -d ${POSTGRES_DB:-h2grid}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

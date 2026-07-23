@@ -70,10 +70,16 @@ const STROKE_WIDTH_EXPR = [
 const D = window.HYDROGEN_DATA;
 
 
-// ---- Map init: 3D globe ----------------------------------------------------
-const map = new maplibregl.Map({
-  container: "map",
-  style: {
+// ---- Base style: shared "Command Center" dark basemap -----------------------
+// Hoisted to its own constant (rather than inlined in the map init below) so
+// other views that want the same basemap - e.g. the Macro Flow cinematic
+// view's secondary MapLibre instance (20-macro-flow.js) - can reuse this
+// exact definition instead of either duplicating it or calling
+// map.getStyle() on the live map, which would also snapshot every
+// dynamically-added runtime layer (satellites, comet arcs, API project
+// circles/extrusions, their current data payloads, etc.) into what's
+// supposed to be a clean minimal backdrop.
+const H2GRID_BASE_STYLE = {
     version: 8,
     projection: { type: "globe" },
     sources: {
@@ -100,6 +106,13 @@ const map = new maplibregl.Map({
       "boundaries": {
         type: "vector",
         url: "https://demotiles.maplibre.org/tiles/tiles.json"
+      },
+      "nasa-night-lights": {
+        type: "raster",
+        tiles: ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpg"],
+        tileSize: 256,
+        maxzoom: 8, // GIBS's GoogleMapsCompatible_Level8 matrix set stops at z8 - MapLibre upsamples past that rather than 404ing per tile
+        attribution: "NASA EOSDIS GIBS / VIIRS Earth at Night 2012 (Black Marble)"
       }
     },
     layers: [
@@ -114,11 +127,37 @@ const map = new maplibregl.Map({
       },
       {
         id: "land-fill", type: "fill", source: "boundaries", "source-layer": "countries",
-        paint: { "fill-color": "#0a1826", "fill-opacity": 0.55 }
+        paint: { "fill-color": "#0b132b", "fill-opacity": 0.6 } // Command Center "Earth Mass"
+      },
+      {
+        // NASA Black Marble city lights - sits above the land-fill tint (not
+        // dimmed by its 0.6 fill-opacity) but below coast-glow/coast and
+        // every data/extrusion/custom-WebGL layer added later via
+        // map.addLayer() elsewhere, since those append to the end of the
+        // layer stack by default. raster-saturation pulled down and
+        // raster-contrast pushed up so city-light clusters read as muted
+        // amber texture rather than competing with the neon #00F0FF spikes.
+        id: "night-lights", type: "raster", source: "nasa-night-lights",
+        paint: {
+          // Altitude fade: full city-light texture at orbital zooms, smoothly
+          // gone by ground level - GIBS's tiles top out at z8 (see maxzoom
+          // above) and upsample past that, so fading them out before the
+          // upsampling gets visually obvious also sidesteps pixelation.
+          "raster-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.7, 6, 0],
+          "raster-contrast": 0.15,
+          "raster-saturation": -0.15,
+          "raster-brightness-max": 0.85
+        }
       },
       {
         id: "coast-glow", type: "line", source: "boundaries", "source-layer": "countries",
-        paint: { "line-color": "#3fd6e8", "line-width": 2.6, "line-blur": 3, "line-opacity": 0.2 }
+        // Zoom-tied so the globe's edge-glow shares the same 3->6 orbital->ground
+        // fade schedule as the starfield (07-live.js) and atmosphere-blend below,
+        // rather than sitting at a flat opacity regardless of zoom.
+        paint: {
+          "line-color": "#00f0ff", "line-width": 2.6, "line-blur": 3, // Command Center energy accent
+          "line-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.32, 3, 0.32, 6, 0.15, 9, 0.15]
+        }
       },
       {
         id: "coast", type: "line", source: "boundaries", "source-layer": "countries",
@@ -126,20 +165,31 @@ const map = new maplibregl.Map({
       }
     ],
     sky: {
-      "sky-color": "#02040a",
+      "sky-color": "#040914",
       "horizon-color": "#1d3247",
       "fog-color": "#02040a",
       "sky-horizon-blend": 0.6,
       "horizon-fog-blend": 0.6,
       "fog-ground-blend": 0.85,
-      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.7, 6, 0.15, 8, 0]
+      // Shares the 3->6 orbital->ground fade schedule with the starfield
+      // (--bg-fx in 07-live.js) and coast-glow above, so the whole space-view
+      // transition reads as one effect.
+      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.75, 3, 0.75, 6, 0.08, 9, 0]
     },
     glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf"
-  },
+};
+
+// ---- Map init: 3D globe ----------------------------------------------------
+const map = new maplibregl.Map({
+  container: "map",
+  style: H2GRID_BASE_STYLE,
   center: [15, 20],
   zoom: 1.7,
+  pitch: 58,
+  bearing: 12,
   minZoom: 1.0,
   maxZoom: 16,
+  maxPitch: 70, // default maxPitch is 60, which would clamp the click fly-to's target pitch of 65
   attributionControl: false
 });
 
@@ -277,13 +327,13 @@ function setTheme(theme) {
   }
   if (typeof map.setSky === "function") {
     map.setSky(dark ? {
-      "sky-color": "#02040a",
+      "sky-color": "#040914",
       "horizon-color": "#1f5a70",
       "fog-color": "#03070f",
       "sky-horizon-blend": 0.5,
       "horizon-fog-blend": 0.5,
       "fog-ground-blend": 0.8,
-      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.9, 6, 0.22, 8, 0]
+      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.9, 3, 0.9, 6, 0.12, 9, 0]
     } : {
       "sky-color": "#eaf1f9",
       "horizon-color": "#c8d6e8",
@@ -291,7 +341,7 @@ function setTheme(theme) {
       "sky-horizon-blend": 0.7,
       "horizon-fog-blend": 0.7,
       "fog-ground-blend": 0.9,
-      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.5, 6, 0.1, 8, 0]
+      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.5, 3, 0.5, 6, 0.06, 9, 0]
     });
   }
   try { localStorage.setItem("h2grid-theme", theme); } catch (e) { /* ignore */ }

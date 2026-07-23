@@ -131,6 +131,7 @@ function statStage(sc) {
 
 function statConfidence(p) {
   if (p.tier === "iea") return Number(p.approx) ? "Medium · country-level" : "High · IEA-reported";
+  if (p.tier === "api") return p.confidence != null && p.confidence < 1 ? "Medium · approximate location" : "High · IEA-reported (live API)";
   return "High · curated source";
 }
 

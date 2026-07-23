@@ -57,8 +57,13 @@ function setStatus(kind, text) {
 
 
 // ---- Ambient space field fades as you approach the surface --------------------
+// Fully opaque (orbital/space view) at zoom <= 3, linearly fades to fully clear
+// by zoom 6 so ground-level regional analysis stays visually focused on the
+// data nodes. Shares its 3->6 schedule with the sky atmosphere-blend and
+// coast-glow paint expressions in 01-core.js so all three read as one
+// transition rather than independently-tuned effects.
 map.on("zoom", () => {
   const z = map.getZoom ? map.getZoom() : 2;
-  const fx = Math.max(0.08, Math.min(1, 1 - (z - 2.5) / 3));
+  const fx = Math.max(0, Math.min(1, 1 - (z - 3) / 3));
   document.documentElement.style.setProperty("--bg-fx", fx.toFixed(2));
 });
