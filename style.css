@@ -322,18 +322,18 @@ button { font-family: inherit; color: inherit; }
   cursor: text;
 }
 .search-icon { color: var(--text-muted); flex-shrink: 0; }
-#search-box {
+#network-search {
   flex: 1; min-width: 0;
   background: transparent; border: none; outline: none;
   color: var(--text-hi); font-size: 12.5px; font-family: inherit;
   opacity: 0;
   transition: opacity 0.18s ease;
 }
-#search-capsule:hover #search-box,
-#search-capsule:focus-within #search-box {
+#search-capsule:hover #network-search,
+#search-capsule:focus-within #network-search {
   opacity: 1; transition-delay: 0.12s;
 }
-#search-box::placeholder { color: var(--text-faint); }
+#network-search::placeholder { color: var(--text-faint); }
 
 #search-results {
   position: absolute; top: calc(100% + 10px); right: 0;

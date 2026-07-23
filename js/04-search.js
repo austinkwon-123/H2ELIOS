@@ -41,7 +41,7 @@ function matchesFilters(p) {
 }
 
 function wireSearch() {
-  const box = document.getElementById("search-box");
+  const box = document.getElementById("network-search");
   const results = document.getElementById("search-results");
   box.addEventListener("input", renderSearchResults);
   box.addEventListener("focus", renderSearchResults);
@@ -50,8 +50,19 @@ function wireSearch() {
   });
 }
 
+function wireSearchHotkey() {
+  document.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      const box = document.getElementById("network-search");
+      box.focus();
+      box.select();
+    }
+  });
+}
+
 function renderSearchResults() {
-  const box = document.getElementById("search-box");
+  const box = document.getElementById("network-search");
   const results = document.getElementById("search-results");
   if (document.activeElement !== box && !box.value) { results.hidden = true; return; }
 

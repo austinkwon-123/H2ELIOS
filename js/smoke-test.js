@@ -165,7 +165,7 @@ setTimeout(() => {
   ok(layers["basemap-dark"].visibility === "visible", "dark basemap active");
 
   // Search + detail with decode effect patched in
-  const box = doc.getElementById("search-box");
+  const box = doc.getElementById("network-search");
   const results = doc.getElementById("search-results");
   box.focus();
   box.value = "kobe";
@@ -379,12 +379,23 @@ setTimeout(() => {
   
   // AI project detail injection (clear region filter first so Stegra is searchable)
   click(doc.querySelector('#region-seg .seg-btn[data-region="all"]'));
-  const searchBox = doc.getElementById("search-box");
+  const searchBox = doc.getElementById("network-search");
   searchBox.focus();
   searchBox.value = "Stegra";
   searchBox.dispatchEvent(new window.Event("input", { bubbles: true }));
   click(doc.getElementById("search-results").querySelector(".fac-item"));
   ok(doc.querySelector(".detail-ai-text") !== null, "detail panel injects AI Project Engagement Analysis");
+
+  // Search hotkey (Task 6 of the ui-overlay-enhancements plan)
+  ok(!doc.getElementById("search-box"), "old #search-box id is gone");
+  ok(!!doc.getElementById("network-search"), "#network-search exists");
+  doc.activeElement.blur();
+  ok(doc.activeElement !== doc.getElementById("network-search"), "search input not focused before the hotkey fires");
+  doc.dispatchEvent(new window.KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+  ok(doc.activeElement === doc.getElementById("network-search"), "Ctrl+K focuses #network-search");
+  doc.activeElement.blur();
+  doc.dispatchEvent(new window.KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true, cancelable: true }));
+  ok(doc.activeElement === doc.getElementById("network-search"), "Cmd+K (metaKey) focuses #network-search");
 
   // Advanced Visualizations: Temporal Sandbox Dashboard & 3D Extrusion
   click(doc.querySelector('.tab-btn[data-route="timeline"]'));

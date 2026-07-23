@@ -309,6 +309,7 @@ map.on("load", () => {
   wireLegend();
   wireFilterToggle();
   wireSearch();
+  wireSearchHotkey();
   wireClicks();
   wireDetailClose();
   wireTour();
