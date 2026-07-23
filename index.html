@@ -63,20 +63,20 @@
 
 <!-- Left: layer dock -->
 <nav class="glass" id="layer-dock" aria-label="Layers">
-  <button class="dock-btn active" data-layer="upstream" title="Upstream energy sources"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></button>
-  <button class="dock-btn active" data-layer="production" title="Production plants"><svg viewBox="0 0 24 24"><path d="M2 20h20M4 20V10l4 3v-3l4 3v-3l4 3V6h4v14"/></svg></button>
-  <button class="dock-btn active" data-layer="manufacturing" title="Electrolyzer gigafactories"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></button>
-  <button class="dock-btn active" data-layer="storage" title="Storage & terminals"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
-  <button class="dock-btn active" data-layer="pipelines" title="Pipelines"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-7 4 14 3-7h6"/></svg></button>
-  <button class="dock-btn active" data-layer="endUse" title="End use"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg></button>
-  <button class="dock-btn active" data-layer="fuelingStations" title="Fueling stations (live)"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M2 21h14M6 8h6M14 10h2a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V9l-2-2"/></svg></button>
-  <button class="dock-btn active" data-layer="hubs" title="DOE hydrogen hubs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
-  <button class="dock-btn active" data-layer="flows" title="Real supply-chain flows"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
-  <button class="dock-btn active" data-layer="iea" title="IEA announced projects (3,300+ records)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
-  <button class="dock-btn active" data-layer="apiLive" title="Live API (backend, viewport-scoped)"><svg viewBox="0 0 24 24"><path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6M4.9 19.1l4.2-4.2M14.9 9.1l4.2-4.2"/></svg></button>
-  <button class="dock-btn active" data-layer="commandArcs" title="3D elevated energy arcs (WebGL)"><svg viewBox="0 0 24 24"><path d="M3 18c3-10 15-10 18 0"/><circle cx="3" cy="18" r="1.6"/><circle cx="21" cy="18" r="1.6"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="upstream" aria-label="Upstream energy sources" data-tip="Upstream energy sources"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="production" aria-label="Production plants" data-tip="Production plants"><svg viewBox="0 0 24 24"><path d="M2 20h20M4 20V10l4 3v-3l4 3v-3l4 3V6h4v14"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="manufacturing" aria-label="Electrolyzer gigafactories" data-tip="Electrolyzer gigafactories"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="storage" aria-label="Storage & terminals" data-tip="Storage & terminals"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="pipelines" aria-label="Pipelines" data-tip="Pipelines"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-7 4 14 3-7h6"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="endUse" aria-label="End use" data-tip="End use"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="fuelingStations" aria-label="Fueling stations (live)" data-tip="Fueling stations (live)"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M2 21h14M6 8h6M14 10h2a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V9l-2-2"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="hubs" aria-label="DOE hydrogen hubs" data-tip="DOE hydrogen hubs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="flows" aria-label="Real supply-chain flows" data-tip="Real supply-chain flows"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="iea" aria-label="IEA announced projects (3,300+ records)" data-tip="IEA announced projects (3,300+ records)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="apiLive" aria-label="Live API (backend, viewport-scoped)" data-tip="Live API (backend, viewport-scoped)"><svg viewBox="0 0 24 24"><path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6M4.9 19.1l4.2-4.2M14.9 9.1l4.2-4.2"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="commandArcs" aria-label="3D elevated energy arcs (WebGL)" data-tip="3D elevated energy arcs (WebGL)"><svg viewBox="0 0 24 24"><path d="M3 18c3-10 15-10 18 0"/><circle cx="3" cy="18" r="1.6"/><circle cx="21" cy="18" r="1.6"/></svg></button>
   <div class="dock-sep"></div>
-  <button class="dock-btn active" data-layer="web" title="Network web (illustrative)"><svg viewBox="0 0 24 24"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="9" cy="19" r="2"/><path d="M7 6l10 .8M6.4 6.8 8.4 17M17.6 8.7 10.7 18"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="web" aria-label="Network web (illustrative)" data-tip="Network web (illustrative)"><svg viewBox="0 0 24 24"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="9" cy="19" r="2"/><path d="M7 6l10 .8M6.4 6.8 8.4 17M17.6 8.7 10.7 18"/></svg></button>
 </nav>
 
 <!-- Bottom-center: segmented filters -->

@@ -86,6 +86,13 @@ setTimeout(() => {
    "selection-ring", "iea-clusters", "iea-cluster-count", "iea-points"]
     .forEach((id) => ok(!!layers[id], `layer exists: ${id}`));
 
+  // Sidebar tooltips (Task 2 of the ui-overlay-enhancements plan)
+  const dockBtns = doc.querySelectorAll("#layer-dock .dock-btn");
+  ok(dockBtns.length === 13, `layer dock has 13 buttons (found ${dockBtns.length})`);
+  ok(Array.from(dockBtns).every((b) => b.classList.contains("has-tip") && b.classList.contains("tip-right")), "every dock button has the shared tooltip classes");
+  ok(Array.from(dockBtns).every((b) => !!b.getAttribute("aria-label") && b.getAttribute("aria-label") === b.getAttribute("data-tip")), "every dock button's aria-label matches its data-tip");
+  ok(Array.from(dockBtns).every((b) => !b.hasAttribute("title")), "no dock button still has a native title attribute (would double up with the custom tooltip)");
+
   // IEA tier
   const M = window.IEA_META, I = window.IEA_DATA;
   ok(I.features.length === M.count && M.count > 3000, `IEA tier loaded (${M.count} records)`);
