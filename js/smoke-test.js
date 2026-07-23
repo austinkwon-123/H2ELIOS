@@ -117,6 +117,18 @@ setTimeout(() => {
   ok(sources["iea"].data.features.every((f) => f.properties.region === "europe"), "IEA region filter applied");
   click(doc.querySelector('#region-seg .seg-btn[data-region="all"]'));
 
+  // Merged filter panel (Task 3 of the ui-overlay-enhancements plan)
+  ok(!doc.getElementById("legend"), "old standalone #legend element is gone");
+  const filterRows = doc.querySelectorAll("#filter-dock .filter-row");
+  ok(filterRows.length === 3, `filter-dock has 3 filter rows (found ${filterRows.length})`);
+  ok(!!doc.querySelector("#filter-dock #status-seg"), "status segment lives inside #filter-dock");
+  ok(!!doc.querySelector("#filter-dock #region-seg"), "region segment lives inside #filter-dock");
+  ok(!!doc.querySelector("#filter-dock #color-seg"), "color segment lives inside #filter-dock");
+  ok(doc.querySelectorAll("#color-seg .legend-dot").length === 7, "all 7 legend-dot color buttons moved into #color-seg");
+  click(doc.querySelector('#color-seg .legend-dot[data-color="green"]'));
+  ok(sources["iea"].data.features.every((f) => f.properties.color === "green"), "color filter (now inside filter-dock) still filters the IEA source");
+  click(doc.querySelector('#color-seg .legend-dot[data-color="green"]'));
+
   // HUD: boot overlay
   ok(!!doc.getElementById("boot"), "JARVIS boot overlay rendered");
   ok(doc.querySelector(".boot-line").textContent.includes("H₂GRID OS"), "boot shows OS title");
