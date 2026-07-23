@@ -128,32 +128,26 @@ setTimeout(() => {
   ok(sources["iea"].data.features.every((f) => f.properties.region === "europe"), "IEA region filter applied");
   click(doc.querySelector('#region-seg .seg-btn[data-region="all"]'));
 
-  // Merged filter panel (Task 3 of the ui-overlay-enhancements plan)
+  // Left-rail flyout filters: markup scaffold (Task 1 of the map-layout-reorganization plan)
   ok(!doc.getElementById("legend"), "old standalone #legend element is gone");
-  const filterRows = doc.querySelectorAll("#filter-dock .filter-row");
-  ok(filterRows.length === 3, `filter-dock has 3 filter rows (found ${filterRows.length})`);
-  ok(!!doc.querySelector("#filter-dock #status-seg"), "status segment lives inside #filter-dock");
-  ok(!!doc.querySelector("#filter-dock #region-seg"), "region segment lives inside #filter-dock");
-  ok(!!doc.querySelector("#filter-dock #color-seg"), "color segment lives inside #filter-dock");
+  ok(!doc.getElementById("filter-dock"), "old merged #filter-dock element is gone");
+  ["status", "region", "color"].forEach((k) => {
+    const trigger = doc.getElementById(`filter-${k}-trigger`);
+    const panel = doc.getElementById(`flyout-${k}`);
+    ok(!!trigger, `flyout trigger exists: filter-${k}-trigger`);
+    ok(!trigger.classList.contains("dock-btn"), `filter-${k}-trigger does not carry the .dock-btn class`);
+    ok(trigger.classList.contains("flyout-trigger"), `filter-${k}-trigger carries .flyout-trigger`);
+    ok(trigger.getAttribute("aria-controls") === `flyout-${k}`, `filter-${k}-trigger aria-controls points at flyout-${k}`);
+    ok(!!panel, `flyout panel exists: flyout-${k}`);
+    ok(panel.hidden, `flyout-${k} starts hidden`);
+  });
+  ok(!!doc.querySelector("#flyout-status #status-seg"), "status segment lives inside #flyout-status");
+  ok(!!doc.querySelector("#flyout-region #region-seg"), "region segment lives inside #flyout-region");
+  ok(!!doc.querySelector("#flyout-color #color-seg"), "color segment lives inside #flyout-color");
   ok(doc.querySelectorAll("#color-seg .legend-dot").length === 7, "all 7 legend-dot color buttons moved into #color-seg");
   click(doc.querySelector('#color-seg .legend-dot[data-color="green"]'));
-  ok(sources["iea"].data.features.every((f) => f.properties.color === "green"), "color filter (now inside filter-dock) still filters the IEA source");
+  ok(sources["iea"].data.features.every((f) => f.properties.color === "green"), "color filter (now inside a flyout) still filters the IEA source");
   click(doc.querySelector('#color-seg .legend-dot[data-color="green"]'));
-
-  // Filter panel collapse toggle (Task 4 of the ui-overlay-enhancements plan)
-  const filterDock = doc.getElementById("filter-dock");
-  const filterToggle = doc.getElementById("filter-toggle");
-  ok(!filterDock.classList.contains("collapsed"), "filter-dock starts expanded");
-  ok(filterToggle.getAttribute("aria-expanded") === "true", "filter-toggle starts aria-expanded=true");
-  click(filterToggle);
-  ok(filterDock.classList.contains("collapsed"), "clicking filter-toggle collapses the panel");
-  ok(filterToggle.getAttribute("aria-expanded") === "false", "filter-toggle updates aria-expanded to false when collapsed");
-  click(doc.querySelector('#status-seg .seg-btn[data-status="operating"]'));
-  ok(doc.getElementById("filter-summary").textContent.includes("1"), "collapsed summary reflects 1 active non-default filter (status=Live)");
-  click(doc.querySelector('#status-seg .seg-btn[data-status="all"]'));
-  click(filterToggle);
-  ok(!filterDock.classList.contains("collapsed"), "clicking filter-toggle again expands the panel");
-  ok(filterToggle.getAttribute("aria-expanded") === "true", "filter-toggle updates aria-expanded back to true when expanded");
 
   // HUD: boot overlay
   ok(!!doc.getElementById("boot"), "JARVIS boot overlay rendered");

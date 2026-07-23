@@ -77,47 +77,48 @@
   <button class="dock-btn active has-tip tip-right" data-layer="commandArcs" aria-label="3D elevated energy arcs (WebGL)" data-tip="3D elevated energy arcs (WebGL)"><svg viewBox="0 0 24 24"><path d="M3 18c3-10 15-10 18 0"/><circle cx="3" cy="18" r="1.6"/><circle cx="21" cy="18" r="1.6"/></svg></button>
   <div class="dock-sep"></div>
   <button class="dock-btn active has-tip tip-right" data-layer="web" aria-label="Network web (illustrative)" data-tip="Network web (illustrative)"><svg viewBox="0 0 24 24"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="9" cy="19" r="2"/><path d="M7 6l10 .8M6.4 6.8 8.4 17M17.6 8.7 10.7 18"/></svg></button>
+  <div class="dock-sep"></div>
+  <button class="flyout-trigger has-tip tip-right" id="filter-status-trigger" data-flyout="status" aria-label="Filter by status" data-tip="Filter by status" aria-expanded="false" aria-controls="flyout-status">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M2 12h4M18 12h4M4.2 19.8l2.8-2.8M17 7l2.8-2.8"/></svg>
+  </button>
+  <button class="flyout-trigger has-tip tip-right" id="filter-region-trigger" data-flyout="region" aria-label="Filter by region" data-tip="Filter by region" aria-expanded="false" aria-controls="flyout-region">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>
+  </button>
+  <button class="flyout-trigger has-tip tip-right" id="filter-color-trigger" data-flyout="color" aria-label="Filter by color" data-tip="Filter by color" aria-expanded="false" aria-controls="flyout-color">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M12 13v8M8 21h8"/></svg>
+  </button>
 </nav>
 
-<!-- Bottom-center: merged glassmorphism filter panel (Status / Region / Color) -->
-<div class="glass" id="filter-dock">
-  <button id="filter-toggle" class="has-tip tip-right" aria-expanded="true" aria-controls="filter-body" aria-label="Collapse filters" data-tip="Collapse filters">
-    <svg viewBox="0 0 24 24" width="12" height="12"><path d="M6 9l6 6 6-6"/></svg>
-    <span id="filter-summary" hidden></span>
-  </button>
-  <div id="filter-body">
-    <div class="filter-row">
-      <span class="filter-label">Status</span>
-      <div class="seg-group" id="status-seg">
-        <button class="seg-btn active" data-status="all">All</button>
-        <button class="seg-btn" data-status="operating">Live</button>
-        <button class="seg-btn" data-status="construction">Building</button>
-        <button class="seg-btn" data-status="planned">Planned</button>
-        <button class="seg-btn" data-status="atrisk">At risk</button>
-      </div>
-    </div>
-    <div class="filter-row">
-      <span class="filter-label">Region</span>
-      <div class="seg-group" id="region-seg">
-        <button class="seg-btn active" data-region="all">All</button>
-        <button class="seg-btn" data-region="americas">Americas</button>
-        <button class="seg-btn" data-region="europe">Europe</button>
-        <button class="seg-btn" data-region="mena">MEA</button>
-        <button class="seg-btn" data-region="apac">Asia-Pac</button>
-      </div>
-    </div>
-    <div class="filter-row">
-      <span class="filter-label">Color</span>
-      <div class="seg-group" id="color-seg">
-        <button class="legend-dot" data-color="green" aria-label="Green — renewable electrolysis"><span class="swatch sw-green"></span><em>Green</em></button>
-        <button class="legend-dot" data-color="blue" aria-label="Blue — SMR + carbon capture"><span class="swatch sw-blue"></span><em>Blue</em></button>
-        <button class="legend-dot" data-color="pink" aria-label="Pink — nuclear electrolysis"><span class="swatch sw-pink"></span><em>Pink</em></button>
-        <button class="legend-dot" data-color="turquoise" aria-label="Turquoise — methane pyrolysis"><span class="swatch sw-turquoise"></span><em>Turq.</em></button>
-        <button class="legend-dot" data-color="gray_blue" aria-label="Gray / mixed — SMR or legacy"><span class="swatch sw-gray"></span><em>Gray</em></button>
-        <button class="legend-dot" data-color="brown" aria-label="Brown / black — coal gasification"><span class="swatch sw-brown"></span><em>Brown</em></button>
-        <button class="legend-dot" data-color="mfg" aria-label="Electrolyzer gigafactory (manufacturing)"><span class="swatch sw-mfg"></span><em>Mfg</em></button>
-      </div>
-    </div>
+<div class="glass flyout-panel" id="flyout-status" data-flyout-panel="status" hidden>
+  <div class="filter-label">Status</div>
+  <div class="seg-group" id="status-seg">
+    <button class="seg-btn active" data-status="all">All</button>
+    <button class="seg-btn" data-status="operating">Live</button>
+    <button class="seg-btn" data-status="construction">Building</button>
+    <button class="seg-btn" data-status="planned">Planned</button>
+    <button class="seg-btn" data-status="atrisk">At risk</button>
+  </div>
+</div>
+<div class="glass flyout-panel" id="flyout-region" data-flyout-panel="region" hidden>
+  <div class="filter-label">Region</div>
+  <div class="seg-group" id="region-seg">
+    <button class="seg-btn active" data-region="all">All</button>
+    <button class="seg-btn" data-region="americas">Americas</button>
+    <button class="seg-btn" data-region="europe">Europe</button>
+    <button class="seg-btn" data-region="mena">MEA</button>
+    <button class="seg-btn" data-region="apac">Asia-Pac</button>
+  </div>
+</div>
+<div class="glass flyout-panel" id="flyout-color" data-flyout-panel="color" hidden>
+  <div class="filter-label">Color</div>
+  <div class="seg-group" id="color-seg">
+    <button class="legend-dot" data-color="green" aria-label="Green — renewable electrolysis"><span class="swatch sw-green"></span><em>Green</em></button>
+    <button class="legend-dot" data-color="blue" aria-label="Blue — SMR + carbon capture"><span class="swatch sw-blue"></span><em>Blue</em></button>
+    <button class="legend-dot" data-color="pink" aria-label="Pink — nuclear electrolysis"><span class="swatch sw-pink"></span><em>Pink</em></button>
+    <button class="legend-dot" data-color="turquoise" aria-label="Turquoise — methane pyrolysis"><span class="swatch sw-turquoise"></span><em>Turq.</em></button>
+    <button class="legend-dot" data-color="gray_blue" aria-label="Gray / mixed — SMR or legacy"><span class="swatch sw-gray"></span><em>Gray</em></button>
+    <button class="legend-dot" data-color="brown" aria-label="Brown / black — coal gasification"><span class="swatch sw-brown"></span><em>Brown</em></button>
+    <button class="legend-dot" data-color="mfg" aria-label="Electrolyzer gigafactory (manufacturing)"><span class="swatch sw-mfg"></span><em>Mfg</em></button>
   </div>
 </div>
 

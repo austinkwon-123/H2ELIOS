@@ -440,44 +440,46 @@ button { font-family: inherit; color: inherit; }
 .dock-btn:focus-visible { outline: 1px solid var(--cyan); }
 .dock-sep { height: 1px; margin: 3px 7px; background: var(--line); }
 
-/* ---------- Filter dock (bottom-center): merged glassmorphism panel,
-   Status / Region / Color stacked as labeled rows, collapsible. ---------- */
-#filter-dock {
-  bottom: 12px; left: 50%; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-  padding: 8px 12px;
-  border-radius: var(--r-lg);
-  max-width: calc(100vw - 28px);
-  background: rgba(8, 12, 20, 0.55);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
-  backdrop-filter: blur(10px) saturate(140%);
+/* ---------- Left rail: flyout filter triggers (Status/Region/Color), same
+   box model as .dock-btn but deliberately a different class so wireDock()'s
+   .dock-btn selector (TOGGLE_MAP-driven layer visibility) never binds to
+   them — see js/03-filters.js wireFlyouts(). ---------- */
+.flyout-trigger {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border: none; border-radius: var(--r-sm);
+  cursor: pointer;
+  color: var(--text-faint);
+  position: relative;
+  transition: color 0.15s ease, background 0.15s ease;
 }
-#filter-toggle {
-  align-self: flex-end;
-  display: flex; align-items: center; gap: 6px;
-  background: transparent; border: none;
-  color: var(--text-muted); cursor: pointer;
-  padding: 2px;
+.flyout-trigger svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.flyout-trigger:hover { color: var(--text); background: rgba(120, 160, 200, 0.06); }
+.flyout-trigger.active { color: var(--cyan); filter: drop-shadow(0 0 6px rgba(63, 214, 232, 0.8)); }
+.flyout-trigger.active::before {
+  content: "";
+  position: absolute; left: -3px; top: 9px; bottom: 9px;
+  width: 2px; border-radius: 1px;
+  background: var(--cyan);
 }
-#filter-toggle:hover { color: var(--text-hi); }
-#filter-toggle svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s ease; }
-#filter-dock.collapsed #filter-toggle svg { transform: rotate(-90deg); }
-#filter-summary {
-  font-size: 10px; letter-spacing: 0.04em; color: var(--cyan);
+.flyout-trigger:focus-visible { outline: 1px solid var(--cyan); }
+
+/* Flyout panels: positioned just right of the layer-dock (34px button +
+   padding). `top` is set inline by wireFlyouts() per open, aligned to
+   the triggering icon's own position, so each flyout opens level with
+   its trigger rather than at one fixed height. */
+.flyout-panel {
+  left: 58px;
+  width: 200px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
 }
-#filter-body {
-  display: flex; flex-direction: column; gap: 6px;
-  overflow: hidden;
-  max-height: 200px;
-  opacity: 1;
-  transition: max-height 0.25s ease, opacity 0.2s ease;
-}
-#filter-dock.collapsed #filter-body { max-height: 0; opacity: 0; pointer-events: none; }
-.filter-row { display: flex; align-items: center; gap: 8px; }
-.filter-label {
+.flyout-panel .filter-label {
+  display: block;
   font: var(--overline); letter-spacing: var(--overline-tracking);
   text-transform: uppercase; color: var(--label);
-  width: 42px; flex-shrink: 0;
+  margin-bottom: 8px;
 }
 .seg-group { display: flex; gap: 4px; background: rgba(120, 160, 200, 0.05); border-radius: var(--r-sm); padding: 2px; flex-wrap: wrap; }
 
@@ -950,9 +952,6 @@ button { font-family: inherit; color: inherit; }
   #ribbon-zone-a { padding-left: 10px; }
   #ribbon-zone-c { padding-right: 10px; }
   #tab-nav { max-width: min(60vw, 380px); top: 6px; }
-  #search-capsule { top: 60px; right: 10px; }
-  #filter-dock { bottom: 66px; flex-wrap: wrap; border-radius: var(--r-lg); justify-content: center; }
-  #legend { bottom: 14px; left: 50%; transform: translateX(-50%); }
   #layer-dock { left: 7px; }
   #detail-card { top: auto; bottom: 172px; right: 14px; left: 14px; width: auto; max-height: 44vh; }
   #analytics-panel { top: auto; bottom: 172px; left: 14px; right: 14px; width: auto; max-height: 40vh; }

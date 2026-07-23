@@ -105,6 +105,7 @@ function updateFilterSummary() {
 function wireFilterToggle() {
   const dock = document.getElementById("filter-dock");
   const toggle = document.getElementById("filter-toggle");
+  if (!dock || !toggle) return; // #filter-dock/#filter-toggle removed in the left-rail flyout scaffold (Task 1); wireFlyouts() replaces this in Task 2
   toggle.addEventListener("click", () => {
     const collapsed = dock.classList.toggle("collapsed");
     toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
