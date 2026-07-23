@@ -217,6 +217,33 @@ button { font-family: inherit; color: inherit; }
 .pill.fallback { color: var(--amber); }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
+/* ---------- Shared tooltip component: hover/focus a .has-tip element to
+   show its data-tip text. Every trigger also carries a real aria-label
+   (same string) so screen readers get the name independent of this CSS. ---------- */
+.has-tip { position: relative; }
+.has-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  padding: 5px 9px;
+  background: var(--panel-strong);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text-hi);
+  font-size: 10.5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease 0.1s, transform 0.15s ease 0.1s;
+  z-index: 1200;
+}
+.has-tip:hover::after, .has-tip:focus-visible::after { opacity: 1; }
+.tip-right::after { left: calc(100% + 10px); top: 50%; transform: translateY(-50%) translateX(-2px); }
+.tip-right:hover::after, .tip-right:focus-visible::after { transform: translateY(-50%) translateX(0); }
+.tip-bottom::after { top: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(-2px); }
+.tip-bottom:hover::after, .tip-bottom:focus-visible::after { transform: translateX(-50%) translateY(0); }
+
 /* ---------- Layer rail (left): monochrome outline icons ---------- */
 #layer-dock {
   left: 14px; top: 50%; transform: translateY(-50%);
