@@ -195,6 +195,25 @@ const map = new maplibregl.Map({
 
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true, showCompass: false }), "top-left");
 
+class ResetViewControl {
+  onAdd(mapRef) {
+    this._map = mapRef;
+    this._container = document.createElement("div");
+    this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+    const btn = document.createElement("button");
+    btn.className = "has-tip tip-right";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Reset view");
+    btn.setAttribute("data-tip", "Reset view");
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>';
+    btn.onclick = () => mapRef.flyTo({ center: [15, 20], zoom: 1.7, pitch: 58, bearing: 12, duration: 1200 });
+    this._container.appendChild(btn);
+    return this._container;
+  }
+  onRemove() { this._container.remove(); this._map = undefined; }
+}
+map.addControl(new ResetViewControl(), "top-left");
+
 
 // ---- State ---------------------------------------------------------------
 let statusFilter = "all";     // all | operating | construction | planned | atrisk

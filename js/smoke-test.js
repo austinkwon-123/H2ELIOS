@@ -12,15 +12,17 @@ let failures = 0;
 const ok = (cond, msg) => { console.log((cond ? "PASS" : "FAIL") + "  " + msg); if (!cond) failures++; };
 
 const layers = {}, sources = {}, handlers = {};
+let mapInstance = null;
 class StubMap {
   constructor(opts) {
+    mapInstance = this;
     (((opts || {}).style || {}).layers || []).forEach((l) => {
       layers[l.id] = { ...l, visibility: (l.layout && l.layout.visibility) || "visible" };
     });
     setTimeout(() => (handlers["load"] || []).forEach((h) => h()), 0);
   }
   on(ev, a, b) { const key = b ? ev + ":" + a : ev; (handlers[key] = handlers[key] || []).push(b || a); }
-  addControl() {}
+  addControl(ctrl) { if (ctrl && typeof ctrl.onAdd === "function") window.document.body.appendChild(ctrl.onAdd(this)); }
   addSource(id, def) { sources[id] = { def, setData(d) { this.data = d; } }; }
   getSource(id) { return sources[id]; }
   addLayer(l) { layers[l.id] = { ...l, visibility: (l.layout && l.layout.visibility) || "visible" }; }
@@ -85,6 +87,15 @@ setTimeout(() => {
    "fuelingStations", "pipelines", "hubs", "hub-labels", "flows-base", "web",
    "selection-ring", "iea-clusters", "iea-cluster-count", "iea-points"]
     .forEach((id) => ok(!!layers[id], `layer exists: ${id}`));
+
+  // Reset View map control (Task 5 of the ui-overlay-enhancements plan)
+  const resetBtn = doc.querySelector('[aria-label="Reset view"]');
+  ok(!!resetBtn, "Reset view button rendered");
+  ok(!!resetBtn && resetBtn.closest(".maplibregl-ctrl-group") !== null, "Reset view button uses maplibregl-ctrl-group chrome");
+  if (resetBtn) click(resetBtn);
+  ok(!!mapInstance.lastFly, "Reset view button calls map.flyTo");
+  ok(!!mapInstance.lastFly && mapInstance.lastFly.center[0] === 15 && mapInstance.lastFly.center[1] === 20, "Reset view flies back to the initial center [15,20]");
+  ok(!!mapInstance.lastFly && mapInstance.lastFly.zoom === 1.7 && mapInstance.lastFly.pitch === 58 && mapInstance.lastFly.bearing === 12, "Reset view restores the initial zoom/pitch/bearing");
 
   // Sidebar tooltips (Task 2 of the ui-overlay-enhancements plan)
   const dockBtns = doc.querySelectorAll("#layer-dock .dock-btn");
