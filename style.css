@@ -252,8 +252,6 @@ button { font-family: inherit; color: inherit; }
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-  max-width: min(60vw, 720px);
-  overflow-x: auto;
   transition: box-shadow 0.25s ease;
 }
 #tab-nav:hover, #tab-nav:focus-within {
@@ -282,8 +280,6 @@ button { font-family: inherit; color: inherit; }
   overflow: hidden;
   transition: max-width 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, margin-left 0.32s ease;
 }
-#tab-nav:hover .tab-btn span,
-#tab-nav:focus-within .tab-btn span,
 .tab-btn.active span {
   max-width: 160px; margin-left: 6px;
   opacity: 1;

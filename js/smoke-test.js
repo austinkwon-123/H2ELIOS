@@ -246,6 +246,11 @@ setTimeout(() => {
   ok(doc.querySelectorAll("#tab-nav .tab-btn").length === 9, "tab nav has 9 buttons");
   ok(!!doc.querySelector('.tab-btn[data-route="map"]') && doc.querySelector('.tab-btn[data-route="map"]').classList.contains("active"), "Map tab active by default");
 
+  // Icon-only nav island (Task 7 of the ui-overlay-enhancements plan)
+  const tabBtns = doc.querySelectorAll("#tab-nav .tab-btn");
+  ok(Array.from(tabBtns).every((b) => b.classList.contains("has-tip") && b.classList.contains("tip-bottom")), "every tab button has the shared tooltip classes");
+  ok(Array.from(tabBtns).every((b) => !!b.getAttribute("aria-label") && b.getAttribute("aria-label") === b.getAttribute("data-tip")), "every tab button's aria-label matches its data-tip");
+
   // Tab/router shell — router behavior (Task 2 of the router plan)
   click(doc.querySelector('.tab-btn[data-route="technology"]'));
   ok(window.location.hash === "#technology", "clicking a tab updates the URL hash");
