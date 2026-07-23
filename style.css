@@ -294,13 +294,17 @@ button { font-family: inherit; color: inherit; }
 .tab-btn:focus-visible { outline: 1px solid var(--cyan); }
 
 /* ==========================================================================
-   Dynamic Island: search. Same idle-collapsed/hover-expand language as the
-   nav island, floating independently just under Zone C rather than nested
-   inside the ribbon. Collapses to a bare icon (40px circle); hover or focus
-   (typing) pops it open into the real input.
+   Search: no longer a floating "Dynamic Island" (that caused it to overlap
+   #regional-ai-panel/#detail-card, which both live top-right below the
+   ribbon) - now a normal flex child of #ribbon-zone-c. Still collapses to
+   a bare icon (40px circle); hover or focus (typing) pops it open into the
+   real input. #search-results (the match dropdown) is a SIBLING, not a
+   descendant, of this capsule - it used to be nested inside, which meant
+   this element's own overflow:hidden (needed for the width-expand
+   animation) silently clipped the wider dropdown to nothing. See
+   positionSearchResults() in js/04-search.js.
    ========================================================================= */
 #search-capsule {
-  position: fixed; top: 70px; right: 20px; z-index: 999;
   display: flex; align-items: center; gap: 8px;
   width: 40px; height: 40px;
   padding: 0 13px;
@@ -332,7 +336,7 @@ button { font-family: inherit; color: inherit; }
 #network-search::placeholder { color: var(--text-faint); }
 
 #search-results {
-  position: absolute; top: calc(100% + 10px); right: 0;
+  position: fixed;
   width: 320px;
   max-height: 46vh; overflow-y: auto;
   border-radius: var(--r-md);

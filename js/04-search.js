@@ -48,6 +48,9 @@ function wireSearch() {
   document.addEventListener("click", (e) => {
     if (!document.getElementById("search-capsule").contains(e.target)) results.hidden = true;
   });
+  window.addEventListener("resize", () => {
+    if (!results.hidden) positionSearchResults();
+  });
 }
 
 function wireSearchHotkey() {
@@ -61,10 +64,19 @@ function wireSearchHotkey() {
   });
 }
 
+function positionSearchResults() {
+  const capsule = document.getElementById("search-capsule");
+  const results = document.getElementById("search-results");
+  const rect = capsule.getBoundingClientRect();
+  results.style.top = `${rect.bottom + 10}px`;
+  results.style.right = `${window.innerWidth - rect.right}px`;
+}
+
 function renderSearchResults() {
   const box = document.getElementById("network-search");
   const results = document.getElementById("search-results");
   if (document.activeElement !== box && !box.value) { results.hidden = true; return; }
+  positionSearchResults();
 
   const q = (box.value || "").trim().toLowerCase();
   const items = allFacilities().filter(({ f }) => {

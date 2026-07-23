@@ -406,6 +406,10 @@ setTimeout(() => {
   click(doc.getElementById("search-results").querySelector(".fac-item"));
   ok(doc.querySelector(".detail-ai-text") !== null, "detail panel injects AI Project Engagement Analysis");
 
+  // Search moves into the ribbon; results-dropdown clip fix (Task 3 of the map-layout-reorganization plan)
+  ok(doc.getElementById("ribbon-zone-c").contains(doc.getElementById("search-capsule")), "#search-capsule now lives inside #ribbon-zone-c");
+  ok(!doc.getElementById("search-capsule").contains(doc.getElementById("search-results")), "#search-results is no longer a descendant of #search-capsule (was clipped by its overflow:hidden)");
+
   // Search hotkey (Task 6 of the ui-overlay-enhancements plan)
   ok(!doc.getElementById("search-box"), "old #search-box id is gone");
   ok(!!doc.getElementById("network-search"), "#network-search exists");
