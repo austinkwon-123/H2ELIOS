@@ -307,7 +307,7 @@ map.on("load", () => {
   wireDock();
   wireSegments();
   wireLegend();
-  wireFilterToggle();
+  wireFlyouts();
   wireSearch();
   wireSearchHotkey();
   wireClicks();

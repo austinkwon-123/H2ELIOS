@@ -149,6 +149,27 @@ setTimeout(() => {
   ok(sources["iea"].data.features.every((f) => f.properties.color === "green"), "color filter (now inside a flyout) still filters the IEA source");
   click(doc.querySelector('#color-seg .legend-dot[data-color="green"]'));
 
+  // Left-rail flyout filters: open/close behavior (Task 2 of the map-layout-reorganization plan)
+  const statusTrigger = doc.getElementById("filter-status-trigger");
+  const regionTrigger = doc.getElementById("filter-region-trigger");
+  const statusFlyout = doc.getElementById("flyout-status");
+  const regionFlyout = doc.getElementById("flyout-region");
+  click(statusTrigger);
+  ok(!statusFlyout.hidden, "clicking the status trigger opens its flyout");
+  ok(statusTrigger.classList.contains("active"), "status trigger gets .active while open");
+  ok(statusTrigger.getAttribute("aria-expanded") === "true", "status trigger aria-expanded becomes true while open");
+  click(regionTrigger);
+  ok(!regionFlyout.hidden, "clicking the region trigger opens its flyout");
+  ok(statusFlyout.hidden, "opening the region flyout closes the status flyout (only one open at a time)");
+  ok(!statusTrigger.classList.contains("active"), "status trigger loses .active once its flyout closes");
+  click(regionTrigger);
+  ok(regionFlyout.hidden, "clicking the region trigger again closes its own flyout");
+  ok(regionTrigger.getAttribute("aria-expanded") === "false", "region trigger aria-expanded becomes false once closed");
+  click(statusTrigger);
+  ok(!statusFlyout.hidden, "status flyout re-opens");
+  click(doc.body);
+  ok(statusFlyout.hidden, "clicking outside an open flyout closes it");
+
   // HUD: boot overlay
   ok(!!doc.getElementById("boot"), "JARVIS boot overlay rendered");
   ok(doc.querySelector(".boot-line").textContent.includes("H₂GRID OS"), "boot shows OS title");

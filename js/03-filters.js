@@ -53,7 +53,6 @@ function wireSegments() {
       btn.classList.add("active");
       statusFilter = btn.dataset.status;
       applyFilters();
-      updateFilterSummary();
     });
   });
   document.querySelectorAll("#region-seg .seg-btn").forEach((btn) => {
@@ -63,7 +62,6 @@ function wireSegments() {
       regionFilter = btn.dataset.region;
       stopSpin();
       applyFilters();
-      updateFilterSummary();
       const views = {
         all: { center: [15, 20], zoom: 1.7 },
         americas: { center: [-95, 30], zoom: 2.8 },
@@ -86,29 +84,44 @@ function wireLegend() {
         b.classList.toggle("dimmed", !!colorFilter && colorFilter !== b.dataset.color);
       });
       applyFilters();
-      updateFilterSummary();
     });
   });
 }
 
-function updateFilterSummary() {
-  const summary = document.getElementById("filter-summary");
-  if (!summary) return;
-  let count = 0;
-  if (statusFilter !== "all") count++;
-  if (regionFilter !== "all") count++;
-  if (colorFilter) count++;
-  summary.hidden = count === 0;
-  summary.textContent = count === 0 ? "" : `${count} filter${count === 1 ? "" : "s"} active`;
+function closeFlyout(trigger, panel) {
+  panel.hidden = true;
+  panel.style.top = "";
+  trigger.classList.remove("active");
+  trigger.setAttribute("aria-expanded", "false");
 }
 
-function wireFilterToggle() {
-  const dock = document.getElementById("filter-dock");
-  const toggle = document.getElementById("filter-toggle");
-  if (!dock || !toggle) return; // #filter-dock/#filter-toggle removed in the left-rail flyout scaffold (Task 1); wireFlyouts() replaces this in Task 2
-  toggle.addEventListener("click", () => {
-    const collapsed = dock.classList.toggle("collapsed");
-    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+function wireFlyouts() {
+  const entries = ["status", "region", "color"].map((k) => ({
+    key: k,
+    trigger: document.getElementById(`filter-${k}-trigger`),
+    panel: document.getElementById(`flyout-${k}`)
+  }));
+
+  entries.forEach(({ trigger, panel }) => {
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = !panel.hidden;
+      entries.forEach((entry) => closeFlyout(entry.trigger, entry.panel));
+      if (!isOpen) {
+        panel.style.top = `${trigger.getBoundingClientRect().top}px`;
+        panel.hidden = false;
+        trigger.classList.add("active");
+        trigger.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    entries.forEach(({ trigger, panel }) => {
+      if (!panel.hidden && !panel.contains(e.target) && !trigger.contains(e.target)) {
+        closeFlyout(trigger, panel);
+      }
+    });
   });
 }
 
