@@ -129,6 +129,21 @@ setTimeout(() => {
   ok(sources["iea"].data.features.every((f) => f.properties.color === "green"), "color filter (now inside filter-dock) still filters the IEA source");
   click(doc.querySelector('#color-seg .legend-dot[data-color="green"]'));
 
+  // Filter panel collapse toggle (Task 4 of the ui-overlay-enhancements plan)
+  const filterDock = doc.getElementById("filter-dock");
+  const filterToggle = doc.getElementById("filter-toggle");
+  ok(!filterDock.classList.contains("collapsed"), "filter-dock starts expanded");
+  ok(filterToggle.getAttribute("aria-expanded") === "true", "filter-toggle starts aria-expanded=true");
+  click(filterToggle);
+  ok(filterDock.classList.contains("collapsed"), "clicking filter-toggle collapses the panel");
+  ok(filterToggle.getAttribute("aria-expanded") === "false", "filter-toggle updates aria-expanded to false when collapsed");
+  click(doc.querySelector('#status-seg .seg-btn[data-status="operating"]'));
+  ok(doc.getElementById("filter-summary").textContent.includes("1"), "collapsed summary reflects 1 active non-default filter (status=Live)");
+  click(doc.querySelector('#status-seg .seg-btn[data-status="all"]'));
+  click(filterToggle);
+  ok(!filterDock.classList.contains("collapsed"), "clicking filter-toggle again expands the panel");
+  ok(filterToggle.getAttribute("aria-expanded") === "true", "filter-toggle updates aria-expanded back to true when expanded");
+
   // HUD: boot overlay
   ok(!!doc.getElementById("boot"), "JARVIS boot overlay rendered");
   ok(doc.querySelector(".boot-line").textContent.includes("H₂GRID OS"), "boot shows OS title");

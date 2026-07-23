@@ -53,6 +53,7 @@ function wireSegments() {
       btn.classList.add("active");
       statusFilter = btn.dataset.status;
       applyFilters();
+      updateFilterSummary();
     });
   });
   document.querySelectorAll("#region-seg .seg-btn").forEach((btn) => {
@@ -62,6 +63,7 @@ function wireSegments() {
       regionFilter = btn.dataset.region;
       stopSpin();
       applyFilters();
+      updateFilterSummary();
       const views = {
         all: { center: [15, 20], zoom: 1.7 },
         americas: { center: [-95, 30], zoom: 2.8 },
@@ -84,7 +86,28 @@ function wireLegend() {
         b.classList.toggle("dimmed", !!colorFilter && colorFilter !== b.dataset.color);
       });
       applyFilters();
+      updateFilterSummary();
     });
+  });
+}
+
+function updateFilterSummary() {
+  const summary = document.getElementById("filter-summary");
+  if (!summary) return;
+  let count = 0;
+  if (statusFilter !== "all") count++;
+  if (regionFilter !== "all") count++;
+  if (colorFilter) count++;
+  summary.hidden = count === 0;
+  summary.textContent = count === 0 ? "" : `${count} filter${count === 1 ? "" : "s"} active`;
+}
+
+function wireFilterToggle() {
+  const dock = document.getElementById("filter-dock");
+  const toggle = document.getElementById("filter-toggle");
+  toggle.addEventListener("click", () => {
+    const collapsed = dock.classList.toggle("collapsed");
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
   });
 }
 

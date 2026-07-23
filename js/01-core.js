@@ -288,6 +288,7 @@ map.on("load", () => {
   wireDock();
   wireSegments();
   wireLegend();
+  wireFilterToggle();
   wireSearch();
   wireClicks();
   wireDetailClose();
