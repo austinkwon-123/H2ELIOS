@@ -197,14 +197,14 @@ function updateRegionalAIPanel() {
   }, 400);
 }
 
+function closeRegionalAIPanel() {
+  const panel = document.getElementById("regional-ai-panel");
+  if (panel) panel.hidden = true;
+}
+
 function wireRegionalAIClose() {
   const closeBtn = document.getElementById("regional-ai-close");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      const panel = document.getElementById("regional-ai-panel");
-      if (panel) panel.hidden = true;
-    });
-  }
+  if (closeBtn) closeBtn.addEventListener("click", closeRegionalAIPanel);
 }
 
 // 2. Project detail view AI analysis generator

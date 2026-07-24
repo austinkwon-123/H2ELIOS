@@ -302,22 +302,31 @@ function wireAnalyticsToggle() {
 // the Network/Intel toggle already follows.
 let marketsChartLoaded = false;
 
+function closeMarketsPanel() {
+  const btn = document.getElementById("markets-btn");
+  const panel = document.getElementById("markets-panel");
+  if (!panel.hidden) {
+    panel.hidden = true;
+    btn.classList.remove("active");
+    stopMarketsPolling();
+  }
+}
+
 function wireMarketsToggle() {
   const btn = document.getElementById("markets-btn");
   const panel = document.getElementById("markets-panel");
   if (!btn || !panel) return;
   btn.addEventListener("click", () => {
-    const opening = panel.hidden;
-    panel.hidden = !opening;
-    btn.classList.toggle("active", opening);
-    if (opening) {
+    if (panel.hidden) {
+      panel.hidden = false;
+      btn.classList.add("active");
       if (!marketsChartLoaded) {
         initMarketsChart();
         marketsChartLoaded = true;
       }
       startMarketsPolling();
     } else {
-      stopMarketsPolling();
+      closeMarketsPanel();
     }
   });
 }

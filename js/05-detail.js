@@ -83,12 +83,14 @@ function hostOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
+function closeDetailPanel() {
+  document.getElementById("detail-card").hidden = true;
+  selectedName = null;
+  map.getSource("selection").setData(emptyFC());
+}
+
 function wireDetailClose() {
-  document.getElementById("detail-close").addEventListener("click", () => {
-    document.getElementById("detail-card").hidden = true;
-    selectedName = null;
-    map.getSource("selection").setData(emptyFC());
-  });
+  document.getElementById("detail-close").addEventListener("click", closeDetailPanel);
 }
 
 

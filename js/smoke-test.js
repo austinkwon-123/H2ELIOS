@@ -416,6 +416,11 @@ setTimeout(() => {
     ok(el.classList.contains("right-panel-slot"), `#${id} carries the shared .right-panel-slot class`);
   });
 
+  // Extracted close functions (Task 2 of the right-panel-manager plan)
+  ok(typeof window.closeDetailPanel === "function", "closeDetailPanel() is defined");
+  ok(typeof window.closeRegionalAIPanel === "function", "closeRegionalAIPanel() is defined");
+  ok(typeof window.closeMarketsPanel === "function", "closeMarketsPanel() is defined");
+
   // Search hotkey (Task 6 of the ui-overlay-enhancements plan)
   ok(!doc.getElementById("search-box"), "old #search-box id is gone");
   ok(!!doc.getElementById("network-search"), "#network-search exists");
