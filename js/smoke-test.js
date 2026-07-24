@@ -410,6 +410,12 @@ setTimeout(() => {
   ok(doc.getElementById("ribbon-zone-c").contains(doc.getElementById("search-capsule")), "#search-capsule now lives inside #ribbon-zone-c");
   ok(!doc.getElementById("search-capsule").contains(doc.getElementById("search-results")), "#search-results is no longer a descendant of #search-capsule (was clipped by its overflow:hidden)");
 
+  // Shared right-panel CSS slot (Task 1 of the right-panel-manager plan)
+  ["detail-card", "regional-ai-panel", "markets-panel"].forEach((id) => {
+    const el = doc.getElementById(id);
+    ok(el.classList.contains("right-panel-slot"), `#${id} carries the shared .right-panel-slot class`);
+  });
+
   // Search hotkey (Task 6 of the ui-overlay-enhancements plan)
   ok(!doc.getElementById("search-box"), "old #search-box id is gone");
   ok(!!doc.getElementById("network-search"), "#network-search exists");
