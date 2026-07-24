@@ -318,6 +318,7 @@ function wireMarketsToggle() {
   if (!btn || !panel) return;
   btn.addEventListener("click", () => {
     if (panel.hidden) {
+      closeOtherRightPanels("markets-panel");
       panel.hidden = false;
       btn.classList.add("active");
       if (!marketsChartLoaded) {

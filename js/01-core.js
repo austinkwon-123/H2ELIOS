@@ -214,6 +214,20 @@ class ResetViewControl {
 }
 map.addControl(new ResetViewControl(), "top-left");
 
+function closeOtherRightPanels(exceptId) {
+  const closers = {
+    "detail-card": closeDetailPanel,
+    "regional-ai-panel": closeRegionalAIPanel,
+    "markets-panel": closeMarketsPanel
+  };
+  Object.entries(closers).forEach(([id, close]) => {
+    if (id !== exceptId) {
+      const el = document.getElementById(id);
+      if (el && !el.hidden) close();
+    }
+  });
+}
+
 
 // ---- State ---------------------------------------------------------------
 let statusFilter = "all";     // all | operating | construction | planned | atrisk

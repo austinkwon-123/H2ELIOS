@@ -147,16 +147,7 @@ function updateRegionalAIPanel() {
     return;
   }
 
-  // Mutual exclusion: Close the project detail card when the regional overview opens
-  const detailCard = document.getElementById("detail-card");
-  if (detailCard) {
-    detailCard.hidden = true;
-    selectedName = null;
-    if (map.getSource && map.getSource("selection")) {
-      map.getSource("selection").setData({ type: "FeatureCollection", features: [] });
-    }
-  }
-
+  closeOtherRightPanels("regional-ai-panel");
   panel.hidden = false;
   contentBox.innerHTML = `<div class="news-empty">Generating AI synthesis...</div>`;
 
@@ -289,12 +280,9 @@ function analyzeEndUsers(p) {
 // Patch the global showDetail function (from js/05-detail.js) to inject AI engagement analysis
 const _showDetail = showDetail;
 showDetail = function (p) {
-  // Call original renderer first
+  // Call original renderer first - it already calls closeOtherRightPanels("detail-card"),
+  // which covers closing the AI panel, so no separate exclusion needed here.
   _showDetail(p);
-
-  // Mutual exclusion: Close the regional AI panel when the project inspector opens
-  const aiPanel = document.getElementById("regional-ai-panel");
-  if (aiPanel) aiPanel.hidden = true;
 
   const el = document.getElementById("detail-content");
   if (!el) return;

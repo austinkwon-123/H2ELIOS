@@ -421,6 +421,41 @@ setTimeout(() => {
   ok(typeof window.closeRegionalAIPanel === "function", "closeRegionalAIPanel() is defined");
   ok(typeof window.closeMarketsPanel === "function", "closeMarketsPanel() is defined");
 
+  // Mutual exclusion coordinator (Task 3 of the right-panel-manager plan)
+  ok(typeof window.closeOtherRightPanels === "function", "closeOtherRightPanels() is defined");
+  const detailCardEl = doc.getElementById("detail-card");
+  const aiPanelEl = doc.getElementById("regional-ai-panel");
+  const marketsPanelEl = doc.getElementById("markets-panel");
+  const marketsBtnEl = doc.getElementById("markets-btn");
+
+  // Open detail-card (via search), then AI panel - detail-card should close.
+  click(doc.querySelector('#region-seg .seg-btn[data-region="all"]'));
+  const kobeBox = doc.getElementById("network-search");
+  kobeBox.focus();
+  kobeBox.value = "kobe";
+  kobeBox.dispatchEvent(new window.Event("input", { bubbles: true }));
+  click(doc.getElementById("search-results").querySelector(".fac-item"));
+  ok(!detailCardEl.hidden, "detail-card opens from search click");
+  click(doc.querySelector('#region-seg .seg-btn[data-region="apac"]'));
+  ok(!aiPanelEl.hidden, "AI panel opens on region select");
+  ok(detailCardEl.hidden, "opening the AI panel closes detail-card");
+
+  // Open markets - AI panel should close, button state and polling cleanup tracked via hidden/active.
+  click(marketsBtnEl);
+  ok(!marketsPanelEl.hidden, "markets panel opens on click");
+  ok(marketsBtnEl.classList.contains("active"), "markets button gets .active while open");
+  ok(aiPanelEl.hidden, "opening markets closes the AI panel");
+
+  // Re-open detail-card - markets should close.
+  click(doc.getElementById("search-results").querySelector(".fac-item"));
+  ok(!detailCardEl.hidden, "detail-card re-opens from search click");
+  ok(marketsPanelEl.hidden, "opening detail-card closes markets");
+  ok(!marketsBtnEl.classList.contains("active"), "markets button loses .active once markets closes");
+
+  // Clean up: close detail-card and clear the region filter for later assertions.
+  click(doc.getElementById("detail-close"));
+  click(doc.querySelector('#region-seg .seg-btn[data-region="all"]'));
+
   // Search hotkey (Task 6 of the ui-overlay-enhancements plan)
   ok(!doc.getElementById("search-box"), "old #search-box id is gone");
   ok(!!doc.getElementById("network-search"), "#network-search exists");

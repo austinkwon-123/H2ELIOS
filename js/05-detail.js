@@ -40,6 +40,7 @@ function selectFacility(p, lngLat) {
 }
 
 function showDetail(p) {
+  closeOtherRightPanels("detail-card");
   const card = document.getElementById("detail-card");
   const el = document.getElementById("detail-content");
   const c = COLORS[p.color] || "#9ca3af";
