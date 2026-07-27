@@ -146,6 +146,51 @@ button { font-family: inherit; color: inherit; }
     repeating-linear-gradient(120deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px);
 }
 
+/* Macro Flow's second MapLibre instance (#macro-flow-map, 20-macro-flow.js)
+   never had the main map's starfield/nebula/hex-grid dressing, since those
+   are pure CSS pseudo-elements scoped to #map - so it rendered as a small
+   globe floating in a huge void of flat black. Same visual treatment here,
+   but a FIXED opacity rather than reusing #map's var(--bg-fx, 1): that
+   variable is written by 07-live.js from the PRIMARY map's zoom level, so
+   sharing it would make this view's starfield randomly dim/vanish based on
+   whatever zoom the user last left the main globe at - this view's own
+   camera never changes zoom (only bearing, via startFlowRotation), so its
+   backdrop should just always be fully on. */
+#macro-flow-map::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 11% 18%, rgba(220, 235, 250, 0.5) 50%, transparent 51%),
+    radial-gradient(1px 1px at 82% 9%, rgba(200, 220, 245, 0.35) 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 91% 62%, rgba(220, 235, 250, 0.3) 50%, transparent 51%),
+    radial-gradient(1px 1px at 27% 86%, rgba(210, 228, 248, 0.4) 50%, transparent 51%),
+    radial-gradient(1px 1px at 60% 40%, rgba(200, 220, 245, 0.18) 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 4% 55%, rgba(210, 228, 248, 0.25) 50%, transparent 51%),
+    radial-gradient(1px 1px at 68% 93%, rgba(220, 235, 250, 0.32) 50%, transparent 51%),
+    radial-gradient(1px 1px at 94% 30%, rgba(220, 235, 250, 0.42) 50%, transparent 51%),
+    radial-gradient(1px 1px at 43% 7%, rgba(200, 220, 245, 0.3) 50%, transparent 51%),
+    radial-gradient(1px 1px at 18% 45%, rgba(200, 220, 245, 0.15) 50%, transparent 51%),
+    radial-gradient(650px circle at 20% 28%, rgba(0, 240, 255, 0.16), transparent 70%),
+    radial-gradient(750px circle at 82% 72%, rgba(255, 42, 85, 0.13), transparent 70%),
+    linear-gradient(rgba(28, 42, 74, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 42, 74, 0.06) 1px, transparent 1px);
+  background-size:
+    auto, auto, auto, auto, auto, auto, auto, auto, auto, auto,
+    auto, auto,
+    56px 56px, 56px 56px;
+}
+#macro-flow-map::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px),
+    repeating-linear-gradient(60deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px),
+    repeating-linear-gradient(120deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px);
+}
+
 /* Subsolar point marker - a maplibregl.Marker element (18-api-live.js),
    positioned at the real-time lat/lng where the sun is directly overhead.
    pointer-events:none so it never intercepts clicks meant for the globe
@@ -983,6 +1028,39 @@ button { font-family: inherit; color: inherit; }
 .stats-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
 }
+
+/* Half-ring gauge: capacity-in-view as a % of the whole network's total
+   capacity (js/18-api-live.js). pathLength="100" on the fill <path> lets
+   stroke-dasharray/dashoffset work directly in percent, no arc-length math
+   needed - dashoffset 100 = empty, 0 = full semicircle. */
+.viewport-gauge {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  margin-bottom: 10px;
+}
+.gauge-svg { width: 100%; max-width: 220px; height: auto; overflow: visible; }
+.gauge-track, .gauge-fill {
+  fill: none; stroke-width: 10; stroke-linecap: round;
+}
+.gauge-track { stroke: rgba(120, 160, 200, 0.12); }
+.gauge-fill {
+  stroke: var(--amber);
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+  transition: stroke-dashoffset 0.6s ease;
+}
+.gauge-readout {
+  position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+}
+.gauge-pct {
+  font-family: var(--font-mono); font-size: 24px; font-weight: 700;
+  color: #ffffff; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.gauge-sub {
+  font: var(--overline); letter-spacing: var(--overline-tracking);
+  color: var(--label); margin-top: 4px;
+}
 .stat-cell {
   padding: 7px 9px;
   background: rgba(10, 15, 25, 0.45);
@@ -1051,6 +1129,16 @@ button { font-family: inherit; color: inherit; }
 }
 @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .markets-chart { height: 260px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
+/* Live finance-news video (Bloomberg Television, js/08-analytics.js) -
+   16:9 box via padding-bottom hack, iframe absolutely filling it. */
+.markets-video {
+  position: relative; width: 100%; padding-bottom: 56.25%; height: 0;
+  border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden;
+  background: #000;
+}
+.markets-video iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%; border: none;
+}
 .markets-fallback { font-size: 11px; line-height: 1.6; color: var(--text-muted); padding: 8px 0; }
 .markets-fallback a { color: var(--cyan); }
 .stock-row {
@@ -1168,9 +1256,12 @@ button { font-family: inherit; color: inherit; }
   flex-direction: column;
   gap: 16px;
   position: relative;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .dashboard-card:hover {
   border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.1);
 }
 .dashboard-card h3 {
   font-family: var(--font-head);
@@ -1192,6 +1283,12 @@ button { font-family: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi-card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.1);
 }
 .kpi-card .kpi-label {
   font: var(--overline);
@@ -1321,6 +1418,88 @@ button { font-family: inherit; color: inherit; }
 .tech-spec-row:last-child {
   border-bottom: none;
 }
+
+/* ---------- Sample-data marker: distinguishes hand-curated/illustrative
+   figures from real sourced data (see .pill.fallback for the "real data,
+   sourced" counterpart used on chart headers). ---------- */
+.badge-sample { color: var(--amber); border-color: rgba(217, 154, 61, 0.35); background: rgba(217, 154, 61, 0.08); }
+
+/* ---------- Page-load entrance motion: staggered fade+rise, applied once
+   per tab visit (see initMarketPage's use of animateEntrance) - not
+   replayed on every re-render (sector switch, filter change), so it reads
+   as "the page waking up" rather than a distracting constant flicker. ---------- */
+@keyframes marketCardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.market-animate-in { animation: marketCardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ---------- Market & Economics: break-even price chart ---------- */
+.sector-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.sector-tab {
+  font-size: 11.5px; font-weight: 500; color: var(--text-muted);
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 12px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.sector-tab:hover { color: var(--text-hi); }
+.sector-tab:active { transform: scale(0.94); }
+.sector-tab.active { color: var(--bg-0); background: var(--cyan); border-color: var(--cyan); font-weight: 600; }
+.chart-note { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin: 0; }
+.chart-empty {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  font-size: 11.5px; color: var(--text-faint); text-align: center; padding: 0 20px;
+}
+.breakeven-svg { width: 100%; height: 100%; }
+/* Draw-in: stroke-dashoffset animated to 0 from JS (renderBreakevenChart /
+   animateChartDrawIn) every time the chart redraws - sector switch or
+   selection toggle - so picking a new country feels like a small payoff,
+   not a flat swap. */
+.breakeven-svg polyline.bk-line { transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.breakeven-svg circle.bk-dot { opacity: 0; animation: bkDotIn 0.35s ease forwards; }
+.breakeven-svg text.bk-label { opacity: 0; animation: bkDotIn 0.4s ease forwards; animation-delay: 0.7s; }
+@keyframes bkDotIn { to { opacity: 1; } }
+#breakeven-ranking { max-height: 220px; overflow-y: auto; }
+.breakeven-row { cursor: pointer; border-radius: 4px; padding: 2px 4px; margin: 2px 0 !important; transition: background 0.15s ease; }
+.breakeven-row:hover { background: rgba(120, 160, 200, 0.06); }
+.breakeven-row.active .bar-label { color: var(--text-hi); font-weight: 600; }
+
+/* ---------- Market & Economics: LCOH sensitivity sandbox ---------- */
+.sandbox-sliders {
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px;
+}
+.sandbox-slider-row { display: flex; flex-direction: column; gap: 5px; }
+.sandbox-slider-head { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-hi); }
+.sandbox-slider-val { font-weight: 600; color: var(--cyan); font-variant-numeric: tabular-nums; }
+.sandbox-slider-row input[type="range"] { accent-color: var(--cyan); cursor: pointer; }
+.sandbox-readout {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px;
+}
+.sandbox-readout-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.sandbox-readout-sub { font-size: 9.5px; color: var(--text-faint); margin-top: 2px; }
+.sandbox-readout-val { font-size: 28px; font-weight: 700; color: var(--cyan); font-family: var(--font-head); font-variant-numeric: tabular-nums; }
+
+/* ---------- Market & Economics: policy subsidies ---------- */
+.subsidy-list { display: flex; flex-direction: column; gap: 8px; }
+.subsidy-item { background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px; }
+.subsidy-item summary { cursor: pointer; font-weight: 600; font-size: 12px; color: var(--text-hi); outline: none; }
+.subsidy-item p { font-size: 11px; color: var(--text-muted); margin: 6px 0 0; line-height: 1.5; }
+
+/* ---------- Market & Economics: deal registry ---------- */
+.deal-filters { display: flex; gap: 8px; }
+.deal-filters input, .deal-filters select {
+  font: inherit; font-size: 11.5px; padding: 6px 10px;
+  background: var(--bg-1); border: 1px solid var(--line); border-radius: 6px; color: var(--text-hi); outline: none;
+}
+.deal-filters input { flex: 1; }
+.deal-filters input:focus, .deal-filters select:focus { border-color: var(--cyan); }
+.deal-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.deal-card { background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; transition: border-color 0.15s ease, transform 0.15s ease; }
+.deal-card:hover { border-color: var(--line-strong); transform: translateX(3px); }
+.deal-card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.deal-company { font-weight: 600; color: var(--text-hi); font-size: 12.5px; }
+.deal-amount { color: var(--cyan); font-weight: 600; font-variant-numeric: tabular-nums; font-size: 12.5px; white-space: nowrap; }
+.deal-sector { font-size: 10.5px; color: var(--text-muted); margin-top: 2px; }
+.deal-lead { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+.deal-date { font-size: 10px; color: var(--text-faint); margin-top: 4px; font-family: var(--font-mono); }
 
 /* AI Overview Panel overlay on Map tab */
 #regional-ai-panel {

@@ -96,8 +96,57 @@
     return { groundNodes, skyHubs, cloudPoints, arcs };
   }
 
+  function kindColor(kind, alpha) {
+    return [...(kind === "demand" ? PINK : CYAN), alpha];
+  }
+
   function buildLayers(data) {
     const { ArcLayer, ScatterplotLayer } = window.deck;
+
+    // Region glow: a soft "spotlight" at each named region's ground center
+    // (Pilbara, Rotterdam, etc.) - independent of the jittered node cloud
+    // below, so each of the 6 regions reads as a landmark from the very
+    // first frame, before rotation brings the others into view. Kept small
+    // and low-alpha: an early pass at 90px/45-alpha produced a huge flat
+    // color disc that swallowed the ground nodes and hub underneath it.
+    const regionGlowLayer = new ScatterplotLayer({
+      id: "macro-flow-region-glow",
+      data: [
+        ...PRODUCTION_REGIONS.map((r) => ({ ...r, kind: "production" })),
+        ...DEMAND_REGIONS.map((r) => ({ ...r, kind: "demand" }))
+      ],
+      getPosition: (d) => d.center,
+      getFillColor: (d) => kindColor(d.kind, 18),
+      radiusUnits: "pixels",
+      getRadius: 38,
+      parameters: ADDITIVE_BLEND_PARAMS
+    });
+
+    // Ground nodes: generated in generateFlowData() (they're the arcs'
+    // surface endpoints) but previously never given their own layer, so
+    // the actual production/demand "footprint" on the globe was invisible
+    // - only the sky hubs floating 500km up ever rendered. Glow+core pair,
+    // same two-layer bloom trick the main globe's project spikes use
+    // (js/18-api-live.js's api-projects-bloom).
+    const groundGlowLayer = new ScatterplotLayer({
+      id: "macro-flow-ground-glow",
+      data: data.groundNodes,
+      getPosition: (d) => d.position,
+      getFillColor: (d) => kindColor(d.kind, 70),
+      radiusUnits: "pixels",
+      getRadius: 9,
+      parameters: ADDITIVE_BLEND_PARAMS
+    });
+    const groundLayer = new ScatterplotLayer({
+      id: "macro-flow-ground",
+      data: data.groundNodes,
+      getPosition: (d) => d.position,
+      getFillColor: (d) => kindColor(d.kind, 235),
+      radiusUnits: "pixels",
+      getRadius: 2.2,
+      radiusMinPixels: 1.5,
+      parameters: ADDITIVE_BLEND_PARAMS
+    });
 
     const arcLayer = new ArcLayer({
       id: "macro-flow-arcs",
@@ -109,7 +158,7 @@
       // the mesh itself visually reads as "supply flowing toward demand".
       getSourceColor: (d) => (d.kind === "down" ? PINK : CYAN),
       getTargetColor: (d) => (d.kind === "up" ? CYAN : PINK),
-      getWidth: 2,
+      getWidth: (d) => (d.kind === "cross" ? 2.6 : 1.5),
       greatCircle: true, // matters most for the long intercontinental sky->sky arcs
       parameters: ADDITIVE_BLEND_PARAMS // overlapping arcs burn white-hot instead of just alpha-compositing
     });
@@ -118,7 +167,7 @@
       id: "macro-flow-cloud",
       data: data.cloudPoints,
       getPosition: (d) => d.position,
-      getFillColor: [235, 250, 255, 220],
+      getFillColor: (d) => kindColor(d.kind, 210),
       radiusUnits: "pixels",
       getRadius: 2,
       radiusMinPixels: 1.5,
@@ -126,17 +175,26 @@
       parameters: ADDITIVE_BLEND_PARAMS
     });
 
+    const hubGlowLayer = new ScatterplotLayer({
+      id: "macro-flow-hub-glow",
+      data: data.skyHubs,
+      getPosition: (d) => d.position,
+      getFillColor: (d) => kindColor(d.kind, 90),
+      radiusUnits: "pixels",
+      getRadius: 24,
+      parameters: ADDITIVE_BLEND_PARAMS
+    });
     const hubLayer = new ScatterplotLayer({
       id: "macro-flow-hubs",
       data: data.skyHubs,
       getPosition: (d) => d.position,
-      getFillColor: [...CYAN, 255],
+      getFillColor: (d) => kindColor(d.kind, 255),
       radiusUnits: "pixels",
-      getRadius: 5,
+      getRadius: 6,
       parameters: ADDITIVE_BLEND_PARAMS
     });
 
-    return [cloudLayer, arcLayer, hubLayer];
+    return [regionGlowLayer, groundGlowLayer, groundLayer, cloudLayer, arcLayer, hubGlowLayer, hubLayer];
   }
 
   // deck.gl isn't loaded in <head> - only this one view needs it, so it's

@@ -301,6 +301,14 @@ function buildNetworkWeb(k = 3, maxKm = 2200) {
 }
 
 
+// Combines two GeoJSON FeatureCollections into one (US AFDC stations +
+// EU IPCEI Observatory stations, js/eu-stations-data.js) - used both at
+// initial load (with the US fallback) and once the live AFDC fetch lands
+// (with real US data), so EU coverage is present either way.
+function mergeFeatureCollections(...fcs) {
+  return { type: "FeatureCollection", features: fcs.flatMap((fc) => (fc && fc.features) || []) };
+}
+
 // ---- Build layers on load ---------------------------------------------------
 map.on("load", () => {
   addWebLayer();
@@ -312,7 +320,7 @@ map.on("load", () => {
   addPointLayer("manufacturing", D.manufacturing);
   addPointLayer("storage", D.storagePoints);
   addPointLayer("endUse", D.endUse);
-  addPointLayer("fuelingStations", D.fuelingStationsFallback, { small: true });
+  addPointLayer("fuelingStations", mergeFeatureCollections(D.fuelingStationsFallback, window.EU_STATIONS_DATA), { small: true });
   addSelectionLayer();
 
   setStatus("fallback", "Cached stations");

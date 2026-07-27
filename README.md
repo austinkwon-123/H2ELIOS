@@ -15,10 +15,18 @@ index.html            markup + script/style load order
 style.css             design tokens + all UI styling (mission-control dark)
 hud.css               boot / reticle / scanline accents
 build-iea.py          regenerates js/iea-data.js from the IEA Excel databases
+build-eu-stations.js  regenerates js/eu-stations-data.js from the IPCEI Clean
+                        Hydrogen Observatory refuelling-stations dataset
+build-breakeven.js    regenerates js/breakeven-data.js from the IPCEI Clean
+                        Hydrogen Observatory break-even price datasets (2022-2025)
 build-news.py          regenerates js/news-data.js from hydrogen-relevant RSS feeds
 js/
   data.js             curated 138 verified nodes (hand-edited, cited)
   iea-data.js         3,338 IEA "announced" records (generated — don't hand-edit)
+  eu-stations-data.js 177 EU/UK/EFTA refuelling stations, IPCEI Clean Hydrogen
+                        Observatory (generated — don't hand-edit)
+  breakeven-data.js   break-even H2 prices 2022-2025 by country/sector, IPCEI
+                        Clean Hydrogen Observatory (generated — don't hand-edit)
   news-data.js        cached hydrogen news headlines (generated — don't hand-edit)
   01-core.js          config, tokens, globe init, state, geometry, utils, load,
                         theme, idle spin

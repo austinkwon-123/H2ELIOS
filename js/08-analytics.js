@@ -7,49 +7,6 @@
    index.html (must load after 03-filters.js and hud.js).
    ======================================================================= */
 
-const TAXONOMY_ORDER = ["green", "blue", "pink", "turquoise", "gray_blue", "brown", "mfg"];
-const TAXONOMY_LABELS = {
-  green: "Green", blue: "Blue", pink: "Pink", turquoise: "Turquoise",
-  gray_blue: "Gray", brown: "Brown", mfg: "Mfg"
-};
-
-function computeColorCounts() {
-  const feats = [
-    ...D.upstream.features, ...D.production.features, ...D.manufacturing.features,
-    ...D.storagePoints.features, ...D.pipelines.features, ...D.endUse.features
-  ];
-  if (window.IEA_DATA && typeof layerVisible === "function" && layerVisible("iea")) {
-    feats.push(...window.IEA_DATA.features);
-  }
-  const counts = {};
-  TAXONOMY_ORDER.forEach((k) => { counts[k] = 0; });
-  feats.forEach((f) => {
-    const p = f.properties;
-    if (statusFilter !== "all" && p.statusClass !== statusFilter) return;
-    if (regionFilter !== "all" && !(REGION_GROUPS[regionFilter] || []).includes(p.region)) return;
-    if (counts.hasOwnProperty(p.color)) counts[p.color]++;
-  });
-  return counts;
-}
-
-function renderNetworkBars() {
-  const el = document.getElementById("analytics-network");
-  if (!el) return;
-  const counts = computeColorCounts();
-  const max = Math.max(1, ...TAXONOMY_ORDER.map((k) => counts[k]));
-  el.innerHTML = TAXONOMY_ORDER.map((k) => {
-    const n = counts[k];
-    const pct = Math.round((n / max) * 100);
-    // color: set alongside background so the CSS glow (box-shadow: 0 0 8px
-    // currentColor) picks up each bar's own taxonomy color automatically.
-    return `<div class="bar-row">
-      <span class="bar-label">${TAXONOMY_LABELS[k]}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${COLORS[k]};color:${COLORS[k]}"></span></span>
-      <span class="bar-count">${n}</span>
-    </div>`;
-  }).join("");
-}
-
 // Free tier: https://finnhub.io/register — unlike NREL's DEMO_KEY, Finnhub
 // has no public demo key, so this is a personal key. Visible in the page
 // source like any client-side key on a static site with no backend.
@@ -280,6 +237,26 @@ function initMarketsChart() {
   el.querySelector(".tradingview-widget-container").appendChild(script);
 }
 
+// Live finance-news video feed, next to the ticker list. Bloomberg
+// Television's YouTube channel (UCIALMKvObZNtJ6AmdCLP7Lg, @markets) runs a
+// genuine 24/7 live broadcast; youtube.com/embed/live_stream?channel=...
+// resolves to whatever that channel's current live video is, so this never
+// hardcodes a specific (expiring) video ID. muted autoplay is required for
+// the embed to autoplay at all in modern browsers, and is the right default
+// for a panel a user may only glance at — native YouTube controls unmute it.
+const MARKETS_VIDEO_CHANNEL_ID = "UCIALMKvObZNtJ6AmdCLP7Lg";
+function initMarketsVideo() {
+  const el = document.getElementById("analytics-markets-video");
+  if (!el) return;
+  const iframe = document.createElement("iframe");
+  iframe.src = `https://www.youtube.com/embed/live_stream?channel=${MARKETS_VIDEO_CHANNEL_ID}&autoplay=1&mute=1`;
+  iframe.title = "Bloomberg Television — live";
+  iframe.allow = "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture";
+  iframe.allowFullscreen = true;
+  iframe.frameBorder = "0";
+  el.appendChild(iframe);
+}
+
 function wireAnalyticsToggle() {
   const btn = document.getElementById("analytics-btn");
   const panel = document.getElementById("analytics-panel");
@@ -289,7 +266,6 @@ function wireAnalyticsToggle() {
     panel.hidden = !opening;
     btn.classList.toggle("active", opening);
     if (opening) {
-      renderNetworkBars();
       renderNews();
     }
   });
@@ -301,6 +277,7 @@ function wireAnalyticsToggle() {
 // at page load, matching the "no background fetch until opened" convention
 // the Network/Intel toggle already follows.
 let marketsChartLoaded = false;
+let marketsVideoLoaded = false;
 
 function closeMarketsPanel() {
   const btn = document.getElementById("markets-btn");
@@ -325,6 +302,10 @@ function wireMarketsToggle() {
         initMarketsChart();
         marketsChartLoaded = true;
       }
+      if (!marketsVideoLoaded) {
+        initMarketsVideo();
+        marketsVideoLoaded = true;
+      }
       startMarketsPolling();
     } else {
       closeMarketsPanel();
@@ -332,30 +313,12 @@ function wireMarketsToggle() {
   });
 }
 
-function wireIeaDockRerender() {
-  const ieaToggle = document.querySelector('.dock-btn[data-layer="iea"]');
-  // wireDock()'s own listener (attached later, inside the async
-  // map.on("load", ...) handler in 01-core.js) is what actually toggles
-  // .active — deferring with setTimeout guarantees this runs after that
-  // class change regardless of which listener attached first.
-  if (ieaToggle) ieaToggle.addEventListener("click", () => setTimeout(renderNetworkBars, 0));
-}
-
 function initAnalyticsPanel() {
   wireAnalyticsToggle();
   wireMarketsToggle();
-  wireIeaDockRerender();
-  renderNetworkBars();
   renderNews();
   startNewsPolling();
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initAnalyticsPanel);
 else initAnalyticsPanel();
-
-// Keep the Network bars live-linked to the status/region filters.
-const _applyFilters = applyFilters;
-applyFilters = function () {
-  _applyFilters();
-  renderNetworkBars();
-};

@@ -140,6 +140,15 @@ function addFeature(name, iso, status, subtype, cat, cap, year, lat, lng, tech, 
   });
 }
 
+// Known source-data corrections: specific rows where the IEA spreadsheet
+// itself has lat/lng transposed, confirmed against that row's own location
+// text (not a systemic column-mapping bug - the other ~3,300 rows in this
+// sheet consistently use [lat, lng], verified via a full bounding-box
+// sanity check across every feature in the generated output).
+const LATLNG_SWAP_FIX = new Set([
+  "Synfuels Biobío" // row 2885: location text reads "San Pedro de la Paz, Biobío" (Chile, ~lat -37.2/lng -73.2); source row has [-73.229, -37.208] reversed
+]);
+
 // 1. Process Hydrogen Production Projects
 console.log("Loading production sheet...");
 const wbProd = XLSX.readFile(PROD);
@@ -155,6 +164,7 @@ for (let i = 2; i < rowsProd.length; i++) {
     if (r[31] !== null && r[31] !== undefined && r[32] !== null && r[32] !== undefined && Math.abs(parseFloat(r[31])) <= 90 && Math.abs(parseFloat(r[32])) <= 180 && (parseFloat(r[31]) || parseFloat(r[32]))) {
       lat = parseFloat(r[31]);
       lng = parseFloat(r[32]);
+      if (LATLNG_SWAP_FIX.has(String(r[1]).trim())) { const t = lat; lat = lng; lng = t; }
     }
   } catch (err) {}
 

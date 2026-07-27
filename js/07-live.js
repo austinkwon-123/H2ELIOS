@@ -38,14 +38,19 @@ async function loadLiveStations() {
       }))
     };
 
-    addPointLayer("fuelingStations", geojson, { small: true });
-    setStatus("live", `${geojson.features.length} live stations`);
-    setStationCount(geojson.features.length);
+    // Live AFDC replaces the US fallback wholesale, but EU stations
+    // (js/eu-stations-data.js, static - no live EU equivalent to poll) are
+    // merged back in every time so they don't disappear once the live US
+    // fetch succeeds.
+    const merged = mergeFeatureCollections(geojson, window.EU_STATIONS_DATA);
+    addPointLayer("fuelingStations", merged, { small: true });
+    setStatus("live", `${merged.features.length} live stations`);
+    setStationCount(merged.features.length);
     applyFilters();
   } catch (err) {
     console.warn("Live AFDC fetch failed, keeping cached snapshot:", err);
     setStatus("fallback", "Stations: cached");
-    setStationCount(D.fuelingStationsFallback.features.length);
+    setStationCount(D.fuelingStationsFallback.features.length + ((window.EU_STATIONS_DATA && window.EU_STATIONS_DATA.features.length) || 0));
   }
 }
 

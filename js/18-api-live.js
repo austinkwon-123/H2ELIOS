@@ -34,41 +34,23 @@
 
   function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
 
-  // Real-time solar ephemeris -> MapLibre light. SunCalc.getPosition(time, lat, lng)
-  // returns { altitude, azimuth } in radians: altitude is 0 at the horizon,
-  // +PI/2 at the zenith, and *negative* once the sun is below the horizon;
-  // azimuth is measured from south, sweeping clockwise toward west (0 = S,
-  // PI/2 = W, +/-PI = N, -PI/2 = E) - see SunCalc's own docs, not MapLibre's.
+  // Fixed light source, anchor:"viewport" - the light comes from one set
+  // direction in SCREEN space and never moves as you pan/rotate. An earlier
+  // version recomputed SunCalc.getPosition() at the map's *center* on every
+  // moveend (anchor:"map"), which sounds more "real" but actually made the
+  // light swing around unpredictably during interaction - "azimuth of the
+  // sun as seen from wherever you're currently looking" is a
+  // viewport-dependent quantity, not a stable world-space direction, so
+  // anchoring it to "map" while recomputing it from a moving center fought
+  // itself. A single fixed viewport-anchored light reads as one consistent
+  // source without the jitter. See the honesty note below on setLight's
+  // real capabilities.
+  const LIGHT_BEARING = 55; // degrees clockwise from screen-up
+  const LIGHT_POLAR = 62;   // 0 = zenith, 90 = horizon - a low, dramatic raking angle
+  const LIGHT_COLOR = "#fff3d6";
+  const LIGHT_INTENSITY = 0.7;
   function updateSunLight() {
-    const center = map.getCenter();
-    const sun = SunCalc.getPosition(new Date(), center.lat, center.lng);
-    const altitudeDeg = (sun.altitude * 180) / Math.PI;
-    const azimuthDeg = (sun.azimuth * 180) / Math.PI;
-
-    // Compass bearing (0 = N, clockwise) is what MapLibre's azimuthal
-    // position expects for anchor:"map" - shift SunCalc's south-origin
-    // azimuth by 180deg to convert.
-    const bearing = (azimuthDeg + 180 + 360) % 360;
-
-    // MapLibre polar: 0 = zenith, 90 = horizon. Clamped to [8, 88] rather
-    // than passed through raw: map.setLight() only drives per-face
-    // shading, not a real day/night terminator or self-occlusion, so once
-    // the true altitude goes negative (real nighttime at the viewport's
-    // center) an unclamped polar angle would swing past the horizon into
-    // physically-meaningless territory and the extrusions would either go
-    // flat or light from "underground". Clamping keeps the light always
-    // sourced from a low, dramatic, above-horizon angle while its
-    // direction (bearing) and intensity/color still genuinely track the
-    // real sun.
-    const polar = clamp(90 - altitudeDeg, 8, 88);
-
-    // Dimmer and warmer (golden-hour amber) near the horizon; brighter and
-    // crisp white as the sun climbs - real solar altitude driving both.
-    const daylight = clamp(Math.sin(sun.altitude), -1, 1); // ~1 at zenith, ~0 at horizon, negative at night
-    const intensity = clamp(0.55 + 0.4 * Math.max(0, daylight), 0.55, 0.95);
-    const color = altitudeDeg < 12 ? "#ffb347" : "#ffffff";
-
-    map.setLight({ anchor: "map", color, intensity, position: [1.4, bearing, polar] });
+    map.setLight({ anchor: "viewport", color: LIGHT_COLOR, intensity: LIGHT_INTENSITY, position: [1.4, LIGHT_BEARING, LIGHT_POLAR] });
   }
 
   // Subsolar point (where the sun is at true zenith) - viewport-independent,
@@ -305,6 +287,33 @@
     renderApiSummary(data);
   }
 
+  // Denominator for the half-ring gauge: the grand total across the whole
+  // network (no bbox/status params = unfiltered). Fetched once on init since
+  // it barely changes within a session, unlike the viewport-scoped numerator.
+  let networkTotalCapacityMw = null;
+  let lastViewportCapacityMw = 0;
+
+  function updateGauge() {
+    const fillPath = document.getElementById("gauge-fill-path");
+    const pctEl = document.getElementById("gauge-pct");
+    if (!fillPath || !pctEl || !networkTotalCapacityMw) return;
+    const pct = clamp((lastViewportCapacityMw / networkTotalCapacityMw) * 100, 0, 100);
+    fillPath.style.strokeDashoffset = String(100 - pct);
+    pctEl.textContent = `${pct > 0 && pct < 1 ? pct.toFixed(1) : Math.round(pct)}%`;
+  }
+
+  async function fetchNetworkTotal() {
+    try {
+      const res = await fetch("/api/analytics/summary");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      networkTotalCapacityMw = data.totals.total_capacity_mw || null;
+      updateGauge();
+    } catch (err) {
+      console.error("network total fetch failed", err);
+    }
+  }
+
   // Odometer: rolls an element's displayed number from whatever it currently
   // shows to a new target over ~800ms, easeOutExpo (fast start, gentle
   // settle). Reads the previous value back out of the DOM itself (stripped of
@@ -347,6 +356,8 @@
     countEl.dataset.suffix = "";
     odometer(mwEl, data.totals.total_capacity_mw);
     odometer(countEl, data.totals.project_count);
+    lastViewportCapacityMw = data.totals.total_capacity_mw || 0;
+    updateGauge();
 
     const byTech = data.by_technology.filter((r) => r.technology);
     const max = Math.max(1, ...byTech.map((r) => Number(r.total_capacity_mw)));
@@ -417,39 +428,44 @@
         "fill-extrusion-vertical-gradient": true
       }
     });
-    // Ground-level bloom: a large, heavily blurred circle at each spike's
-    // base (reusing the existing "api-projects" point source - no new
-    // source needed), inserted directly beneath the extrusion layer so the
-    // spikes read as radiating light onto the surface around them.
+    // Ground-level bloom: a soft blurred circle at each spike's base
+    // (reusing the existing "api-projects" point source - no new source
+    // needed), inserted directly beneath the extrusion layer so the spikes
+    // read as radiating light onto the surface around them.
+    // Radius is zoom-interpolated (small at wide/continental zooms, full
+    // size once zoomed into a single region) rather than a fixed pixel
+    // size - at wide zooms, hundreds of projects sit close together in
+    // screen space, so a fixed-size blurred circle per point stacked up
+    // into an overlapping, blotchy mass ("fungus"/mold-colony look). Fewer
+    // px of overlap at low zoom, plus a smaller base radius, tighter blur
+    // and lower opacity, keeps it a subtle glow instead of a blob.
     map.addLayer({
       id: "api-projects-bloom", type: "circle", source: "api-projects",
       paint: {
         "circle-color": COLOR_MATCH,
-        "circle-radius": ["+", 14, ["*", 2.2, ["coalesce", ["get", "scale"], 2]]],
-        "circle-blur": 1.5,
-        "circle-opacity": 0.35
+        "circle-radius": [
+          "interpolate", ["linear"], ["zoom"],
+          2, ["*", 0.3, ["+", 8, ["*", 1.6, ["coalesce", ["get", "scale"], 2]]]],
+          6, ["+", 8, ["*", 1.6, ["coalesce", ["get", "scale"], 2]]]
+        ],
+        "circle-blur": 1.1,
+        "circle-opacity": 0.22
       }
     }, "api-projects-extrusion");
-    // Real-time solar ephemeris: map.setLight()'s directional shading now
-    // tracks the true sun position for whatever the viewport is currently
-    // centered on, via SunCalc (index.html CDN include, loaded before this
-    // script). Recomputed on an interval (the sun moves slowly - no need
-    // for a per-frame update) and on moveend (viewport center, and so the
-    // relevant lat/lng for SunCalc, only changes when a pan/zoom/rotate
-    // settles - moveend is itself the natural throttle point, already only
-    // firing once per gesture rather than per drag frame).
     // Honesty note (unchanged from prior verification against the project's
     // own maplibre-gl@5.24 changelog): map.setLight() is MapLibre's only
     // stable, documented lighting API. It drives per-face directional
     // *shading* only - there is no documented, stable cast-shadow feature
     // that would throw a spike's shadow onto the earth-mass fill below it,
     // and it has no concept of a day/night terminator sweeping the globe.
-    // What follows is a genuinely real-time sun *direction*, applied
-    // through that same shading-only model.
+    // The light itself is now a fixed viewport-anchored direction (see
+    // updateSunLight above) - set once, not recomputed on pan/zoom. The
+    // subsolar marker below is the separate, still-genuinely-real-time
+    // piece: an actual astronomical point (recomputed every minute) pinned
+    // to the globe's surface, independent of camera position.
     updateSunLight();
     updateSubsolarMarker();
-    setInterval(() => { updateSunLight(); updateSubsolarMarker(); }, 60000);
-    map.on("moveend", updateSunLight); // subsolar point is viewport-independent - no need to recompute on pan/zoom
+    setInterval(updateSubsolarMarker, 60000);
 
     TOGGLE_MAP.apiLive = ["api-projects", "api-projects-glow", "api-projects-extrusion", "api-projects-bloom"];
 
@@ -489,6 +505,7 @@
 
     map.on("moveend", () => scheduleFetch(300));
     fetchProjects();
+    fetchNetworkTotal();
   });
 
   // Chain into the shared filter pipeline: status/region changes don't move

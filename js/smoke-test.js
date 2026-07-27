@@ -57,6 +57,8 @@ window.Chart = class {
 const M = (f) => fs.readFileSync(path.join(__dirname, f), "utf8");
 window.eval(M("data.js"));
 window.eval(M("iea-data.js"));
+window.eval(M("eu-stations-data.js"));
+window.eval(M("breakeven-data.js"));
 window.eval(M("news-data.js"));
 // modules are classic scripts sharing one global scope in the browser; eval
 // does not, so concatenate them here in index.html load order.
@@ -68,7 +70,6 @@ window.eval([
   "14-policy.js", "15-companies.js", "16-ai-features.js",
   "17-visualization.js"
 ].map(M).join("\n;\n") + `
-  window.localStorage.setItem("h2grid_market_cache", JSON.stringify(DEFAULT_MARKET_DATA));
   window.localStorage.setItem("h2grid_metals_cache", JSON.stringify(DEFAULT_METALS_DATA));
   window.localStorage.setItem("h2grid_transport_cache", JSON.stringify(DEFAULT_TRANSPORT_DATA));
   window.localStorage.setItem("h2grid_policy_cache", JSON.stringify(DEFAULT_POLICY_DATA));
@@ -209,15 +210,6 @@ setTimeout(() => {
   ok(!!analyticsPanel && analyticsPanel.hidden, "analytics panel starts hidden");
   if (analyticsBtn) click(analyticsBtn);
   ok(!!analyticsPanel && !analyticsPanel.hidden && analyticsBtn.classList.contains("active"), "analytics panel opens on click");
-  ok(doc.querySelectorAll("#analytics-network .bar-row").length === 7, "network bars render all 7 taxonomy tiers");
-  const networkTotal = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
-  ok(networkTotal > 0, "network bars show nonzero total count");
-  click(doc.querySelector('#status-seg .seg-btn[data-status="operating"]'));
-  const networkFiltered = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
-  ok(networkFiltered <= networkTotal, "network bars recompute on status filter change");
-  click(doc.querySelector('#status-seg .seg-btn[data-status="all"]'));
-  const networkRestored = Array.from(doc.querySelectorAll("#analytics-network .bar-count")).reduce((s, el) => s + Number(el.textContent), 0);
-  ok(networkRestored === networkTotal, "network bars restore full total when filter cleared");
   ok(doc.querySelectorAll("#analytics-news .news-card").length === (window.HYDROGEN_NEWS || []).length && (window.HYDROGEN_NEWS || []).length > 0, "news cards render from HYDROGEN_NEWS");
   ok(Array.from(doc.querySelectorAll("#analytics-news .news-card")).every((el) => el.tagName === "A"), "all sample news cards render as real links (all sample URLs are https)");
   click(analyticsBtn);
@@ -358,7 +350,7 @@ setTimeout(() => {
   click(doc.querySelector('.tab-btn[data-route="market"]'));
   ok(!doc.getElementById("page-market").hidden, "market page shown after clicking Market tab");
   ok(doc.getElementById("m-kpi-funding").textContent !== "—", "market page loads committed funding KPI");
-  ok(doc.getElementById("lcoh-chart") !== null, "LCOH chart canvas exists");
+  ok(doc.getElementById("lcoh-chart") !== null, "LCOH chart container exists");
   ok(doc.getElementById("calc-power-price") !== null, "LCOH sensitivity power price slider exists");
   ok(doc.getElementById("sandbox-lcoh-val") !== null, "LCOH sensitivity simulated cost KPI exists");
   ok(doc.getElementById("vc-table-body").children.length > 0, "hydrogen deal registry lists items");
