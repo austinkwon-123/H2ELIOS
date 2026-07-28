@@ -70,10 +70,6 @@ window.eval([
   "14-policy.js", "15-companies.js", "16-ai-features.js",
   "17-visualization.js"
 ].map(M).join("\n;\n") + `
-  window.localStorage.setItem("h2grid_metals_cache", JSON.stringify(DEFAULT_METALS_DATA));
-  window.localStorage.setItem("h2grid_transport_cache", JSON.stringify(DEFAULT_TRANSPORT_DATA));
-  window.localStorage.setItem("h2grid_policy_cache", JSON.stringify(DEFAULT_POLICY_DATA));
-  window.localStorage.setItem("h2grid_companies_cache", JSON.stringify(DEFAULT_COMPANIES_DATA));
   window.localStorage.setItem("h2grid_ai_cache_overview_apac", JSON.stringify({
     prompt: "System Prompt: You are H2Grid AI...",
     analysis: "In the APAC region..."
@@ -250,7 +246,7 @@ setTimeout(() => {
   pageIds.forEach((id) => ok(!!doc.getElementById(id), `page section exists: ${id}`));
   ok(!doc.getElementById("page-map").hidden, "page-map visible by default");
   pageIds.slice(1).forEach((id) => ok(doc.getElementById(id).hidden, `${id} hidden by default`));
-  ok(doc.querySelectorAll("#tab-nav .tab-btn").length === 9, "tab nav has 9 buttons");
+  ok(doc.querySelectorAll("#tab-nav .tab-btn").length === 8, "tab nav has 8 buttons");
   ok(!!doc.querySelector('.tab-btn[data-route="map"]') && doc.querySelector('.tab-btn[data-route="map"]').classList.contains("active"), "Map tab active by default");
 
   // Icon-only nav island (Task 7 of the ui-overlay-enhancements plan)
@@ -358,7 +354,7 @@ setTimeout(() => {
   // Technology Page Assertions
   click(doc.querySelector('.tab-btn[data-route="technology"]'));
   ok(!doc.getElementById("page-technology").hidden, "technology page shown after clicking Tech tab");
-  ok(doc.querySelectorAll(".tech-spec-row").length === 4, "technology page TRL index table lists 4 items");
+  ok(doc.querySelectorAll(".trl-node").length === 4, "technology page TRL maturity spectrum plots 4 technologies");
   ok(doc.getElementById("metals-chart") !== null, "critical materials price chart canvas exists");
   ok(doc.getElementById("calc-iridium-price") !== null, "iridium price shock simulator slider exists");
   ok(doc.getElementById("sandbox-catalyst-val") !== null, "simulated precious metals catalyst component cost KPI exists");
@@ -371,6 +367,7 @@ setTimeout(() => {
   ok(doc.getElementById("calc-trans-dist") !== null, "transport distance slider simulator exists");
   ok(doc.getElementById("sim-lh2-vol") !== null, "liquid hydrogen simulated volume column exists");
   ok(doc.getElementById("sim-boiloff-val") !== null, "cryogenic boil-off output indicator exists");
+  ok(doc.querySelectorAll(".offtaker-race-row").length === 4, "offtaker parity race lists 4 ranked sector bars");
 
   // Policy Page Assertions
   click(doc.querySelector('.tab-btn[data-route="policy"]'));

@@ -3,12 +3,13 @@
    Electrolyzer technology mix (derived), TRL catalogs, and Catalyst Cost Shock Simulators.
    ======================================================================= */
 
-const METALS_API_URL = "https://api.h2grid.org/v1/critical-materials";
-const METALS_CACHE_KEY = "h2grid_metals_cache";
-
-// Real-world historical commodity price indices (Iridium $/oz, Nickel $/metric ton)
-const DEFAULT_METALS_DATA = {
-  lastUpdated: new Date().toISOString(),
+// Illustrative commodity price indices (Iridium $/oz, Nickel $/metric ton) -
+// SAMPLE data, not a live feed. An earlier version faked a "Live: HH:MM:SS"
+// timestamp against a non-existent api.h2grid.org endpoint (Math.random()
+// jitter dressed up as real-time data) - same anti-pattern already fixed in
+// the Market & Economics tab. Fixed here the same way: static values, no
+// fake fetch, clearly badged.
+const METALS_SAMPLE_DATA = {
   history: {
     dates: ["Jul 2025", "Aug 2025", "Sep 2025", "Oct 2025", "Nov 2025", "Dec 2025", "Jan 2026", "Feb 2026", "Mar 2026", "Apr 2026", "May 2026", "Jun 2026", "Jul 2026"],
     iridium: [4800, 4850, 4900, 4950, 5000, 5000, 5100, 5050, 4980, 5000, 5000, 4950, 5000],
@@ -56,21 +57,16 @@ const TECH_CATALOG = {
 };
 
 let selectedTechKey = "pem";
+let currentTechRegion = "all";
 let techChartInstance = null;
 let metalsChartInstance = null;
 
-function fetchMetalsData() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = JSON.parse(JSON.stringify(DEFAULT_METALS_DATA));
-      data.lastUpdated = new Date().toISOString();
-      const change = (Math.random() - 0.5) * 0.05;
-      data.history.iridium = data.history.iridium.map(v => Math.round(v * (1 + change)));
-      data.history.nickel = data.history.nickel.map(v => Math.round(v * (1 + change)));
-      resolve(data);
-    }, 450);
-  });
-}
+// TRL band midpoint per technology, for positioning on the maturity
+// spectrum below (SOEC/AEM are ranges in TECH_CATALOG - "TRL 6-7" etc -
+// the spectrum needs one numeric x-position, so this is the midpoint of
+// that range, not a separate claim).
+const TECH_TRL_MID = { alk: 9, pem: 8, soec: 6.5, aem: 4.5 };
+const TECH_COLORS = { alk: "#34d399", pem: "#60a5fa", soec: "#d99a3d", aem: "#f472b6" };
 
 function computeTechnologyMix(regionFilterLocal = "all") {
   const counts = { PEM: 0, ALK: 0, SOEC: 0, AEM: 0, Other: 0 };
@@ -183,6 +179,75 @@ function renderTechChart(regionFilterLocal = "all") {
   techChartInstance = new Chart(ctx, chartConfig);
 }
 
+// Maturity spectrum: ALK/PEM/SOEC/AEM positioned along a TRL 1-9 axis,
+// node radius scaled by each technology's real deployed capacity (same
+// computeTechnologyMix() the donut chart uses) - replaces a flat 4-button
+// grid with something that actually shows relative maturity AND scale at a
+// glance, in the spirit of IEA's own ETP Clean Energy Technology Guide
+// (technologies-on-a-maturity-spectrum, click a node for detail).
+function renderTrlSpectrum(regionFilterLocal = "all") {
+  const el = document.getElementById("trl-spectrum");
+  if (!el) return;
+
+  const { capacities } = computeTechnologyMix(regionFilterLocal);
+  const capKeyFor = { alk: "ALK", pem: "PEM", soec: "SOEC", aem: "AEM" };
+  const techKeys = Object.keys(TECH_CATALOG);
+  const maxCap = Math.max(1, ...techKeys.map((k) => capacities[capKeyFor[k]] || 0));
+
+  const W = 640, H = 150, padX = 40, trackY = 58;
+  const xAt = (trl) => padX + ((trl - 1) / 8) * (W - padX * 2);
+
+  const bands = [
+    { from: 1, to: 3, label: "Research" },
+    { from: 3, to: 6, label: "Development" },
+    { from: 6, to: 8, label: "Demonstration" },
+    { from: 8, to: 9, label: "Deployment" }
+  ];
+  const bandMarkup = bands.map((b) => {
+    const x1 = xAt(b.from), x2 = xAt(b.to);
+    return `<rect x="${x1}" y="${trackY - 3}" width="${x2 - x1}" height="6" rx="3" fill="rgba(120,160,200,0.08)"/>
+      <text x="${(x1 + x2) / 2}" y="${H - 10}" text-anchor="middle" font-size="9" fill="#67748c" font-family="Inter">${b.label}</text>`;
+  }).join("");
+
+  const tickMarkup = [1, 3, 6, 8, 9].map((t) =>
+    `<text x="${xAt(t)}" y="${trackY - 16}" text-anchor="middle" font-size="8.5" fill="#67748c" font-family="var(--font-mono)">TRL ${t}</text>`
+  ).join("");
+
+  const nodeMarkup = techKeys.map((key) => {
+    const trl = TECH_TRL_MID[key];
+    const cap = capacities[capKeyFor[key]] || 0;
+    const r = 9 + Math.sqrt(cap / maxCap) * 19;
+    const x = xAt(trl);
+    const color = TECH_COLORS[key];
+    const isActive = key === selectedTechKey;
+    const ring = isActive
+      ? `<circle cx="${x}" cy="${trackY}" r="${r + 6}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.5">
+           <animate attributeName="r" values="${r + 4};${r + 11};${r + 4}" dur="2s" repeatCount="indefinite"/>
+           <animate attributeName="opacity" values="0.55;0.1;0.55" dur="2s" repeatCount="indefinite"/>
+         </circle>`
+      : "";
+    return `<g class="trl-node" data-tech="${key}">
+      ${ring}
+      <circle cx="${x}" cy="${trackY}" r="${r}" fill="${color}" fill-opacity="0.85" stroke="${isActive ? '#ffffff' : color}" stroke-width="${isActive ? 2 : 1}">
+        <title>${escapeHtml(TECH_CATALOG[key].name)} — ${escapeHtml(TECH_CATALOG[key].trl)}${cap > 0 ? `, ${Math.round(cap).toLocaleString()} MW tracked` : ", no tracked capacity in view"}</title>
+      </circle>
+      <text x="${x}" y="${trackY + r + 15}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${isActive ? '#ffffff' : color}" font-family="Space Grotesk">${key.toUpperCase()}</text>
+    </g>`;
+  }).join("");
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="trl-spectrum-svg" role="img" aria-label="Electrolyzer technology maturity spectrum, click a technology for detail">
+    <line x1="${padX}" y1="${trackY}" x2="${W - padX}" y2="${trackY}" stroke="rgba(120,160,200,0.15)" stroke-width="1"/>
+    ${bandMarkup}
+    ${tickMarkup}
+    ${nodeMarkup}
+  </svg>`;
+
+  el.querySelectorAll(".trl-node").forEach((g) => {
+    g.style.cursor = "pointer";
+    g.addEventListener("click", () => selectCatalogTech(g.dataset.tech));
+  });
+}
+
 function renderMetalsChart(data) {
   const ctx = document.getElementById("metals-chart");
   if (!ctx) return;
@@ -248,16 +313,13 @@ function renderMetalsChart(data) {
   metalsChartInstance = new Chart(ctx, chartConfig);
 }
 
-// 1. Interactive Technical Catalog tabs
+// 1. Interactive Technical Catalog: click a node on the TRL spectrum
 function selectCatalogTech(key) {
   selectedTechKey = key;
   const d = TECH_CATALOG[key];
   if (!d) return;
 
-  // Toggle active styling on tech-spec-rows
-  document.querySelectorAll(".tech-spec-row").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.tech === key);
-  });
+  renderTrlSpectrum(currentTechRegion); // redraws with the new node highlighted
 
   const detailsContainer = document.getElementById("tech-catalog-details");
   if (detailsContainer) {
@@ -286,6 +348,7 @@ function selectCatalogTech(key) {
         </div>
       </div>
     `;
+    animateDetailIn(detailsContainer);
   }
 }
 
@@ -338,7 +401,6 @@ function initTechnologyPage() {
           <option value="mena">Middle East &amp; Africa</option>
           <option value="apac">Asia-Pacific</option>
         </select>
-        <span class="last-updated" id="t-last-updated" style="margin-left: auto; font-size:10px; color:var(--text-faint); font-family:var(--font-mono);">Loading…</span>
       </div>
 
       <!-- Main Visual Grid -->
@@ -358,32 +420,10 @@ function initTechnologyPage() {
 
           <!-- Interactive Tech Catalog -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Electrolyzer Technical Catalog</h3>
-            
-            <!-- Button Tabs matching JSDOM spec (tech-spec-row) -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <button class="tech-spec-row tab-btn" data-tech="alk" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectCatalogTech('alk')">
-                Alkaline Electrolysis (ALK)
-              </button>
-              <button class="tech-spec-row tab-btn" data-tech="pem" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectCatalogTech('pem')">
-                Proton Membrane (PEM)
-              </button>
-              <button class="tech-spec-row tab-btn" data-tech="soec" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectCatalogTech('soec')">
-                Solid Oxide Electrolysis (SOEC)
-              </button>
-              <button class="tech-spec-row tab-btn" data-tech="aem" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectCatalogTech('aem')">
-                Anion Membrane (AEM)
-              </button>
-            </div>
+            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Electrolyzer Maturity Spectrum</h3>
+            <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Positioned by technology readiness level; node size scales with real tracked deployed capacity. Click a technology for detail.</p>
 
-            <!-- Custom styling for tech catalog tabs -->
-            <style>
-              .tech-spec-row.tab-btn.active {
-                color: var(--cyan) !important;
-                border-color: rgba(63,214,232,0.4) !important;
-                background: rgba(63,214,232,0.06) !important;
-              }
-            </style>
+            <div id="trl-spectrum" class="svg-viz-wrap"></div>
 
             <!-- Specs read-out card -->
             <div id="tech-catalog-details">
@@ -398,10 +438,11 @@ function initTechnologyPage() {
           
           <!-- Commodity Price Chart -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Critical Materials Market Index</h3>
+            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Critical Materials Market Index <span class="badge badge-sample">SAMPLE</span></h3>
             <div class="chart-wrapper" style="height: 180px; position:relative; background:rgba(0,0,0,0.15); border:1px solid var(--line); border-radius:var(--r-sm);">
               <canvas id="metals-chart"></canvas>
             </div>
+            <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:0;">Illustrative price trend, not a live commodity feed.</p>
           </div>
 
           <!-- Catalyst Cost Shock Simulator -->
@@ -461,7 +502,9 @@ function initTechnologyPage() {
   const regionSelect = document.getElementById("t-region-select");
   if (regionSelect) {
     regionSelect.onchange = () => {
-      renderTechChart(regionSelect.value);
+      currentTechRegion = regionSelect.value;
+      renderTechChart(currentTechRegion);
+      renderTrlSpectrum(currentTechRegion);
     };
   }
 
@@ -474,44 +517,7 @@ function initTechnologyPage() {
   // Render Derived Mix & Initial Tab details
   renderTechChart();
   selectCatalogTech("pem");
+  renderMetalsChart(METALS_SAMPLE_DATA);
 
-  // Cache loading for metals
-  let cached = null;
-  try {
-    const raw = localStorage.getItem(METALS_CACHE_KEY);
-    if (raw) cached = JSON.parse(raw);
-  } catch (err) {}
-
-  if (cached) {
-    renderMetalsChart(cached);
-    const ts = document.getElementById("t-last-updated");
-    if (ts) {
-      ts.textContent = `Cached: ${new Date(cached.lastUpdated).toLocaleTimeString()}`;
-      ts.classList.add("stale");
-    }
-  }
-
-  // Background revalidation
-  fetchMetalsData()
-    .then((freshData) => {
-      try {
-        localStorage.setItem(METALS_CACHE_KEY, JSON.stringify(freshData));
-      } catch (err) {}
-      
-      renderMetalsChart(freshData);
-      const ts = document.getElementById("t-last-updated");
-      if (ts) {
-        ts.textContent = `Live: ${new Date(freshData.lastUpdated).toLocaleTimeString()}`;
-        ts.classList.remove("stale");
-        ts.classList.remove("error");
-      }
-    })
-    .catch((err) => {
-      console.error("Metals data revalidation failed:", err);
-      const ts = document.getElementById("t-last-updated");
-      if (ts) {
-        ts.textContent = "Offline/Revalidation Failed";
-        ts.classList.add("error");
-      }
-    });
+  animateCardsIn(el);
 }

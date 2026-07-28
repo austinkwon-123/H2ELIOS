@@ -72,13 +72,11 @@ const D = window.HYDROGEN_DATA;
 
 // ---- Base style: shared "Command Center" dark basemap -----------------------
 // Hoisted to its own constant (rather than inlined in the map init below) so
-// other views that want the same basemap - e.g. the Macro Flow cinematic
-// view's secondary MapLibre instance (20-macro-flow.js) - can reuse this
-// exact definition instead of either duplicating it or calling
-// map.getStyle() on the live map, which would also snapshot every
-// dynamically-added runtime layer (satellites, comet arcs, API project
-// circles/extrusions, their current data payloads, etc.) into what's
-// supposed to be a clean minimal backdrop.
+// any future view wanting the same basemap can reuse this exact definition
+// instead of either duplicating it or calling map.getStyle() on the live
+// map, which would also snapshot every dynamically-added runtime layer
+// (satellites, comet arcs, API project circles/extrusions, their current
+// data payloads, etc.) into what's supposed to be a clean minimal backdrop.
 const H2GRID_BASE_STYLE = {
     version: 8,
     projection: { type: "globe" },
@@ -307,6 +305,27 @@ function buildNetworkWeb(k = 3, maxKm = 2200) {
 // (with real US data), so EU coverage is present either way.
 function mergeFeatureCollections(...fcs) {
   return { type: "FeatureCollection", features: fcs.flatMap((fc) => (fc && fc.features) || []) };
+}
+
+// ---- Shared tab motion (see .tab-animate-in/.tab-detail-in in style.css) ----
+// Staggered entrance for a tab's own cards - call once from each initXPage()
+// after its innerHTML is set. Safe to call every time a page module inits,
+// since the router only ever calls initXPage() once per route (loadedRoutes
+// guard in 09-router.js), so this never replays on a plain tab switch back.
+function animateCardsIn(root, selector = ".kpi-card, .dashboard-card") {
+  root.querySelectorAll(selector).forEach((card, i) => {
+    card.classList.add("tab-animate-in");
+    card.style.animationDelay = `${i * 70}ms`;
+  });
+}
+
+// Fade+rise a freshly-injected detail block - call right after setting a
+// container's innerHTML in response to a deliberate, infrequent click (a
+// catalog tab, a country selector) - not on live search-as-you-type, where
+// re-animating every keystroke would be distracting rather than delightful.
+function animateDetailIn(container) {
+  const el = container && container.firstElementChild;
+  if (el) el.classList.add("tab-detail-in");
 }
 
 // ---- Build layers on load ---------------------------------------------------

@@ -3,12 +3,11 @@
    Policy Impact Simulators, Regional Target Trackers, and Regulatory timelines.
    ======================================================================= */
 
-const POLICY_API_URL = "https://api.h2grid.org/v1/policy-feed";
-const POLICY_CACHE_KEY = "h2grid_policy_cache";
-
-// Real-world representative policy updates
-const DEFAULT_POLICY_DATA = {
-  lastUpdated: new Date().toISOString(),
+// Illustrative policy-update examples with invented specific dates - SAMPLE
+// data, not a live feed. An earlier version faked a "Live: HH:MM:SS"
+// timestamp against a non-existent api.h2grid.org endpoint, implying these
+// were real dated news events; fixed the same way as the other tabs.
+const POLICY_SAMPLE_DATA = {
   policies: [
     {
       id: "p1",
@@ -93,17 +92,6 @@ const REGIONAL_TARGETS = {
 };
 
 let selectedRegionTargetKey = "us";
-let latestFreshPolicyData = null;
-
-function fetchPolicyData() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = JSON.parse(JSON.stringify(DEFAULT_POLICY_DATA));
-      data.lastUpdated = new Date().toISOString();
-      resolve(data);
-    }, 450);
-  });
-}
 
 function renderPolicyList(data, filterRegion = "all") {
   const container = document.getElementById("policy-list-container");
@@ -235,6 +223,7 @@ function selectRegionalTarget(key) {
         </dl>
       </div>
     `;
+    animateDetailIn(detailsContainer);
   }
 }
 
@@ -261,15 +250,15 @@ function initPolicyPage() {
           <option value="mena">Middle East &amp; Africa</option>
           <option value="apac">Asia-Pacific</option>
         </select>
-        <span class="last-updated" id="p-last-updated" style="margin-left: auto; font-size:10px; color:var(--text-faint); font-family:var(--font-mono);">Loading…</span>
       </div>
 
       <!-- Main Visual Grid -->
       <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:16px;">
-        
+
         <!-- Left: Searchable Policy timeline Feed -->
         <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
-          <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Policy Timeline &amp; Impacts</h3>
+          <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Policy Timeline &amp; Impacts <span class="badge badge-sample">SAMPLE</span></h3>
+          <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Illustrative examples of the kind of updates tracked here, not a live regulatory feed.</p>
 
           <div style="display:flex; gap:8px; align-items:center;">
             <input type="text" id="p-search" placeholder="Search regulations or keywords..."
@@ -395,61 +384,11 @@ function initPolicyPage() {
   // Bind mandate card tabs
   selectRegionalTarget("us");
 
-  // Cache loading for policy timeline
-  let cached = null;
-  try {
-    const raw = localStorage.getItem(POLICY_CACHE_KEY);
-    if (raw) cached = JSON.parse(raw);
-  } catch (err) {}
+  const select = document.getElementById("p-region-select");
+  renderPolicyList(POLICY_SAMPLE_DATA, "all");
+  document.getElementById("p-search").oninput = () => renderPolicyList(POLICY_SAMPLE_DATA, select.value);
+  document.getElementById("p-impact-filter").onchange = () => renderPolicyList(POLICY_SAMPLE_DATA, select.value);
+  select.onchange = () => renderPolicyList(POLICY_SAMPLE_DATA, select.value);
 
-  if (cached) {
-    latestFreshPolicyData = cached;
-    renderPolicyList(cached, "all");
-    const ts = document.getElementById("p-last-updated");
-    if (ts) {
-      ts.textContent = `Cached: ${new Date(cached.lastUpdated).toLocaleTimeString()}`;
-      ts.classList.add("stale");
-    }
-  }
-
-  // Background revalidation
-  fetchPolicyData()
-    .then((freshData) => {
-      latestFreshPolicyData = freshData;
-      try {
-        localStorage.setItem(POLICY_CACHE_KEY, JSON.stringify(freshData));
-      } catch (err) {}
-      
-      const select = document.getElementById("p-region-select");
-      const currentRegion = select ? select.value : "all";
-      renderPolicyList(freshData, currentRegion);
-      
-      const ts = document.getElementById("p-last-updated");
-      if (ts) {
-        ts.textContent = `Live: ${new Date(freshData.lastUpdated).toLocaleTimeString()}`;
-        ts.classList.remove("stale");
-        ts.classList.remove("error");
-      }
-
-      // Re-bind listeners for timeline search & filter
-      document.getElementById("p-search").oninput = () => {
-        renderPolicyList(latestFreshPolicyData, select.value);
-      };
-      document.getElementById("p-impact-filter").onchange = () => {
-        renderPolicyList(latestFreshPolicyData, select.value);
-      };
-      if (select) {
-        select.onchange = () => {
-          renderPolicyList(latestFreshPolicyData, select.value);
-        };
-      }
-    })
-    .catch((err) => {
-      console.error("Policy data revalidation failed:", err);
-      const ts = document.getElementById("p-last-updated");
-      if (ts) {
-        ts.textContent = "Offline/Revalidation Failed";
-        ts.classList.add("error");
-      }
-    });
+  animateCardsIn(el);
 }

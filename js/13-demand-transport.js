@@ -3,12 +3,11 @@
    End-Use capacity aggregates, Carrier Logistics Simulators, and Offtaker Parity Catalogs.
    ======================================================================= */
 
-const TRANSPORT_API_URL = "https://api.h2grid.org/v1/transport-trends";
-const TRANSPORT_CACHE_KEY = "h2grid_transport_cache";
-
-// Transport stats: actuals and projected fleet counts vs order backlog
-const DEFAULT_TRANSPORT_DATA = {
-  lastUpdated: new Date().toISOString(),
+// Illustrative fleet/orderbook trend - SAMPLE data, not a live feed. Fixed
+// the same way as Market & Economics and the Technology tab's metals chart:
+// no fake api.h2grid.org fetch, no Math.random() jitter dressed up as
+// "Live", clearly badged in the UI instead.
+const TRANSPORT_SAMPLE_DATA = {
   years: [2020, 2022, 2024, 2026, 2028, 2030, 2032, 2034],
   modes: {
     road: {
@@ -64,20 +63,26 @@ let selectedSectorKey = "steel";
 let enduseChartInstance = null;
 let transportChartInstance = null;
 
-function fetchTransportData() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = JSON.parse(JSON.stringify(DEFAULT_TRANSPORT_DATA));
-      data.lastUpdated = new Date().toISOString();
-      const scalar = 1 + (Math.random() - 0.5) * 0.08;
-      
-      for (const m in data.modes) {
-        data.modes[m].fleet = data.modes[m].fleet.map(v => Math.round(v * scalar));
-        data.modes[m].orders = data.modes[m].orders.map(v => Math.round(v * scalar));
-      }
-      resolve(data);
-    }, 450);
-  });
+// Positioning for the offtaker opportunity matrix below: x from the
+// catalog's own "$X.XX / kg" parity string, y from an ordinal rank of its
+// "High"/"Extremely High"/etc volume label (the prefix before the
+// parenthetical detail). Illustrative reference figures, same footing as
+// the rest of SECTOR_PARITY_CATALOG - not a sourced/measured dataset, so
+// the matrix is framed as directional, not a precision instrument.
+const SECTOR_COLORS = { steel: "#60a5fa", ammonia: "#4ade80", aviation: "#f472b6", shipping: "#3fd6e8" };
+// "Green Steelmaking" and "Green Ammonia" both start with the same word, so
+// a short label auto-derived from SECTOR_PARITY_CATALOG's own name (first
+// word) collided - explicit labels instead.
+const SECTOR_SHORT_LABELS = { steel: "Steel", ammonia: "Ammonia", aviation: "SAF", shipping: "Maritime" };
+const VOLUME_RANK = { "Medium": 1, "High": 2, "Extremely High": 3 };
+
+function parseParity(str) {
+  const m = String(str).match(/[\d.]+/);
+  return m ? parseFloat(m[0]) : 0;
+}
+function parseVolumeRank(str) {
+  const label = String(str).split("(")[0].trim();
+  return VOLUME_RANK[label] || 1;
 }
 
 function parseCapacityToMw(c) {
@@ -278,15 +283,66 @@ function runTransportSim() {
   document.getElementById("sim-boiloff-val").textContent = `${lh2BoilOff.toFixed(1)} tons H₂ (${((lh2BoilOff / payload) * 100).toFixed(2)}%)`;
 }
 
+// Offtaker parity leaderboard: sectors ranked as horizontal "race" bars
+// instead of a scatter/spectrum of circular nodes (that shape is already
+// used by the Technology tab's TRL spectrum right next door - reusing it
+// here read as the same widget twice). A bar-leaderboard is a different
+// visual grammar for the same two honest fields: bar fill length = how
+// close the sector's price parity target is to the cheapest in the
+// catalog (a relative "race to affordability", not an absolute physical
+// unit), dot strength = demand volume rank. Sorted cheapest-first so the
+// nearest-term opportunity naturally reads as "in the lead".
+function renderOfftakerMatrix() {
+  const el = document.getElementById("offtaker-matrix");
+  if (!el) return;
+
+  const keys = Object.keys(SECTOR_PARITY_CATALOG);
+  const parities = keys.map((k) => parseParity(SECTOR_PARITY_CATALOG[k].parity));
+  const pMin = Math.min(...parities), pMax = Math.max(...parities);
+  const span = (pMax - pMin) || 1;
+
+  const ranked = [...keys].sort((a, b) => parseParity(SECTOR_PARITY_CATALOG[a].parity) - parseParity(SECTOR_PARITY_CATALOG[b].parity));
+
+  const rowMarkup = ranked.map((key, i) => {
+    const d = SECTOR_PARITY_CATALOG[key];
+    const color = SECTOR_COLORS[key];
+    const isActive = key === selectedSectorKey;
+    const p = parseParity(d.parity);
+    const pct = Math.round((1 - (p - pMin) / span) * 88) + 12; // 12-100%, so even the priciest sector still shows a visible bar
+    const vol = parseVolumeRank(d.volume);
+    const dots = [1, 2, 3].map((n) => `<span class="race-dot${n <= vol ? ' on' : ''}" style="--dot-color:${color}"></span>`).join("");
+    const shortLabel = SECTOR_SHORT_LABELS[key] || key.toUpperCase();
+
+    return `<div class="offtaker-race-row${isActive ? ' active' : ''}" data-sector="${key}" style="--race-color:${color}">
+      <div class="race-rank">${i + 1}</div>
+      <div class="race-info">
+        <div class="race-label">${escapeHtml(shortLabel)}</div>
+        <div class="race-sub">${escapeHtml(d.name)}</div>
+      </div>
+      <div class="race-track">
+        <div class="race-fill" style="width:${pct}%;"></div>
+      </div>
+      <div class="race-meta">
+        <span class="race-parity">${escapeHtml(d.parity)}</span>
+        <span class="race-dots" title="Demand volume potential: ${escapeHtml(d.volume)}">${dots}</span>
+      </div>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="offtaker-race" role="list" aria-label="Offtaker sectors ranked by price parity target, dots show demand volume potential">${rowMarkup}</div>`;
+
+  el.querySelectorAll(".offtaker-race-row").forEach((row) => {
+    row.addEventListener("click", () => selectSectorParity(row.dataset.sector));
+  });
+}
+
 // 2. Interactive Sector catalog selection
 function selectSectorParity(key) {
   selectedSectorKey = key;
   const d = SECTOR_PARITY_CATALOG[key];
   if (!d) return;
 
-  document.querySelectorAll(".sector-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.sector === key);
-  });
+  renderOfftakerMatrix();
 
   const details = document.getElementById("sector-parity-details");
   if (details) {
@@ -309,6 +365,7 @@ function selectSectorParity(key) {
         </div>
       </div>
     `;
+    animateDetailIn(details);
   }
 }
 
@@ -328,7 +385,6 @@ function initDemandTransportPage() {
       <!-- Live state indicator row -->
       <div class="search-filter-row" style="display:flex; align-items:center; gap:12px; background:rgba(0,0,0,0.1); padding:10px 14px; border-radius:var(--r-md); border:1px solid var(--line);">
         <span style="font-size:11px; color:var(--text-muted);">Reactive capacity aggregation tracks active map bounds and status filters.</span>
-        <span class="last-updated" id="dt-last-updated" style="margin-left: auto; font-size:10px; color:var(--text-faint); font-family:var(--font-mono);">Loading…</span>
       </div>
 
       <!-- Main Visual Grid -->
@@ -347,30 +403,10 @@ function initDemandTransportPage() {
 
           <!-- Sector catalog -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Industrial Offtaker &amp; Parity Catalog</h3>
-            
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-              <button class="sector-btn tab-btn" data-sector="steel" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectSectorParity('steel')">
-                DRI Green Steelmaking
-              </button>
-              <button class="sector-btn tab-btn" data-sector="ammonia" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectSectorParity('ammonia')">
-                Clean Nitrogen Fertilizers
-              </button>
-              <button class="sector-btn tab-btn" data-sector="aviation" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectSectorParity('aviation')">
-                Synthetic Aviation (SAF)
-              </button>
-              <button class="sector-btn tab-btn" data-sector="shipping" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectSectorParity('shipping')">
-                Maritime Fuel Blending
-              </button>
-            </div>
+            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Offtaker Parity Race</h3>
+            <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Illustrative reference figures, ranked cheapest-to-unlock first. Bar length = proximity to the catalog's lowest price parity target; dots = demand volume potential. Click a sector for detail.</p>
 
-            <style>
-              .sector-btn.tab-btn.active {
-                color: var(--cyan) !important;
-                border-color: rgba(63,214,232,0.4) !important;
-                background: rgba(63,214,232,0.06) !important;
-              }
-            </style>
+            <div id="offtaker-matrix"></div>
 
             <div id="sector-parity-details">
               <!-- Filled dynamically -->
@@ -385,7 +421,7 @@ function initDemandTransportPage() {
           <!-- Line Chart -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Fleet Rollout orderbooks</h3>
+              <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Fleet Rollout Orderbooks <span class="badge badge-sample">SAMPLE</span></h3>
               <select id="t-mode-select" style="background:var(--bg-1); color:var(--text-hi); border:1px solid var(--line); padding:2px 6px; border-radius:4px; font-size:11px; height:auto; margin:0;">
                 <option value="road">🚛 Heavy Road Fleet</option>
                 <option value="maritime">🚢 Cargo Vessels</option>
@@ -478,50 +514,8 @@ function initDemandTransportPage() {
   // Render static derived end-use capacity bars
   renderEndUseChart();
 
-  // Cache loading for mobility trend chart
-  let cached = null;
-  try {
-    const raw = localStorage.getItem(TRANSPORT_CACHE_KEY);
-    if (raw) cached = JSON.parse(raw);
-  } catch (err) {}
+  renderTransportChart(TRANSPORT_SAMPLE_DATA);
+  document.getElementById("t-mode-select").onchange = () => renderTransportChart(TRANSPORT_SAMPLE_DATA);
 
-  if (cached) {
-    renderTransportChart(cached);
-    const ts = document.getElementById("dt-last-updated");
-    if (ts) {
-      ts.textContent = `Cached: ${new Date(cached.lastUpdated).toLocaleTimeString()}`;
-      ts.classList.add("stale");
-    }
-  }
-
-  // Background revalidation
-  fetchTransportData()
-    .then((freshData) => {
-      try {
-        localStorage.setItem(TRANSPORT_CACHE_KEY, JSON.stringify(freshData));
-      } catch (err) {}
-      
-      renderTransportChart(freshData);
-      const ts = document.getElementById("dt-last-updated");
-      if (ts) {
-        ts.textContent = `Live: ${new Date(freshData.lastUpdated).toLocaleTimeString()}`;
-        ts.classList.remove("stale");
-        ts.classList.remove("error");
-      }
-
-      const select = document.getElementById("t-mode-select");
-      if (select) {
-        select.onchange = () => {
-          renderTransportChart(freshData);
-        };
-      }
-    })
-    .catch((err) => {
-      console.error("Transport data revalidation failed:", err);
-      const ts = document.getElementById("dt-last-updated");
-      if (ts) {
-        ts.textContent = "Offline/Revalidation Failed";
-        ts.classList.add("error");
-      }
-    });
+  animateCardsIn(el);
 }

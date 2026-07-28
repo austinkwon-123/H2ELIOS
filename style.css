@@ -146,51 +146,6 @@ button { font-family: inherit; color: inherit; }
     repeating-linear-gradient(120deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px);
 }
 
-/* Macro Flow's second MapLibre instance (#macro-flow-map, 20-macro-flow.js)
-   never had the main map's starfield/nebula/hex-grid dressing, since those
-   are pure CSS pseudo-elements scoped to #map - so it rendered as a small
-   globe floating in a huge void of flat black. Same visual treatment here,
-   but a FIXED opacity rather than reusing #map's var(--bg-fx, 1): that
-   variable is written by 07-live.js from the PRIMARY map's zoom level, so
-   sharing it would make this view's starfield randomly dim/vanish based on
-   whatever zoom the user last left the main globe at - this view's own
-   camera never changes zoom (only bearing, via startFlowRotation), so its
-   backdrop should just always be fully on. */
-#macro-flow-map::before {
-  content: "";
-  position: absolute; inset: 0;
-  pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at 11% 18%, rgba(220, 235, 250, 0.5) 50%, transparent 51%),
-    radial-gradient(1px 1px at 82% 9%, rgba(200, 220, 245, 0.35) 50%, transparent 51%),
-    radial-gradient(1.4px 1.4px at 91% 62%, rgba(220, 235, 250, 0.3) 50%, transparent 51%),
-    radial-gradient(1px 1px at 27% 86%, rgba(210, 228, 248, 0.4) 50%, transparent 51%),
-    radial-gradient(1px 1px at 60% 40%, rgba(200, 220, 245, 0.18) 50%, transparent 51%),
-    radial-gradient(1.4px 1.4px at 4% 55%, rgba(210, 228, 248, 0.25) 50%, transparent 51%),
-    radial-gradient(1px 1px at 68% 93%, rgba(220, 235, 250, 0.32) 50%, transparent 51%),
-    radial-gradient(1px 1px at 94% 30%, rgba(220, 235, 250, 0.42) 50%, transparent 51%),
-    radial-gradient(1px 1px at 43% 7%, rgba(200, 220, 245, 0.3) 50%, transparent 51%),
-    radial-gradient(1px 1px at 18% 45%, rgba(200, 220, 245, 0.15) 50%, transparent 51%),
-    radial-gradient(650px circle at 20% 28%, rgba(0, 240, 255, 0.16), transparent 70%),
-    radial-gradient(750px circle at 82% 72%, rgba(255, 42, 85, 0.13), transparent 70%),
-    linear-gradient(rgba(28, 42, 74, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(28, 42, 74, 0.06) 1px, transparent 1px);
-  background-size:
-    auto, auto, auto, auto, auto, auto, auto, auto, auto, auto,
-    auto, auto,
-    56px 56px, 56px 56px;
-}
-#macro-flow-map::after {
-  content: "";
-  position: absolute; inset: 0;
-  pointer-events: none;
-  opacity: 0.05;
-  background-image:
-    repeating-linear-gradient(0deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px),
-    repeating-linear-gradient(60deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px),
-    repeating-linear-gradient(120deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px);
-}
-
 /* Subsolar point marker - a maplibregl.Marker element (18-api-live.js),
    positioned at the real-time lat/lng where the sun is directly overhead.
    pointer-events:none so it never intercepts clicks meant for the globe
@@ -811,87 +766,6 @@ button { font-family: inherit; color: inherit; }
    a hidden page must always stay hidden regardless of per-page styling. */
 .page[hidden] { display: none !important; }
 
-/* ---------- Macro Flow (Deck.gl cinematic view, 20-macro-flow.js) ---------- */
-#page-macro-flow { position: fixed; inset: 0; background: var(--bg-0); }
-#macro-flow-container {
-  position: absolute; inset: 0;
-  opacity: 0;
-  animation: macroFlowFadeIn 0.8s ease forwards;
-}
-@keyframes macroFlowFadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-#macro-flow-loading {
-  position: absolute; inset: 0; z-index: 6;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--label);
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
-  background: var(--bg-0);
-}
-
-.macro-flow-header {
-  position: absolute; top: 76px; left: 50%; transform: translateX(-50%);
-  z-index: 5;
-  padding: 12px 32px;
-  background: rgba(10, 15, 25, 0.4);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  text-align: center;
-  pointer-events: none;
-}
-.macro-flow-header h1 {
-  margin: 0;
-  font-family: var(--font-head);
-  font-size: 15px; font-weight: 700;
-  letter-spacing: 0.16em; text-transform: uppercase;
-  color: #ffffff;
-  text-shadow: 0 0 12px rgba(63, 214, 232, 0.7), 0 0 28px rgba(63, 214, 232, 0.35);
-}
-.macro-flow-header p {
-  margin: 4px 0 0;
-  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--label);
-}
-
-.macro-flow-timeline {
-  position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
-  z-index: 5;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  width: min(560px, 80vw);
-  padding: 14px 24px;
-  background: rgba(10, 15, 25, 0.4);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-}
-.macro-flow-timeline .mf-year {
-  font-family: var(--font-mono); font-size: 20px; font-weight: 700; color: #ffffff;
-  text-shadow: 0 0 10px rgba(63, 214, 232, 0.7);
-}
-.macro-flow-timeline input[type="range"] {
-  width: 100%; -webkit-appearance: none; appearance: none;
-  height: 4px; border-radius: 2px;
-  background: linear-gradient(90deg, rgba(63, 214, 232, 0.7), rgba(63, 214, 232, 0.15));
-  outline: none; cursor: pointer; margin: 0;
-}
-.macro-flow-timeline input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #ffffff; border: none; cursor: pointer;
-  box-shadow: 0 0 4px 1px #ffffff, 0 0 14px 4px rgba(63, 214, 232, 0.85);
-}
-.macro-flow-timeline input[type="range"]::-moz-range-thumb {
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #ffffff; border: none; cursor: pointer;
-  box-shadow: 0 0 4px 1px #ffffff, 0 0 14px 4px rgba(63, 214, 232, 0.85);
-}
-.macro-flow-timeline .mf-range-labels {
-  display: flex; justify-content: space-between; width: 100%;
-  font-size: 9px; color: var(--text-faint); font-family: var(--font-mono);
-}
-
 /* ---------- Hydrogen calculator (Tools tab) ---------- */
 #page-tools { padding: 90px 20px 40px; min-height: 100vh; display: flex; justify-content: center; }
 .tools-shell { width: 100%; max-width: 640px; }
@@ -1247,21 +1121,36 @@ button { font-family: inherit; color: inherit; }
     grid-template-columns: 1fr;
   }
 }
+/* ---------- Tab-page "liquid glass" surface (Apple-style translucency) ----------
+   Scoped to per-tab content panels (dashboard-card, kpi-card, svg-viz-wrap,
+   sector-tab pills) - NOT the fixed console chrome (.glass, #command-ribbon,
+   #tab-nav), which stays on the flatter "tactical console" scanline
+   treatment it was deliberately built with. A diagonal specular sheen
+   (::before) plus a bright inset top edge is what reads as "glass catching
+   light" rather than just a blurred dark panel. */
 .dashboard-card {
-  background: var(--panel-strong);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  /* Specular sheen is its own background layer (not a ::before) so it's
+     guaranteed to paint behind every child regardless of stacking-order
+     quirks - a positioned pseudo-element can end up painting above static
+     in-flow children even without z-index, which a plain background layer
+     never can. */
+  background: radial-gradient(140% 90px at 15% -10%, rgba(255, 255, 255, 0.14), transparent 60%), linear-gradient(155deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.025) 40%, rgba(10, 15, 25, 0.32) 100%), var(--panel-strong);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   position: relative;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 22px rgba(255, 255, 255, 0.02), var(--shadow-soft);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .dashboard-card:hover {
-  border-color: var(--line-strong);
+  border-color: rgba(255, 255, 255, 0.24);
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.12);
 }
 .dashboard-card h3 {
   font-family: var(--font-head);
@@ -1276,19 +1165,22 @@ button { font-family: inherit; color: inherit; }
   gap: 16px;
 }
 .kpi-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  background: radial-gradient(160% 60px at 12% -10%, rgba(255, 255, 255, 0.12), transparent 60%), linear-gradient(155deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(10, 15, 25, 0.28) 100%), var(--panel);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), var(--shadow-soft);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .kpi-card:hover {
-  border-color: var(--line-strong);
+  border-color: rgba(255, 255, 255, 0.22);
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.1);
 }
 .kpi-card .kpi-label {
   font: var(--overline);
@@ -1408,39 +1300,112 @@ button { font-family: inherit; color: inherit; }
   border-radius: 4px;
 }
 
-.tech-spec-row {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--line);
-  padding: 6px 0;
-  font-size: 12px;
+/* Shared wrapper for hand-built SVG "positioning" visualizations - the
+   Technology tab's maturity spectrum and the Demand & Transport tab's
+   offtaker opportunity matrix - both wide/short bands unlike the
+   fixed-180px .chart-wrapper elsewhere. */
+.svg-viz-wrap {
+  background: radial-gradient(160% 50px at 15% -20%, rgba(255, 255, 255, 0.08), transparent 60%), var(--bg-1);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 8px 4px 4px;
 }
-.tech-spec-row:last-child {
-  border-bottom: none;
+.svg-viz-wrap svg { width: 100%; height: auto; display: block; }
+.svg-viz-wrap .trl-node { transition: opacity 0.15s ease; }
+.svg-viz-wrap .trl-node:hover { opacity: 0.85; }
+
+/* ---------- Demand & Transport: Offtaker Parity Race ----------
+   A horizontal bar leaderboard, not a scatter/spectrum of circular nodes -
+   deliberately a different shape from the Technology tab's TRL spectrum
+   right next to it in the tab order (see renderOfftakerMatrix in
+   13-demand-transport.js for why). Rows are glass "capsule" bars ranked
+   cheapest-parity-first, so the nearest-term opportunity reads as being
+   in the lead. */
+.offtaker-race { display: flex; flex-direction: column; gap: 8px; }
+.offtaker-race-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.3fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 45%, rgba(10, 15, 25, 0.3) 100%), var(--bg-1);
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
+.offtaker-race-row:hover { border-color: var(--race-color, var(--line-strong)); transform: translateX(2px); }
+.offtaker-race-row.active {
+  border-color: var(--race-color, var(--cyan));
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(10, 15, 25, 0.3) 100%), var(--bg-1);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--race-color, var(--cyan)) 35%, transparent), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.race-rank {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  color: var(--text-faint); text-align: center;
+}
+.offtaker-race-row.active .race-rank { color: var(--race-color, var(--cyan)); }
+.race-info { min-width: 0; }
+.race-label { font-size: 11.5px; font-weight: 700; color: var(--text-hi); font-family: var(--font-head); }
+.race-sub { font-size: 9.5px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.race-track {
+  position: relative; height: 8px; border-radius: 999px;
+  background: rgba(120, 160, 200, 0.08); overflow: hidden;
+}
+.race-fill {
+  position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--race-color) 60%, transparent), var(--race-color));
+  box-shadow: 0 0 10px 0 color-mix(in srgb, var(--race-color) 55%, transparent);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.race-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.race-parity { font-size: 11px; font-weight: 700; color: var(--text-hi); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.race-dots { display: flex; gap: 3px; }
+.race-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(120, 160, 200, 0.18); }
+.race-dot.on { background: var(--dot-color, var(--cyan)); box-shadow: 0 0 4px 0 var(--dot-color, var(--cyan)); }
 
 /* ---------- Sample-data marker: distinguishes hand-curated/illustrative
    figures from real sourced data (see .pill.fallback for the "real data,
    sourced" counterpart used on chart headers). ---------- */
 .badge-sample { color: var(--amber); border-color: rgba(217, 154, 61, 0.35); background: rgba(217, 154, 61, 0.08); }
 
-/* ---------- Page-load entrance motion: staggered fade+rise, applied once
-   per tab visit (see initMarketPage's use of animateEntrance) - not
+/* ---------- Shared tab motion (animateCardsIn/animateDetailIn, 01-core.js) ----------
+   Page-load entrance: staggered fade+rise, applied once per tab visit (each
+   initXPage() only runs once - see 09-router.js's loadedRoutes guard) - not
    replayed on every re-render (sector switch, filter change), so it reads
-   as "the page waking up" rather than a distracting constant flicker. ---------- */
-@keyframes marketCardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-.market-animate-in { animation: marketCardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+   as "the page waking up" rather than a distracting constant flicker.
+   First built for Market & Economics, promoted here so every tab module
+   (Technology, Demand & Transport, Policy, Companies) can reuse it. ---------- */
+@keyframes tabCardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.tab-animate-in { animation: tabCardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Detail-swap fade: the "click a catalog tab, swap a details card" pattern
+   (tech-catalog-details, sector-parity-details, mandate-details-container,
+   partner-list-container) - a lighter/faster version of the same motion,
+   reused on every click since it's a deliberate, infrequent action rather
+   than something like live search-as-you-type. */
+@keyframes tabDetailIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.tab-detail-in { animation: tabDetailIn 0.3s ease both; }
 
 /* ---------- Market & Economics: break-even price chart ---------- */
 .sector-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .sector-tab {
   font-size: 11.5px; font-weight: 500; color: var(--text-muted);
-  background: var(--bg-1); border: 1px solid var(--line); border-radius: 999px;
-  padding: 5px 12px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01)), var(--bg-1);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 999px;
+  padding: 5px 12px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
-.sector-tab:hover { color: var(--text-hi); }
+.sector-tab:hover { color: var(--text-hi); border-color: rgba(255, 255, 255, 0.2); }
 .sector-tab:active { transform: scale(0.94); }
-.sector-tab.active { color: var(--bg-0); background: var(--cyan); border-color: var(--cyan); font-weight: 600; }
+.sector-tab.active {
+  color: var(--bg-0); background: var(--cyan); border-color: var(--cyan); font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 12px rgba(63, 214, 232, 0.35);
+}
 .chart-note { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin: 0; }
 .chart-empty {
   display: flex; align-items: center; justify-content: center; height: 100%;
@@ -1476,6 +1441,20 @@ button { font-family: inherit; color: inherit; }
 .sandbox-readout-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
 .sandbox-readout-sub { font-size: 9.5px; color: var(--text-faint); margin-top: 2px; }
 .sandbox-readout-val { font-size: 28px; font-weight: 700; color: var(--cyan); font-family: var(--font-head); font-variant-numeric: tabular-nums; }
+
+.sandbox-incentive-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11.5px; color: var(--text-hi); cursor: pointer;
+}
+.sandbox-incentive-row input { accent-color: var(--cyan); cursor: pointer; }
+
+.sandbox-verdict {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  padding: 3px 8px; border-radius: 4px; border: 1px solid transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.sandbox-verdict.pass { color: var(--green-ok); border-color: rgba(76, 195, 138, 0.35); background: rgba(76, 195, 138, 0.08); }
+.sandbox-verdict.fail { color: var(--red); border-color: rgba(229, 99, 92, 0.4); background: rgba(229, 99, 92, 0.08); }
 
 /* ---------- Market & Economics: policy subsidies ---------- */
 .subsidy-list { display: flex; flex-direction: column; gap: 8px; }

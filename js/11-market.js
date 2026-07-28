@@ -204,20 +204,16 @@ function wireBreakevenControls() {
 }
 
 // ---- LCOH Sensitivity Sandbox (real formula, user-driven inputs - not fabricated data) -------
-function runSandboxLcohCalc() {
-  const powerPrice = parseFloat(document.getElementById("calc-power-price").value);
-  const capex = parseFloat(document.getElementById("calc-capex-cost").value);
-  const capFactor = parseFloat(document.getElementById("calc-cap-factor").value);
+const LCOH_CONSTANTS = { discountRate: 0.08, lifetime: 20, stackEfficiencyKwh: 52, capacityKw: 1000 };
 
-  const discountRate = 0.08;
-  const lifetime = 20;
-  const stackEfficiencyKwh = 52;
-
+// Pure calc (no DOM access) so it can run twice per render - once for the
+// user's own baseline slider values, once for a stress scenario's "what if"
+// - without the two calls stepping on each other.
+function computeLcoh({ powerPrice, capex, capFactor, incentiveCredit = 0 }) {
+  const { discountRate, lifetime, stackEfficiencyKwh, capacityKw } = LCOH_CONSTANTS;
   const capitalRecoveryFactor = (discountRate * Math.pow(1 + discountRate, lifetime)) / (Math.pow(1 + discountRate, lifetime) - 1);
   const annualizedCapex = capex * capitalRecoveryFactor;
   const annualOpex = capex * 0.03;
-
-  const capacityKw = 1000;
   const totalAnnualCost = (annualizedCapex + annualOpex) * capacityKw;
 
   const annualHours = 8760;
@@ -227,14 +223,88 @@ function runSandboxLcohCalc() {
   const capitalLcoh = annualProductionKg > 0 ? (totalAnnualCost / annualProductionKg) : 0;
   const electricityLcoh = (powerPrice * stackEfficiencyKwh) / 1000;
 
-  const finalLcoh = capitalLcoh + electricityLcoh;
+  return Math.max(0, capitalLcoh + electricityLcoh - incentiveCredit);
+}
 
-  document.getElementById("power-price-lbl").textContent = `${powerPrice} $/MWh`;
-  document.getElementById("capex-cost-lbl").textContent = `${capex} $/kW`;
-  document.getElementById("cap-factor-lbl").textContent = `${capFactor}%`;
+// Named stress scenarios, applied ON TOP of whatever the sliders currently
+// show rather than overwriting them - so "what if utilization misses" is a
+// non-destructive preview, not a reset. offtake-delay has no direct lever
+// in a steady-state levelized-cost formula (it's a cash-flow timing effect,
+// not a per-kg cost) - approximated as a capex carrying-cost penalty
+// (~discount rate x 1 year for an 18-month delay), labeled as such in the UI
+// rather than presented as a precise NPV result.
+const IRA_45V_CREDIT = 3.00; // $/kg - Section 45V top tier, matches the Policy Subsidies card below
+const VIABILITY_THRESHOLD = 4.00; // $/kg - illustrative "commercially plausible" line, not an authoritative benchmark - adjust freely, not sourced
+
+const LCOH_SCENARIOS = [
+  { key: "baseline", label: "Baseline", apply: (b) => b },
+  { key: "utilization-miss", label: "Utilization Miss", apply: (b) => ({ ...b, capFactor: b.capFactor * 0.8 }) },
+  { key: "power-shock", label: "Power Price Shock", apply: (b) => ({ ...b, powerPrice: b.powerPrice * 1.3 }) },
+  { key: "incentive-removed", label: "Incentive Removed", apply: (b) => ({ ...b, incentiveCredit: 0 }) },
+  { key: "offtake-delay", label: "Offtake Delay (18mo)", apply: (b) => ({ ...b, capex: b.capex * 1.08 }) }
+];
+let activeScenario = "baseline";
+let incentiveOn = true;
+
+function currentBaselineInputs() {
+  return {
+    powerPrice: parseFloat(document.getElementById("calc-power-price").value),
+    capex: parseFloat(document.getElementById("calc-capex-cost").value),
+    capFactor: parseFloat(document.getElementById("calc-cap-factor").value),
+    incentiveCredit: incentiveOn ? IRA_45V_CREDIT : 0
+  };
+}
+
+function runSandboxLcohCalc() {
+  const baseline = currentBaselineInputs();
+  document.getElementById("power-price-lbl").textContent = `${baseline.powerPrice} $/MWh`;
+  document.getElementById("capex-cost-lbl").textContent = `${baseline.capex} $/kW`;
+  document.getElementById("cap-factor-lbl").textContent = `${baseline.capFactor}%`;
+
+  const baselineLcoh = computeLcoh(baseline);
+  const scenario = LCOH_SCENARIOS.find((s) => s.key === activeScenario) || LCOH_SCENARIOS[0];
+  const isBaseline = scenario.key === "baseline";
+  const stressedLcoh = isBaseline ? baselineLcoh : computeLcoh(scenario.apply(baseline));
+  const shownLcoh = isBaseline ? baselineLcoh : stressedLcoh;
 
   const outputVal = document.getElementById("sandbox-lcoh-val");
-  if (outputVal) outputVal.textContent = `$${finalLcoh.toFixed(2)}`;
+  if (outputVal) outputVal.textContent = `$${shownLcoh.toFixed(2)}`;
+
+  const deltaEl = document.getElementById("sandbox-lcoh-delta");
+  if (deltaEl) {
+    if (isBaseline) {
+      deltaEl.textContent = "";
+    } else {
+      const delta = stressedLcoh - baselineLcoh;
+      deltaEl.textContent = `${delta >= 0 ? "+" : ""}$${delta.toFixed(2)} vs your baseline ($${baselineLcoh.toFixed(2)})`;
+    }
+  }
+
+  const verdictEl = document.getElementById("sandbox-lcoh-verdict");
+  if (verdictEl) {
+    const pass = shownLcoh <= VIABILITY_THRESHOLD;
+    verdictEl.textContent = pass ? "PASS" : "FAIL";
+    verdictEl.className = `sandbox-verdict ${pass ? "pass" : "fail"}`;
+  }
+}
+
+function wireLcohScenarios() {
+  const nav = document.getElementById("lcoh-scenario-nav");
+  if (!nav) return;
+  nav.querySelectorAll(".sector-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeScenario = btn.dataset.scenario;
+      nav.querySelectorAll(".sector-tab").forEach((b) => b.classList.toggle("active", b === btn));
+      runSandboxLcohCalc();
+    });
+  });
+  const incentiveToggle = document.getElementById("lcoh-incentive-toggle");
+  if (incentiveToggle) {
+    incentiveToggle.addEventListener("change", () => {
+      incentiveOn = incentiveToggle.checked;
+      runSandboxLcohCalc();
+    });
+  }
 }
 
 // ---- Deal & funding registry (curated, static) -----------------------------------------------
@@ -275,6 +345,10 @@ function initMarketPage() {
 
   const sectorTabsHtml = BREAKEVEN_SECTORS.map((s, i) =>
     `<button class="sector-tab${i === 0 ? " active" : ""}" data-sector="${s.key}">${s.label}</button>`
+  ).join("");
+
+  const scenarioTabsHtml = LCOH_SCENARIOS.map((s, i) =>
+    `<button class="sector-tab${i === 0 ? " active" : ""}" data-scenario="${s.key}">${s.label}</button>`
   ).join("");
 
   el.innerHTML = `
@@ -328,13 +402,28 @@ function initMarketPage() {
             </div>
           </div>
 
+          <label class="sandbox-incentive-row">
+            <input type="checkbox" id="lcoh-incentive-toggle" checked />
+            Apply $${IRA_45V_CREDIT.toFixed(2)}/kg IRA Section 45V credit
+          </label>
+
+          <div>
+            <p class="chart-note" style="margin-bottom:6px;">Stress test: apply a scenario to see how it moves the cost away from your baseline above.</p>
+            <div class="sector-tabs" id="lcoh-scenario-nav">${scenarioTabsHtml}</div>
+          </div>
+
           <div class="sandbox-readout">
             <div>
               <div class="sandbox-readout-label">Simulated Levelized Cost</div>
-              <div class="sandbox-readout-sub">Target baseline LCOH equivalent</div>
+              <div class="sandbox-readout-sub">Baseline LCOH under your current inputs</div>
             </div>
-            <span id="sandbox-lcoh-val" class="sandbox-readout-val">$4.80</span>
+            <div style="display:flex; align-items:baseline; gap:8px;">
+              <span id="sandbox-lcoh-val" class="sandbox-readout-val">$4.80</span>
+              <span id="sandbox-lcoh-verdict" class="sandbox-verdict pass">PASS</span>
+            </div>
           </div>
+          <p class="chart-note" id="sandbox-lcoh-delta"></p>
+          <p class="chart-note">PASS/FAIL is against an illustrative $${VIABILITY_THRESHOLD.toFixed(2)}/kg viability line, not a sourced benchmark — adjust your own assumptions above and judge for yourself.</p>
         </div>
       </div>
 
@@ -382,19 +471,14 @@ function initMarketPage() {
   document.getElementById("calc-power-price").oninput = runSandboxLcohCalc;
   document.getElementById("calc-capex-cost").oninput = runSandboxLcohCalc;
   document.getElementById("calc-cap-factor").oninput = runSandboxLcohCalc;
+  wireLcohScenarios();
   runSandboxLcohCalc();
 
   document.getElementById("vc-search").oninput = renderVCRoster;
   document.getElementById("vc-sector-filter").onchange = renderVCRoster;
   renderVCRoster();
 
-  // Entrance motion + KPI count-up: this function only ever runs once per
-  // page load (09-router.js's loadedRoutes guard), so a one-time "waking
-  // up" animation here never repeats/annoys on later tab switches.
-  el.querySelectorAll(".kpi-card, .dashboard-card").forEach((card, i) => {
-    card.classList.add("market-animate-in");
-    card.style.animationDelay = `${i * 70}ms`;
-  });
+  animateCardsIn(el);
   animateCountUp(document.getElementById("m-kpi-funding"), parseFloat(MARKET_SAMPLE_KPIS.funding), { prefix: "$", suffix: "B" });
   animateCountUp(document.getElementById("m-kpi-revenue"), parseFloat(MARKET_SAMPLE_KPIS.revenue), { prefix: "$", suffix: "B" });
 }

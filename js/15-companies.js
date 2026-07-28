@@ -3,12 +3,17 @@
    Searchable companies database and Local Partner/BD Connector.
    ======================================================================= */
 
-const COMPANIES_API_URL = "https://api.h2grid.org/v1/companies-database";
-const COMPANIES_CACHE_KEY = "h2grid_companies_cache";
-
-// Core database of hydrogen companies
-const DEFAULT_COMPANIES_DATA = {
-  lastUpdated: new Date().toISOString(),
+// The companies list below names real organizations (real names/URLs).
+// The "partners" directory is a different thing entirely: every firm in it
+// ("Delaware H₂ Counselors", "Nordic Flow Contractors", etc.) is invented -
+// there is no such registered entity. The template used to call them
+// "vetted, legally registered local contractors" and offer an "Initiate
+// Outreach" button that fires a real-looking confirmation, which would
+// mislead a user into thinking they'd contacted a real business. Fixed
+// below: honest copy, a SAMPLE badge, and the button relabeled as a
+// preview, not an action. Also drops the fake api.h2grid.org "Live" fetch,
+// same as the other tabs.
+const COMPANIES_SAMPLE_DATA = {
   companies: [
     { name: "Plug Power", country: "USA", segment: "Electrolyzer OEM", url: "https://www.plugpower.com" },
     { name: "thyssenkrupp nucera", country: "DEU", segment: "Electrolyzer OEM", url: "https://www.thyssenkrupp-nucera.com" },
@@ -43,16 +48,6 @@ const DEFAULT_COMPANIES_DATA = {
     ]
   }
 };
-
-function fetchCompaniesData() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const data = JSON.parse(JSON.stringify(DEFAULT_COMPANIES_DATA));
-      data.lastUpdated = new Date().toISOString();
-      resolve(data);
-    }, 450);
-  });
-}
 
 function renderCompaniesTable(data) {
   const tbody = document.getElementById("companies-table-body");
@@ -97,14 +92,22 @@ function renderPartnerBDConnector(data) {
       </div>
       <p style="font-size:11.5px; color:var(--text); line-height:1.4; margin:0;">${p.desc}</p>
       <button class="tab-btn" onclick="initiatePartnerOutreach('${p.name}', '${p.contact}')" style="align-self:flex-start; margin-top:4px; font-size:10px; padding:4px 8px; background:var(--cyan-dim); color:var(--cyan); border:1px solid var(--line-accent); box-shadow:none;">
-        ✉ Initiate Outreach
+        ✉ Preview Outreach Template
       </button>
     </div>
   `).join("");
+
+  // Multiple sibling cards here (one per partner), not the single-wrapper
+  // shape animateDetailIn expects - stagger each directly, same motion as
+  // a deliberate, infrequent action (destination country changed).
+  Array.from(container.children).forEach((card, i) => {
+    card.classList.add("tab-detail-in");
+    card.style.animationDelay = `${i * 60}ms`;
+  });
 }
 
 window.initiatePartnerOutreach = function(name, email) {
-  alert(`Outreach connector triggered!\n\nTo: ${email}\nRegarding: Partnership request with local legal entity ${name}\n\nIn a production environment, this triggers a secure mail client or CRM webhook.`);
+  alert(`This is a SAMPLE profile, not a real registered business - "${name}" and its contact address (${email}) are illustrative only.\n\nIn a version wired to a real partner directory, this would open an outreach draft to a verified contact.`);
 };
 
 function initCompaniesPage() {
@@ -116,10 +119,6 @@ function initCompaniesPage() {
       <div class="page-header">
         <h2>Companies &amp; Partners</h2>
         <p>Maintainable registry of global hydrogen developers and contractors, with a localized business development recommender.</p>
-      </div>
-
-      <div class="search-filter-row">
-        <span class="last-updated" id="c-last-updated">Loading…</span>
       </div>
 
       <div class="dashboard-grid two-cols">
@@ -158,9 +157,9 @@ function initCompaniesPage() {
 
         <!-- Right: Partner BD Connector -->
         <div class="dashboard-card" style="min-height: 480px;">
-          <h3>Local Partner / BD Connector</h3>
+          <h3>Local Partner / BD Connector <span class="badge badge-sample">SAMPLE</span></h3>
           <p style="font-size:11.5px; color:var(--text-muted); margin:0;">
-            Select a project destination country to find vetted, legally registered local contractors, permit advisors, and coordinates.
+            Illustrative example profiles of the kind of local contractor/advisor a real directory would surface by destination country — none of the firms below are real registered businesses.
           </p>
 
           <div class="search-filter-row" style="margin-bottom:8px;">
@@ -182,50 +181,12 @@ function initCompaniesPage() {
     </div>
   `;
 
-  // Stale-While-Revalidate caching pattern
-  let cached = null;
-  try {
-    const raw = localStorage.getItem(COMPANIES_CACHE_KEY);
-    if (raw) cached = JSON.parse(raw);
-  } catch (err) {}
+  renderCompaniesTable(COMPANIES_SAMPLE_DATA);
+  renderPartnerBDConnector(COMPANIES_SAMPLE_DATA);
 
-  if (cached) {
-    renderCompaniesTable(cached);
-    renderPartnerBDConnector(cached);
-    const ts = document.getElementById("c-last-updated");
-    if (ts) {
-      ts.textContent = `Cached: ${new Date(cached.lastUpdated).toLocaleTimeString()}`;
-      ts.classList.add("stale");
-    }
-  }
+  document.getElementById("c-search-input").oninput = () => renderCompaniesTable(COMPANIES_SAMPLE_DATA);
+  document.getElementById("c-segment-select").onchange = () => renderCompaniesTable(COMPANIES_SAMPLE_DATA);
+  document.getElementById("p-country-select").onchange = () => renderPartnerBDConnector(COMPANIES_SAMPLE_DATA);
 
-  fetchCompaniesData()
-    .then((freshData) => {
-      try {
-        localStorage.setItem(COMPANIES_CACHE_KEY, JSON.stringify(freshData));
-      } catch (err) {}
-      
-      renderCompaniesTable(freshData);
-      renderPartnerBDConnector(freshData);
-      
-      const ts = document.getElementById("c-last-updated");
-      if (ts) {
-        ts.textContent = `Live: ${new Date(freshData.lastUpdated).toLocaleTimeString()}`;
-        ts.classList.remove("stale");
-        ts.classList.remove("error");
-      }
-
-      // Bind input events
-      document.getElementById("c-search-input").oninput = () => renderCompaniesTable(freshData);
-      document.getElementById("c-segment-select").onchange = () => renderCompaniesTable(freshData);
-      document.getElementById("p-country-select").onchange = () => renderPartnerBDConnector(freshData);
-    })
-    .catch((err) => {
-      console.error("Companies data revalidation failed:", err);
-      const ts = document.getElementById("c-last-updated");
-      if (ts) {
-        ts.textContent = "Offline/Revalidation Failed";
-        ts.classList.add("error");
-      }
-    });
+  animateCardsIn(el);
 }
