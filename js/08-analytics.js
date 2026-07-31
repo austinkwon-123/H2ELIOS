@@ -30,6 +30,24 @@ const STOCK_TICKERS = [
 let marketsInterval = null;
 let lastQuotes = {}; // symbol -> { c, dp } from the previous poll, for flash-on-update diffing
 
+// Preferred path: the backend proxy at /api/quotes, where the key lives in a
+// server-side env var and never reaches the browser. Returns a symbol->quote
+// map, or null when there is no backend (static hosting) or it has no key
+// configured — callers then fall back to the direct client-side path.
+async function fetchQuotesViaProxy(symbols) {
+  try {
+    const res = await fetch(`/api/quotes?symbols=${encodeURIComponent(symbols.join(","))}`);
+    if (!res.ok) return null;
+    const body = await res.json();
+    if (!body.configured) return null;
+    return body.quotes || {};
+  } catch (err) {
+    return null; // no backend at all — static host
+  }
+}
+
+// Fallback for static hosting: hits Finnhub straight from the browser using a
+// key from js/config.js. Anything used here is publicly readable by design.
 async function fetchQuote(symbol) {
   const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_KEY}`);
   if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
@@ -39,13 +57,22 @@ async function fetchQuote(symbol) {
 async function renderMarkets() {
   const el = document.getElementById("analytics-markets");
   if (!el) return;
-  if (!FINNHUB_KEY) {
-    el.innerHTML = `<div class="markets-fallback">Configure a free Finnhub API key in js/08-analytics.js for live quotes. <a href="https://finnhub.io/register" target="_blank" rel="noopener">Get one free</a></div>`;
-    return;
-  }
+
   try {
-    const settled = await Promise.allSettled(STOCK_TICKERS.map((t) => fetchQuote(t.symbol).then((q) => ({ ...t, q }))));
-    const quotes = settled.filter((r) => r.status === "fulfilled").map((r) => r.value);
+    // Try the server proxy first; only fall back to a browser-side key.
+    const proxied = await fetchQuotesViaProxy(STOCK_TICKERS.map((t) => t.symbol));
+    let quotes;
+    if (proxied) {
+      quotes = STOCK_TICKERS.filter((t) => proxied[t.symbol]).map((t) => ({ ...t, q: proxied[t.symbol] }));
+    } else if (FINNHUB_KEY) {
+      const settled = await Promise.allSettled(STOCK_TICKERS.map((t) => fetchQuote(t.symbol).then((q) => ({ ...t, q }))));
+      quotes = settled.filter((r) => r.status === "fulfilled").map((r) => r.value);
+    } else {
+      // Neither route available. Says what to do, and names both options
+      // rather than only the one that leaks a key into page source.
+      el.innerHTML = `<div class="markets-fallback">Live quotes need a free Finnhub key — set <code>FINNHUB_KEY</code> in <code>.env</code> and run the backend, or add it to <code>js/config.js</code> for a static build. <a href="https://finnhub.io/register" target="_blank" rel="noopener">Get one free</a></div>`;
+      return;
+    }
     if (!quotes.length) throw new Error("All ticker quotes failed");
     el.innerHTML = quotes.map(({ symbol, name, q }) => {
       const up = (q.dp || 0) >= 0;

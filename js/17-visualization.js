@@ -463,7 +463,21 @@ function update3DTowers() {
     return true;
   };
 
-  const points = [...D.production.features, ...D.storagePoints.features];
+  // Every curated tier that carries a capacity figure, each gated on its own
+  // dock toggle so the beams track the rail. Manufacturing and upstream were
+  // previously excluded, which meant the violet (electrolyser gigafactory) and
+  // pink (nuclear) taxonomy colours could never appear as beams at all — the
+  // globe could only ever show green / blue / gray_blue / brown.
+  const SPIKE_TIERS = [
+    ["production", D.production],
+    ["storage", D.storagePoints],
+    ["manufacturing", D.manufacturing],
+    ["upstream", D.upstream]
+  ];
+  const points = [];
+  SPIKE_TIERS.forEach(([toggleKey, fc]) => {
+    if (fc && fc.features && layerVisible(toggleKey)) points.push(...fc.features);
+  });
   if (window.IEA_DATA && layerVisible("iea")) {
     window.IEA_DATA.features.forEach(f => {
       if (f.properties.category === "production" || f.properties.category === "storage") {

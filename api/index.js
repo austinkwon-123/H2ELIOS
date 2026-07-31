@@ -2,11 +2,13 @@ require('express-async-errors');
 const express = require('express');
 const projectsRouter = require('./routes/projects');
 const analyticsRouter = require('./routes/analytics');
+const quotesRouter = require('./routes/quotes');
 
 const router = express.Router();
 
 router.use('/projects', projectsRouter);
 router.use('/analytics', analyticsRouter);
+router.use('/quotes', quotesRouter);
 
 // Error-handling middleware: catches thrown/rejected errors from the routes above
 // (express-async-errors forwards async rejections here automatically) so a bad bbox

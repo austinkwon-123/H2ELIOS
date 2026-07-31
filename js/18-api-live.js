@@ -427,7 +427,11 @@
     map.addLayer({
       id: "api-projects-glow", type: "circle", source: "api-projects",
       paint: {
-        "circle-color": API_HOLO,
+        // Taxonomy colour, not API_HOLO. This was the only one of the three
+        // api-projects layers still painted yellow — the dot and the bloom
+        // both use COLOR_MATCH — so every project got a yellow halo around a
+        // green/blue core. It was invisible until the tier started rendering.
+        "circle-color": COLOR_MATCH,
         "circle-radius": GLOW_RADIUS_EXPR,
         "circle-opacity": 0.12,
         "circle-blur": 0.9
@@ -515,6 +519,17 @@
     setInterval(updateSubsolarMarker, 60000);
 
     TOGGLE_MAP.apiLive = ["api-projects", "api-projects-glow", "api-projects-extrusion", "api-projects-bloom"];
+
+    // Sync to the dock button's initial state instead of assuming visible.
+    // This tier ships OFF because every backend row is data_source='iea' — the
+    // same 3,338 projects the IEA layer already draws — so leaving both on
+    // double-draws the whole dataset.
+    const apiBtn = document.querySelector('.dock-btn[data-layer="apiLive"]');
+    if (apiBtn && !apiBtn.classList.contains("active")) {
+      TOGGLE_MAP.apiLive.forEach((id) => {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
+      });
+    }
 
     map.on("click", "api-projects", async (e) => {
       const base = Object.assign({}, e.features[0].properties);

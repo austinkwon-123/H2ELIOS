@@ -246,7 +246,10 @@ void main() {
   map.on("load", () => {
     map.addLayer(arcLayer);
 
-    const btn = document.querySelector('.dock-btn[data-layer="commandArcs"]');
+    // Driven by the single "flows" control now. The 3D arcs and the draped
+    // 2D flow lines both render D.flows, so they were two switches for one
+    // dataset; the arcs simply become how that dataset looks in 3D.
+    const btn = document.querySelector('.dock-btn[data-layer="flows"]');
     if (btn) {
       btn.addEventListener("click", () => {
         arcLayer.visible = btn.classList.contains("active");

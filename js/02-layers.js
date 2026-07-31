@@ -9,12 +9,18 @@
 function addWebLayer() {
   const web = buildNetworkWeb();
   map.addSource("web", { type: "geojson", data: web });
+  // Hidden by default and no longer in the dock. This layer draws an
+  // *illustrative* mesh between nodes — it is not a real network, and it was
+  // the one layer on the map contradicting the data-honesty pass. The geometry
+  // is kept so it can be re-enabled deliberately, but it no longer ships on.
   map.addLayer({
     id: "web-glow", type: "line", source: "web",
+    layout: { visibility: "none" },
     paint: { "line-color": "#3fd6e8", "line-width": 2, "line-opacity": 0.05, "line-blur": 3 }
   });
   map.addLayer({
     id: "web", type: "line", source: "web",
+    layout: { visibility: "none" },
     paint: { "line-color": "#5fd9ea", "line-width": 0.55, "line-opacity": 0.2 }
   });
 }

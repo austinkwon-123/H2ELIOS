@@ -28,18 +28,32 @@
 (function () {
   const LAT_STEP = 3;   // degrees — 3° is smooth enough that the terminator
   const LNG_STEP = 4;   // reads as a curve, cheap enough to rebuild never
-  const LAT_LIMIT = 84; // mercator y blows up at the poles
+  // Past the 85.05° mercator limit on purpose. Mercator y is still finite up
+  // there (y = -0.62 at 89.9°) and the globe projection maps it over the pole
+  // correctly. Stopping at the limit left the polar caps with no daylight
+  // wash while everything around them had it, so the caps read as a dark
+  // ellipse sliding across the top of the globe as the camera moved — the
+  // hole was in the shading, not in the basemap.
+  const LAT_LIMIT = 89.8;
 
   // Twilight shaping, in cosine-of-solar-zenith. cosZ > 0 is lit, < 0 is dark;
   // the band between is civil/nautical twilight, which is what makes the
   // terminator read as a soft sweep instead of a hard cut.
   const NIGHT_START = 0.09;   // cosZ at which darkening begins
   const NIGHT_FULL = -0.30;   // cosZ at which darkening is at full strength
-  const DAY_START = -0.02;
-  const DAY_FULL = 0.34;
+
+  // Both ramps must finish CLOSE TO the terminator (cosZ ≈ 0). An earlier
+  // DAY_FULL of 0.34 meant the daylight wash only reached full strength within
+  // roughly 70° of the subsolar point, which is a radial gradient centred on
+  // the sun — it rendered as a distinct bright disc sliding around the globe
+  // as the camera moved, rather than as daylight. Ending the ramp just past
+  // sunrise makes the lit hemisphere uniform and confines the softness to the
+  // terminator, which is the only place it belongs.
+  const DAY_START = -0.04;
+  const DAY_FULL = 0.12;
 
   const NIGHT_ALPHA = 0.74;
-  const DAY_ALPHA = 0.17;
+  const DAY_ALPHA = 0.14;
 
   function buildMesh() {
     const verts = [];

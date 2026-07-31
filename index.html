@@ -73,13 +73,17 @@
   <button class="dock-btn active has-tip tip-right" data-layer="endUse" aria-label="End use" data-tip="End use"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg></button>
   <button class="dock-btn active has-tip tip-right" data-layer="fuelingStations" aria-label="Fueling stations (live)" data-tip="Fueling stations (live)"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M2 21h14M6 8h6M14 10h2a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V9l-2-2"/></svg></button>
   <button class="dock-btn active has-tip tip-right" data-layer="hubs" aria-label="DOE hydrogen hubs" data-tip="DOE hydrogen hubs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="flows" aria-label="Real supply-chain flows" data-tip="Real supply-chain flows"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="iea" aria-label="IEA announced projects (3,300+ records)" data-tip="IEA announced projects (3,300+ records)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="apiLive" aria-label="Live API (backend, viewport-scoped)" data-tip="Live API (backend, viewport-scoped)"><svg viewBox="0 0 24 24"><path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6M4.9 19.1l4.2-4.2M14.9 9.1l4.2-4.2"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="commandArcs" aria-label="3D elevated energy arcs (WebGL)" data-tip="3D elevated energy arcs (WebGL)"><svg viewBox="0 0 24 24"><path d="M3 18c3-10 15-10 18 0"/><circle cx="3" cy="18" r="1.6"/><circle cx="21" cy="18" r="1.6"/></svg></button>
-  <div class="dock-sep"></div>
-  <button class="dock-btn active has-tip tip-right" data-layer="web" aria-label="Network web (illustrative)" data-tip="Network web (illustrative)"><svg viewBox="0 0 24 24"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="9" cy="19" r="2"/><path d="M7 6l10 .8M6.4 6.8 8.4 17M17.6 8.7 10.7 18"/></svg></button>
-  <div class="dock-sep"></div>
+  <!-- One control for supply-chain flows. It drives the draped 2D lines and the
+       3D elevated arcs together: both render the same D.flows dataset, so two
+       separate toggles were two switches for one thing. -->
+  <button class="dock-btn active has-tip tip-right" data-layer="flows" aria-label="Supply-chain flows" data-tip="Supply-chain flows"><svg viewBox="0 0 24 24"><path d="M3 18c3-10 15-10 18 0"/><circle cx="3" cy="18" r="1.6"/><circle cx="21" cy="18" r="1.6"/></svg></button>
+  <div class="dock-sep" data-dock-group="Data"></div>
+  <button class="dock-btn active has-tip tip-right" data-layer="iea" aria-label="IEA announced projects (3,338 records)" data-tip="IEA announced projects (3,338 records)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
+  <!-- Off by default: every row in the backend has data_source='iea', so this
+       tier draws the same 3,338 projects the IEA layer already shows. Leaving
+       both on double-draws the entire dataset. -->
+  <button class="dock-btn has-tip tip-right" data-layer="apiLive" aria-label="Live API tier (backend — same IEA records, served live)" data-tip="Live API tier (backend — same IEA records, served live)"><svg viewBox="0 0 24 24"><path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6M4.9 19.1l4.2-4.2M14.9 9.1l4.2-4.2"/></svg></button>
+  <div class="dock-sep" data-dock-group="Filter"></div>
   <button class="flyout-trigger has-tip tip-right" id="filter-status-trigger" data-flyout="status" aria-label="Filter by status" data-tip="Filter by status" aria-expanded="false" aria-controls="flyout-status">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M2 12h4M18 12h4M4.2 19.8l2.8-2.8M17 7l2.8-2.8"/></svg>
   </button>
