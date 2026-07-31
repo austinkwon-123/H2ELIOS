@@ -30,7 +30,7 @@
   // and 41.5 * 38000 ≈ 1.58M m. The previous 6000 topped out around 249km, so
   // every spike sat pinned at MIN_HEIGHT and MAX_HEIGHT was unreachable —
   // raising the ceiling did nothing at all until this was fixed with it.
-  const HEIGHT_FACTOR = 38000;   // meters per (clamped capacityMw ^ exponent)
+  const HEIGHT_FACTOR = 62000;   // meters per (clamped capacityMw ^ exponent)
   const HEIGHT_EXPONENT = 0.45;  // flat enough that outliers don't eclipse dense clusters
   const CLAMP_MW = 4000;         // covers the largest legitimate projects
   // Aspect ratio is what sells this, not absolute size. The reference look
@@ -43,8 +43,8 @@
   // landed on it — identical height, which read as uniform stubble instead of
   // the organic varied grass the reference gets. A low floor lets capacity
   // actually differentiate: a 10MW site is a stub, a 4GW one towers.
-  const MIN_HEIGHT = 60000;      // 60km
-  const MAX_HEIGHT = 1600000;    // 1,600km — ~25% of Earth's radius, deliberately non-physical
+  const MIN_HEIGHT = 110000;     // 110km
+  const MAX_HEIGHT = 2600000;    // 2,600km — ~41% of Earth's radius, deliberately non-physical
 
   // Base width, not uniform width — the prism tapers to a point in the vertex
   // shader (TIP_TAPER), so this can be chunky at the ground without the whole
@@ -312,9 +312,19 @@ void main() {
     }
   };
 
+  // The spikes are the thing standing off the globe, so they must draw last.
+  // The circle/glow marker layers are added by addPointLayer well after this
+  // module registers its layer on style load, which put those soft clouds ON
+  // TOP of the beams — the clouds read as fog in front of the spikes instead
+  // of sitting behind them at ground level.
+  function raiseToTop() {
+    if (map.getLayer(spikeLayer.id)) map.moveLayer(spikeLayer.id);
+  }
+
   // Public surface used by 17-visualization.js's #dock-3d-btn handler.
   window.H2GSpikes = {
     setData(points) {
+      raiseToTop();
       spikeLayer.upload(points.map((p) => ({
         lng: p.lng, lat: p.lat, height: spikeHeight(p.capacityMw),
         rgb: hexToRgb01(p.colorHex || "#3fd6e8")
@@ -323,6 +333,7 @@ void main() {
     },
     setVisible(on) {
       spikeLayer.visible = !!on;
+      if (on) raiseToTop();
       if (typeof map !== "undefined") map.triggerRepaint();
     },
     get count() { return spikeLayer.vertexCount / 24; },

@@ -124,6 +124,22 @@
   </div>
 </div>
 
+<!-- Beam encoding key. The spikes are the most prominent thing on the map and
+     nothing else on screen says what their height means. Shown only while 3D
+     volumetric is on, since that is the only time the encoding exists. -->
+<div id="spike-key" hidden>
+  <svg viewBox="0 0 34 20" aria-hidden="true">
+    <rect x="2"  y="14" width="2" height="6"  rx="1"/>
+    <rect x="9"  y="8"  width="2" height="12" rx="1"/>
+    <rect x="16" y="4"  width="2" height="16" rx="1"/>
+    <rect x="23" y="0"  width="2" height="20" rx="1"/>
+  </svg>
+  <div class="spike-key-text">
+    <strong>Beam height</strong>
+    <span>production capacity &middot; 10&nbsp;MW to 4&nbsp;GW+</span>
+  </div>
+</div>
+
 <!-- Right: detail sheet -->
 <div class="glass right-panel-slot" id="detail-card" hidden>
   <button id="detail-close" title="Close">✕</button>

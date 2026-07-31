@@ -430,12 +430,17 @@ function inject3DControls() {
     btn.classList.toggle("active", window.is3DActive);
 
     if (window.is3DActive) {
+      // Idle rotation re-arms itself on every moveend, so without this the
+      // globe keeps drifting out from under a pitched 3D view — including
+      // during the easeTo below, which fights its own camera animation.
+      stopSpin();
       map.easeTo({ pitch: 48, bearing: -18, duration: 1000 });
       ["production", "production-glow", "storage", "storage-glow"].forEach(id => {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
       });
       update3DTowers();
       window.H2GSpikes.setVisible(true);
+      setSpikeKeyVisible(true);
     } else {
       map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
       ["production", "production-glow", "storage", "storage-glow"].forEach(id => {
@@ -443,8 +448,14 @@ function inject3DControls() {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
       });
       window.H2GSpikes.setVisible(false);
+      setSpikeKeyVisible(false);
     }
   };
+}
+
+function setSpikeKeyVisible(on) {
+  const el = document.getElementById("spike-key");
+  if (el) el.hidden = !on;
 }
 
 function update3DTowers() {
