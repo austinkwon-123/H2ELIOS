@@ -650,7 +650,8 @@ button { font-family: inherit; color: inherit; }
 .badge-other { color: var(--text-muted); border-color: var(--line); }
 
 /* ---------- Tour ---------- */
-#tour-card {
+#tour-card,
+#demo-card {
   left: 50%; bottom: 62px; transform: translateX(-50%);
   width: min(500px, calc(100vw - 32px));
   padding: 14px 16px 11px;
@@ -665,12 +666,14 @@ button { font-family: inherit; color: inherit; }
 .tour-dot { height: 2px; flex: 1; border-radius: 1px; background: rgba(120, 160, 200, 0.15); transition: background 0.3s; }
 .tour-dot.done { background: var(--cyan); }
 
-#tour-card h3 {
+#tour-card h3,
+#demo-card h3 {
   font-family: var(--font-head);
   margin: 0 0 5px; font-size: 13.5px; letter-spacing: 0.02em;
   color: var(--text-hi);
 }
-#tour-card p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.6; color: var(--text); }
+#tour-card p,
+#demo-card p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.6; color: var(--text); }
 
 .tour-nav { display: flex; align-items: center; gap: 7px; }
 .tour-nav button {
@@ -1616,3 +1619,20 @@ button { font-family: inherit; color: inherit; }
   #search-capsule { width: 38px; }
   #search-capsule input { display: none; }
 }
+
+/* ==========================================================================
+   Feature demo card
+   Shares #tour-card's shell (see above) so the two walkthroughs read as one
+   family. Only the play/pause control and the step counter's alignment differ:
+   the demo self-advances, so it needs a transport control the tour does not.
+   ========================================================================= */
+#demo-card .tour-dot.done { background: var(--violet); }
+#demo-play {
+  min-width: 30px;
+  background: rgba(167, 139, 250, 0.14);
+  color: var(--violet);
+  border-color: rgba(167, 139, 250, 0.4);
+  font-weight: 600;
+}
+#demo-step-label { flex: 1; text-align: center; font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono); }
+#demo-exit { margin-left: auto; }

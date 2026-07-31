@@ -43,6 +43,7 @@
     <button id="analytics-btn" class="tour-button"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="4" height="10"/><rect x="10" y="5" width="4" height="15"/><rect x="17" y="13" width="4" height="7"/></svg>Analytics</button>
     <button id="markets-btn" class="tour-button"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Markets</button>
     <button id="tour-btn" class="tour-button"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z"/></svg>Tour</button>
+    <button id="demo-btn" class="tour-button" title="Self-playing walkthrough of every globe feature"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3.5 2"/><path d="M17.5 3.5 21 5l-1.5 3.5"/></svg>Demo</button>
     <span id="api-status" class="pill">Loading…</span>
   </div>
 </header>
@@ -178,6 +179,22 @@
   </div>
 </div>
 
+<!-- Feature demo. Distinct from the tour above: that one walks through
+     hydrogen projects, this one demonstrates what the globe itself can do,
+     driving the real controls rather than replaying a recording. -->
+<div class="glass" id="demo-card" hidden>
+  <div class="tour-progress" id="demo-progress"></div>
+  <h3 id="demo-title"></h3>
+  <p id="demo-text"></p>
+  <div class="tour-nav">
+    <button id="demo-prev" title="Previous">←</button>
+    <button id="demo-play" title="Pause">❚❚</button>
+    <span id="demo-step-label"></span>
+    <button id="demo-next" title="Next">→</button>
+    <button id="demo-exit" title="Exit demo">✕</button>
+  </div>
+</div>
+
 <!-- Bottom-right: global intel ticker -->
 <a class="glass capsule" id="insight-ticker" href="https://www.iea.org/data-and-statistics/data-tools/hydrogen-tracker" target="_blank" rel="noopener" title="IEA Hydrogen Tracker / Global Hydrogen Review 2026 + July 2026 global assessment">
   <span class="ticker-tag"><span class="pulse-dot" aria-hidden="true"></span>INTEL</span>
@@ -249,5 +266,6 @@
  <script src="js/19-command-arcs.js"></script>
  <script src="js/20-spikes.js"></script>
  <script src="js/21-daynight.js"></script>
+ <script src="js/22-demo.js"></script>
  </body>
  </html>
