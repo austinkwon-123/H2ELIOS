@@ -321,6 +321,20 @@ void main() {
     if (map.getLayer(spikeLayer.id)) map.moveLayer(spikeLayer.id);
   }
 
+  // moveLayer() itself fires "styledata". Calling raiseToTop() from a
+  // styledata handler therefore re-triggers styledata forever: the style never
+  // reaches a loaded state, map.on("load") never fires, and 01-core.js's
+  // orchestrator — which builds EVERY curated/IEA layer and wires the whole UI
+  // — silently never runs. Only re-raise when the layer count has actually
+  // changed, which a moveLayer never does, so the loop cannot start.
+  let lastLayerCount = -1;
+  function raiseIfLayersChanged() {
+    const n = map.getStyle().layers.length;
+    if (n === lastLayerCount) return;
+    lastLayerCount = n;
+    raiseToTop();
+  }
+
   // Public surface used by 17-visualization.js's #dock-3d-btn handler.
   window.H2GSpikes = {
     setData(points) {
@@ -363,5 +377,5 @@ void main() {
   // set. addPointLayer and the IEA layer add their circle/glow layers during
   // the data load, which happens AFTER 3D auto-activates — so raising only on
   // setData/setVisible left those soft marker clouds back on top of the beams.
-  map.on("styledata", () => { addSpikeLayer(); raiseToTop(); });
+  map.on("styledata", () => { addSpikeLayer(); raiseIfLayersChanged(); });
 })();

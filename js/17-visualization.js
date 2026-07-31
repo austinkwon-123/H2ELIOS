@@ -435,17 +435,14 @@ function inject3DControls() {
       // during the easeTo below, which fights its own camera animation.
       stopSpin();
       map.easeTo({ pitch: 48, bearing: -18, duration: 1000 });
-      ["production", "production-glow", "storage", "storage-glow"].forEach(id => {
-        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
-      });
+      // The point markers stay visible. Hiding them made sense when 3D
+      // REPLACED the flat markers, but the soft clouds now read as the
+      // ground-level glow the beams rise out of — hiding them left every
+      // spike floating with nothing anchoring it to a location.
       update3DTowers();
       window.H2GSpikes.setVisible(true);
     } else {
       map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
-      ["production", "production-glow", "storage", "storage-glow"].forEach(id => {
-        const on = layerVisible(id.replace("-glow", ""));
-        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
-      });
       window.H2GSpikes.setVisible(false);
     }
   };
@@ -517,12 +514,10 @@ currentFilter = function () {
 const _applyFiltersVis = applyFilters;
 applyFilters = function () {
   _applyFiltersVis();
-  if (window.is3DActive) {
-    ["production", "production-glow", "storage", "storage-glow"].forEach(id => {
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
-    });
-    update3DTowers();
-  }
+  // Rebuild the beams on every filter change. No longer re-hides the point
+  // markers — applyFilters runs constantly, so it was undoing any attempt to
+  // keep them visible in 3D.
+  if (window.is3DActive) update3DTowers();
 };
 
 // Main entry point
