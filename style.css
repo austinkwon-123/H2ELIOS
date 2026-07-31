@@ -1636,3 +1636,152 @@ button { font-family: inherit; color: inherit; }
 }
 #demo-step-label { flex: 1; text-align: center; font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono); }
 #demo-exit { margin-left: auto; }
+
+/* ==========================================================================
+   Liquid Glass — sub-tab surfaces
+   ==========================================================================
+   Two problems, one system.
+
+   1. Glass with nothing behind it is just a grey box. The analysis tabs sat on
+      a flat --bg-0 field, so every "glass" card had nothing to refract and
+      read as opaque panelling. The Map tab never had this problem because the
+      globe IS its backdrop. So the tabs get an ambient colour field of their
+      own, built from the hydrogen taxonomy hues (green / blue / violet) rather
+      than the pink-purple of a generic glass kit — the palette stays the
+      product's own.
+
+   2. Surfaces disagreed. .dashboard-card already had a specular sheen and a
+      22px blur; .calc-panel was flat --panel-strong at a 12px radius. Tools
+      therefore looked like a different application from Market or Technology.
+      One recipe now drives every sub-tab surface.
+   ========================================================================= */
+:root {
+  --glass-blur: 26px;
+  --glass-sat: 165%;
+  --r-glass: 22px;
+  /* Specular sheen + body, as background layers rather than a ::before, so
+     they always paint behind in-flow children regardless of stacking order. */
+  --glass-sheen:
+    radial-gradient(150% 100px at 12% -12%, rgba(255, 255, 255, 0.16), transparent 62%),
+    linear-gradient(158deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 42%, rgba(10, 15, 25, 0.34) 100%);
+  --glass-edge: 1px solid rgba(255, 255, 255, 0.15);
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    0 10px 30px rgba(0, 0, 0, 0.38);
+}
+
+/* Ambient field, painted directly on the page rather than a ::before.
+   A pseudo-element at z-index:-1 inside a position:static parent paints behind
+   the BODY's opaque background, so the field was rendering and invisible.
+   background-attachment:fixed keeps it still while the page scrolls, which is
+   what makes the cards read as sliding over a light source rather than
+   carrying their own gradient. Scoped away from #page-map, whose backdrop is
+   the globe itself. Deliberately low contrast: this exists to give the glass
+   something to bend, not to compete with the data on top of it. */
+.page:not(#page-map) {
+  background-image:
+    radial-gradient(58% 45% at 12% 8%, rgba(52, 211, 153, 0.16), transparent 70%),
+    radial-gradient(52% 42% at 88% 12%, rgba(96, 165, 250, 0.15), transparent 70%),
+    radial-gradient(60% 50% at 72% 88%, rgba(167, 139, 250, 0.15), transparent 72%),
+    radial-gradient(45% 38% at 25% 92%, rgba(45, 212, 191, 0.10), transparent 70%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* One surface recipe for every sub-tab card, panel and chart well. */
+.dashboard-card,
+.calc-panel,
+.chart-wrapper {
+  background: var(--glass-sheen), var(--panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: var(--glass-edge);
+  border-radius: var(--r-glass);
+  box-shadow: var(--glass-shadow);
+}
+
+.calc-panel { padding: 22px; }
+.chart-wrapper { padding: 14px; }
+
+.dashboard-card:hover,
+.calc-panel:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 14px 36px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(63, 214, 232, 0.12);
+}
+
+/* Controls, matched to the surface: pill geometry, translucent fills, and a
+   visible thumb. Native range inputs default to a hairline track that
+   disappears entirely against a glass panel. */
+.calc-row input,
+.calc-row select,
+.search-filter-row input,
+.search-filter-row select {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.calc-row input:focus,
+.calc-row select:focus,
+.search-filter-row input:focus {
+  outline: none;
+  border-color: rgba(63, 214, 232, 0.55);
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.calc-slider-row input[type="range"],
+.sandbox-slider-row input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+}
+.calc-slider-row input[type="range"]::-webkit-slider-runnable-track,
+.sandbox-slider-row input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.calc-slider-row input[type="range"]::-webkit-slider-thumb,
+.sandbox-slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 17px; height: 17px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff, #cfe9ef);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45), 0 0 12px rgba(63, 214, 232, 0.55);
+  cursor: pointer;
+}
+.calc-slider-row input[type="range"]::-moz-range-track,
+.sandbox-slider-row input[type="range"]::-moz-range-track {
+  height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.12);
+}
+.calc-slider-row input[type="range"]::-moz-range-thumb,
+.sandbox-slider-row input[type="range"]::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: #ffffff; border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+/* Sub-tab segmented controls read as one floating glass pill, matching the
+   #tab-nav island at the top rather than looking like plain buttons. */
+.calc-tabs, .mandate-tabs {
+  background: rgba(255, 255, 255, 0.05);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 5px;
+}
+.calc-tab, .mandate-btn { border-radius: 999px; }
+.calc-tab.active, .mandate-btn.active {
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 2px 8px rgba(0, 0, 0, 0.3);
+}

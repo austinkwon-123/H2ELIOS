@@ -58,23 +58,27 @@
 
   const STEPS = [
     {
-      title: "The network",
-      text: "3,338 announced projects from the IEA database plus 138 hand-verified nodes, on one globe. Every mark is a real facility with a citation — nothing here is filler.",
+      // Opens on the strongest thing the product has. An earlier version led
+      // with a flat globe and only reached the beams at step two, which spent
+      // the one moment that decides whether anyone keeps watching.
+      title: "The world's hydrogen build-out",
+      text: "Every beam is a real project, and its height is that project's production capacity. 3,338 announced facilities from the IEA database plus 138 hand-verified nodes — every one traceable to a cited source.",
+      hold: 8000,
       async run() {
         closePanels();
         setFilters({});
-        set3D(false);
-        map.flyTo({ center: [15, 20], zoom: 1.75, pitch: 0, bearing: 0, duration: 2600, essential: true });
+        set3D(true);
+        await wait(300);
+        map.flyTo({ center: [9, 46], zoom: 3.0, pitch: 64, bearing: -14, duration: 3400, essential: true });
       }
     },
     {
-      title: "Capacity, as elevation",
-      text: "Switch to volumetric mode and every project becomes a beam whose height encodes its production capacity — 107 km for a small pilot, 1,587 km for a gigawatt plant. Density you can read at a glance.",
+      title: "Pull back and the shape appears",
+      text: "From orbit the concentration is obvious: Europe and East Asia carry the pipeline, with corridors reaching toward the Gulf and North Africa. Height still encodes capacity — 107 km for a pilot, 1,587 km for a gigawatt plant.",
       async run() {
         setFilters({});
         set3D(true);
-        await wait(400);
-        map.flyTo({ center: [9, 48], zoom: 3.1, pitch: 62, bearing: -12, duration: 3000, essential: true });
+        map.flyTo({ center: [30, 25], zoom: 1.9, pitch: 45, bearing: 0, duration: 3200, essential: true });
       }
     },
     {
