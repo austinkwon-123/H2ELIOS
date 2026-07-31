@@ -440,7 +440,6 @@ function inject3DControls() {
       });
       update3DTowers();
       window.H2GSpikes.setVisible(true);
-      setSpikeKeyVisible(true);
     } else {
       map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
       ["production", "production-glow", "storage", "storage-glow"].forEach(id => {
@@ -448,14 +447,8 @@ function inject3DControls() {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
       });
       window.H2GSpikes.setVisible(false);
-      setSpikeKeyVisible(false);
     }
   };
-}
-
-function setSpikeKeyVisible(on) {
-  const el = document.getElementById("spike-key");
-  if (el) el.hidden = !on;
 }
 
 function update3DTowers() {

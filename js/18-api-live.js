@@ -81,6 +81,11 @@
     return [lngDeg, dec / rad];
   }
 
+  // Shared with 21-daynight.js, which shades the globe from the same solar
+  // position. Exported rather than duplicated so there is exactly one
+  // implementation of the ephemeris to be right or wrong.
+  window.H2GSun = { subsolarPoint };
+
   let subsolarMarker = null;
   function updateSubsolarMarker() {
     const [lng, lat] = subsolarPoint(new Date());
