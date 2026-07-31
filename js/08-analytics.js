@@ -7,10 +7,10 @@
    index.html (must load after 03-filters.js and hud.js).
    ======================================================================= */
 
-// Free tier: https://finnhub.io/register — unlike NREL's DEMO_KEY, Finnhub
-// has no public demo key, so this is a personal key. Visible in the page
-// source like any client-side key on a static site with no backend.
-const FINNHUB_KEY = "d9asl71r01qp4bhsd5dgd9asl71r01qp4bhsd5e0";
+// Read from js/config.js (gitignored — copy js/config.example.js to create it)
+// so no key is ever committed. Empty = the Markets section renders its
+// "configure a key" fallback instead of the live per-ticker quotes.
+const FINNHUB_KEY = (window.H2G_CONFIG && window.H2G_CONFIG.FINNHUB_KEY) || "";
 // Finnhub's free tier only resolves US-listed tickers — ITM Power (LSE:
 // ITM.L) and Nel ASA (OSE: NEL.OL) 403 on it, so this uses US-tradeable
 // stand-ins: Fusion Fuel Green (pure-play green hydrogen) and Air Liquide's

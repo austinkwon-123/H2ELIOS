@@ -118,20 +118,22 @@ function addPointLayer(id, geojson, opts = {}) {
   map.addLayer({
     id: id + "-glow", type: "circle", source: id,
     paint: {
-      "circle-radius": opts.small ? 8 : GLOW_RADIUS_EXPR,
+      // Wide, fully-blurred halo. With the rings gone this outer cloud is most
+      // of what you actually see, so it runs larger and softer than before.
+      "circle-radius": opts.small ? 12 : ["*", 3.0, RADIUS_EXPR],
       "circle-color": COLOR_MATCH,
       "circle-blur": 1,
-      "circle-opacity": 0.18
+      "circle-opacity": 0.30
     }
   });
   map.addLayer({
     id, type: "circle", source: id,
     paint: {
-      "circle-radius": opts.small ? 3.2 : RADIUS_EXPR,
+      "circle-radius": opts.small ? 4.2 : ["*", 1.3, RADIUS_EXPR],
       "circle-color": COLOR_MATCH,
       "circle-opacity": FILL_OPACITY_EXPR,
-      "circle-stroke-width": STROKE_WIDTH_EXPR,
-      "circle-stroke-color": STROKE_COLOR_EXPR
+      "circle-blur": FILL_BLUR_EXPR,
+      "circle-stroke-width": STROKE_WIDTH_EXPR
     }
   });
   if (opts.pulse) pulseLayers.push(id + "-glow");

@@ -8,7 +8,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" />
+<!-- Pinned exactly: 20-spikes.js / 19-command-arcs.js depend on the v5 custom-layer
+     shader plumbing (projectTileFor3D via vertexShaderPrelude), and a floating
+     "@5" range lets a published site change renderer behavior on its own. -->
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
 <link rel="stylesheet" href="style.css" />
 <link rel="stylesheet" href="hud.css" />
 </head>
@@ -203,7 +206,7 @@
  <section id="page-tools" class="page" hidden></section>
  <section id="page-timeline" class="page" hidden></section>
  
- <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+ <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
  <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
  
@@ -215,6 +218,8 @@
  <script src="js/news-data.js"></script>
  
  <!-- app modules (load order = dependency order; see README) -->
+ <!-- Local API keys. Gitignored; copy js/config.example.js to js/config.js. -->
+ <script src="js/config.js"></script>
  <script src="js/01-core.js"></script>
  <script src="js/02-layers.js"></script>
  <script src="js/03-filters.js"></script>
@@ -238,5 +243,6 @@
  <script src="js/16-ai-features.js"></script>
  <script src="js/17-visualization.js"></script>
  <script src="js/19-command-arcs.js"></script>
+ <script src="js/20-spikes.js"></script>
  </body>
  </html>

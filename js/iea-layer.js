@@ -38,10 +38,16 @@
       id: "iea-clusters", type: "circle", source: "iea",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "rgba(63, 214, 232, 0.07)",
+        // Near-empty glass disc: the ring defines the cluster, the faint fill
+        // just separates it from the basemap. Ring opacity scales with how many
+        // projects the cluster holds, so a 400-project cluster reads heavier
+        // than a 3-project one without changing colour or adding a second layer.
+        "circle-color": "rgba(63, 214, 232, 0.05)",
         "circle-stroke-color": HOLO,
-        "circle-stroke-width": 1,
-        "circle-stroke-opacity": 0.38,
+        "circle-stroke-width": 1.1,
+        "circle-stroke-opacity": ["interpolate", ["linear"], ["get", "point_count"],
+          2, 0.34, 400, 0.72],
+        "circle-blur": 0.06,
         "circle-radius": ["step", ["get", "point_count"], 12, 25, 17, 100, 23, 400, 30]
       }
     }, beforeId);
@@ -62,11 +68,12 @@
       filter: ["!", ["has", "point_count"]],
       paint: {
         "circle-color": HOLO,
-        "circle-radius": ["+", 1.6, ["*", 0.45, ["coalesce", ["get", "scale"], 1]]],
+        // Softened to match the curated markers: no hard edge, lower opacity.
+        "circle-radius": ["+", 2.6, ["*", 0.6, ["coalesce", ["get", "scale"], 1]]],
+        "circle-blur": 0.65,
         "circle-opacity": ["match", ["get", "statusClass"],
-          "operating", 0.55, "construction", 0.45, "atrisk", 0.25, 0.25],
-        "circle-stroke-width": ["match", ["get", "statusClass"], "atrisk", 1, 0],
-        "circle-stroke-color": "#f87171"
+          "operating", 0.55, "construction", 0.46, "atrisk", 0.3, 0.28],
+        "circle-stroke-width": 0
       }
     }, beforeId);
 

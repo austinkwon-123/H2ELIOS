@@ -14,7 +14,8 @@
 // ---- Config -----------------------------------------------------------
 // Free key from https://developer.nrel.gov/signup/ — DEMO_KEY works but is
 // rate-limited (30 req/hr, 50/day) and shared across every DEMO_KEY user.
-const NREL_API_KEY = "DEMO_KEY";
+// Override in js/config.js (gitignored) rather than editing this line.
+const NREL_API_KEY = (window.H2G_CONFIG && window.H2G_CONFIG.NREL_API_KEY) || "DEMO_KEY";
 const AFDC_URL = `https://developer.nrel.gov/api/alt-fuel-stations/v1.json?fuel_type=HY&api_key=${NREL_API_KEY}&limit=200`;
 
 const COLORS = {
@@ -44,28 +45,36 @@ const COLOR_MATCH = [
 const RADIUS_EXPR = ["+", 2.5, ["*", 1.1, ["coalesce", ["get", "scale"], 2]]];
 const GLOW_RADIUS_EXPR = ["*", 2.6, RADIUS_EXPR];
 
-// Status-differentiated styling: operating = solid; construction = white ring;
-// planned = hollow (faint fill, colored ring); at-risk = red ring.
+// Status-differentiated styling. The disc is deliberately translucent and the
+// ring carries the weight: against this dark basemap an opaque fill reads as a
+// flat paint dot, while a low fill under a luminous rim reads as glass and lets
+// overlapping facilities stay legible instead of occluding each other.
+// Status stays encoded by ring treatment: operating = colored rim;
+// construction = white ring; planned = near-hollow; at-risk = red ring.
+// Rings removed entirely — markers are soft luminous clouds with no hard edge.
+// Status is now carried by fill weight alone (operating densest, planned
+// faintest) instead of by ring colour, so the encoding survives without the
+// crisp outline. At-risk keeps its red via STROKE-free colour handling in the
+// glow layer; see addPointLayer in 02-layers.js.
+// Opacity has to stay high enough for HUE to survive. Very low alpha over a
+// dark basemap desaturates toward grey, and the whole point of these colours
+// is telling green / blue / pink / turquoise hydrogen apart at a glance —
+// at 0.24 they were all reading as the same pale smudge.
 const FILL_OPACITY_EXPR = [
   "match", ["get", "statusClass"],
-  "planned", 0.14,
-  "atrisk", 0.55,
-  /* default */ 0.92
+  "planned", 0.20,
+  "atrisk", 0.42,
+  "construction", 0.56,
+  /* default */ 0.58
 ];
-const STROKE_COLOR_EXPR = [
+// Blur is what makes the marker read as cloud rather than disc. Pulled back
+// from 0.85: past ~0.7 the colour smears out so far it greys off entirely.
+const FILL_BLUR_EXPR = [
   "match", ["get", "statusClass"],
-  "construction", "#ffffff",
-  "planned", COLOR_MATCH,
-  "atrisk", "#f87171",
-  /* default */ "#01030a"
+  "planned", 0.75,
+  /* default */ 0.6
 ];
-const STROKE_WIDTH_EXPR = [
-  "match", ["get", "statusClass"],
-  "construction", 1.6,
-  "planned", 1.6,
-  "atrisk", 1.8,
-  /* default */ 1.2
-];
+const STROKE_WIDTH_EXPR = 0;
 
 const D = window.HYDROGEN_DATA;
 

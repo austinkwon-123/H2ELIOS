@@ -39,21 +39,6 @@ function getCapacityMw(c) {
   return 10;
 }
 
-// Generate simple hexagon coordinates around a point to render 3D towers
-function generateHexPolygon(center, scaleFactor) {
-  const coordinates = [];
-  const radiusDeg = 0.05 + scaleFactor * 0.008;
-  for (let i = 0; i < 6; i++) {
-    const angle = (i * Math.PI) / 3;
-    coordinates.push([
-      center[0] + radiusDeg * Math.cos(angle),
-      center[1] + radiusDeg * Math.sin(angle) * 0.65
-    ]);
-  }
-  coordinates.push(coordinates[0]);
-  return [coordinates];
-}
-
 // 1. Dataset Pre-processing: Attach numeric onlineYear to all loaded GeoJSON data
 function preProcessDatasets() {
   const collections = [
@@ -450,21 +435,20 @@ function inject3DControls() {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
       });
       update3DTowers();
+      window.H2GSpikes.setVisible(true);
     } else {
       map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
       ["production", "production-glow", "storage", "storage-glow"].forEach(id => {
         const on = layerVisible(id.replace("-glow", ""));
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
       });
-      if (map.getSource("3d-towers")) {
-        map.getSource("3d-towers").setData({ type: "FeatureCollection", features: [] });
-      }
+      window.H2GSpikes.setVisible(false);
     }
   };
 }
 
 function update3DTowers() {
-  if (!window.is3DActive || !map.getSource("3d-towers")) return;
+  if (!window.is3DActive || !window.H2GSpikes) return;
 
   const activeTowers = [];
   const checkFilters = (p) => {
@@ -489,64 +473,18 @@ function update3DTowers() {
     if (!checkFilters(p)) return;
 
     const coords = f.geometry.coordinates;
-    const capacityMw = getCapacityMw(p.capacity);
-    const height = Math.max(50, Math.min(2200, capacityMw * 1.5));
-    const colorHex = COLOR_HEX_MAP[p.color] || '#3fd6e8';
-
     activeTowers.push({
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: generateHexPolygon(coords, p.scale || 1)
-      },
-      properties: {
-        name: p.name,
-        height: height,
-        colorHex: colorHex
-      }
+      lng: coords[0],
+      lat: coords[1],
+      capacityMw: getCapacityMw(p.capacity),
+      colorHex: COLOR_HEX_MAP[p.color] || '#3fd6e8'
     });
   });
 
-  map.getSource("3d-towers").setData({
-    type: "FeatureCollection",
-    features: activeTowers
-  });
-}
-
-function setup3DMapLayers() {
-  map.on("load", () => {
-    if (!map.getSource("3d-towers")) {
-      map.addSource("3d-towers", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] }
-      });
-
-      map.addLayer({
-        id: "3d-towers",
-        type: "fill-extrusion",
-        source: "3d-towers",
-        paint: {
-          "fill-extrusion-color": ["get", "colorHex"],
-          "fill-extrusion-height": ["get", "height"],
-          "fill-extrusion-base": 0,
-          "fill-extrusion-opacity": 0.82
-        }
-      });
-
-      map.on("mouseenter", "3d-towers", (e) => {
-        map.getCanvas().style.cursor = "pointer";
-        const props = e.features[0].properties;
-        hoverPopup.setLngLat(e.lngLat)
-          .setHTML(`<div class="popup-title">3D Hub: ${escapeHtml(props.name)}</div><div class="popup-sub">Capacity Volume Height: ${Math.round(props.height)}m</div>`)
-          .addTo(map);
-      });
-
-      map.on("mouseleave", "3d-towers", () => {
-        map.getCanvas().style.cursor = "";
-        hoverPopup.remove();
-      });
-    }
-  });
+  // Rendered by the custom WebGL layer in 20-spikes.js, not fill-extrusion:
+  // MapLibre ignores fill-extrusion-height under globe projection, so native
+  // extrusions drape flat to the sphere and no bars appear at all.
+  window.H2GSpikes.setData(activeTowers);
 }
 
 // 4. Hook into filter chain to dynamically handle timeline year limits
@@ -573,7 +511,33 @@ applyFilters = function () {
 function initVisualizationModule() {
   preProcessDatasets();
   inject3DControls();
-  setup3DMapLayers();
+  enable3DByDefault();
+}
+
+// 3D volumetric is the app's signature view, so it is the state you land in
+// rather than something you have to discover in the dock. Runs through the
+// same button handler as a manual click so there is exactly one code path
+// for entering 3D — no duplicated pitch/visibility/spike setup to drift.
+function enable3DByDefault() {
+  // Deliberately a poll, not map.loaded() / map.once("load"). map.loaded()
+  // never settles true here because the custom WebGL layers call
+  // triggerRepaint() every frame, and by the time this runs the "load" event
+  // has usually already fired — so both of those silently never start 3D.
+  // Polling for the two things actually required (the dock button and the
+  // spike layer) is the only condition that reliably holds.
+  let tries = 0;
+  const timer = setInterval(() => {
+    const btn = document.getElementById("dock-3d-btn");
+    // statusFilter must be initialised too. update3DTowers' checkFilters does
+    // `statusFilter !== "all"` — while it is still undefined that test passes
+    // and every point is rejected, so firing early yields zero spikes and
+    // nothing ever recomputes them.
+    const ready = btn && window.H2GSpikes && map.getLayer("h2grid-3d-spikes")
+      && typeof statusFilter !== "undefined" && statusFilter !== undefined
+      && D.production.features.length > 0;
+    if (ready && !window.is3DActive) { btn.click(); clearInterval(timer); }
+    else if (++tries > 40) clearInterval(timer); // ~8s ceiling, then give up quietly
+  }, 200);
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initVisualizationModule);
