@@ -78,6 +78,24 @@ const STROKE_WIDTH_EXPR = 0;
 
 const D = window.HYDROGEN_DATA;
 
+// Capacity is stored in MW throughout, but announced hydrogen projects span
+// roughly 1 MW to several million, so a single fixed unit is either unreadable
+// ("801,958 MW") or absurd ("0.000001 TW"). Pick the unit that keeps the
+// number in a human range and return the parts, so callers that animate a
+// value (the odometer) can scale the number and set the suffix separately.
+function formatCapacity(mw) {
+  const n = Number(mw) || 0;
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return { value: n / 1e6, unit: "TW", decimals: 2 };
+  if (abs >= 1000) return { value: n / 1000, unit: "GW", decimals: abs >= 1e5 ? 0 : 1 };
+  return { value: n, unit: "MW", decimals: 0 };
+}
+
+function capacityText(mw) {
+  const f = formatCapacity(mw);
+  return `${f.value.toLocaleString(undefined, { minimumFractionDigits: f.decimals, maximumFractionDigits: f.decimals })} ${f.unit}`;
+}
+
 
 // ---- Base style: shared "Command Center" dark basemap -----------------------
 // Hoisted to its own constant (rather than inlined in the map init below) so

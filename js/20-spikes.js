@@ -358,5 +358,10 @@ void main() {
   }
   if (map.isStyleLoaded()) addSpikeLayer();
   map.on("load", addSpikeLayer);
-  map.on("styledata", addSpikeLayer);
+
+  // Re-assert the top position on every style change, not just when data is
+  // set. addPointLayer and the IEA layer add their circle/glow layers during
+  // the data load, which happens AFTER 3D auto-activates — so raising only on
+  // setData/setVisible left those soft marker clouds back on top of the beams.
+  map.on("styledata", () => { addSpikeLayer(); raiseToTop(); });
 })();

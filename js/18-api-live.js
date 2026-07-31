@@ -34,6 +34,30 @@
 
   function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
 
+  // map.on("load") is a one-shot: if the style finished before this module
+  // parsed, the handler never runs and every layer registered inside it is
+  // silently never created. That is exactly what happened here — the whole
+  // API tier (layers, click handlers, the LIVE VIEWPORT gauge) never
+  // initialised, so the panel read 0% / 0 projects even with the backend up
+  // and returning rows. isStyleLoaded() is the condition that actually holds.
+  // "load" alone is not enough: by the time this module parses, the style is
+  // often neither loaded yet NOR still pending its load event, so both the
+  // immediate path and the listener miss. "styledata" fires repeatedly as the
+  // style settles, so it is the reliable net; the guard keeps fn to one run.
+  function onMapReady(fn) {
+    let done = false;
+    const run = () => {
+      if (done || !map.isStyleLoaded()) return;
+      done = true;
+      fn();
+    };
+    run();
+    if (!done) {
+      map.on("load", run);
+      map.on("styledata", run);
+    }
+  }
+
   // Fixed light source, anchor:"viewport" - the light comes from one set
   // direction in SCREEN space and never moves as you pan/rotate. An earlier
   // version recomputed SunCalc.getPosition() at the map's *center* on every
@@ -210,7 +234,7 @@
         name: row.slug, // real name only known once the /:slug detail fetch resolves
         statusClass: STATE_TO_STATUS_CLASS[row.status] || "planned",
         status: row.status,
-        capacity: capacityMw != null ? `${capacityMw} MW` : "Not disclosed",
+        capacity: capacityMw != null ? capacityText(capacityMw) : "Not disclosed",
         capacity_mw: capacityMw,
         scale: scaleFromCapacity(capacityMw),
         technology: row.technology,
@@ -233,7 +257,7 @@
       color: technologyColor(full.technology),
       statusClass: STATE_TO_STATUS_CLASS[full.status] || "planned",
       status: full.status,
-      capacity: capacityMw != null ? `${capacityMw} MW` : "Not disclosed",
+      capacity: capacityMw != null ? capacityText(capacityMw) : "Not disclosed",
       operator: null,
       region: full.region,
       country: full.country_code,
@@ -327,7 +351,16 @@
   function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
 
   const odometerRafIds = new WeakMap();
-  function odometer(el, target, { duration = 800, format = (n) => Math.round(n).toLocaleString() } = {}) {
+  // Default formatting honours el.dataset.decimals so a value rolled in GW can
+  // keep one decimal place; without it the rounding-to-integer default turned
+  // "802.0 GW" into "802 GW" and, worse, any sub-1 GW figure into "0 GW".
+  function odometer(el, target, {
+    duration = 800,
+    format = (n) => {
+      const d = Number(el && el.dataset.decimals) || 0;
+      return n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+    }
+  } = {}) {
     if (!el) return;
     const prevRaf = odometerRafIds.get(el);
     if (prevRaf) cancelAnimationFrame(prevRaf);
@@ -357,9 +390,13 @@
     const listEl = document.getElementById("api-summary-by-tech");
     if (!mwEl || !countEl || !listEl) return;
 
-    mwEl.dataset.suffix = " MW";
+    // Scale the animated value and the suffix together, so the odometer rolls
+    // "801,958 MW" as "802.0 GW" rather than a number nobody can read at a glance.
+    const cap = formatCapacity(data.totals.total_capacity_mw);
+    mwEl.dataset.suffix = " " + cap.unit;
+    mwEl.dataset.decimals = String(cap.decimals);
     countEl.dataset.suffix = "";
-    odometer(mwEl, data.totals.total_capacity_mw);
+    odometer(mwEl, cap.value);
     odometer(countEl, data.totals.project_count);
     lastViewportCapacityMw = data.totals.total_capacity_mw || 0;
     updateGauge();
@@ -371,7 +408,7 @@
       return `<div class="bar-row">
         <span class="bar-label">${escapeHtml(r.technology)}</span>
         <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${API_HOLO};color:${API_HOLO}"></span></span>
-        <span class="bar-count">${Math.round(Number(r.total_capacity_mw)).toLocaleString()} MW</span>
+        <span class="bar-count">${capacityText(r.total_capacity_mw)}</span>
       </div>`;
     }).join("");
   }
@@ -384,7 +421,7 @@
     moveDebounce = setTimeout(fetchProjects, delay);
   }
 
-  map.on("load", () => {
+  onMapReady(() => {
     map.addSource("api-projects", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 
     map.addLayer({
@@ -402,7 +439,12 @@
         "circle-color": COLOR_MATCH,
         "circle-radius": RADIUS_EXPR,
         "circle-opacity": FILL_OPACITY_EXPR,
-        "circle-stroke-color": STROKE_COLOR_EXPR,
+        // Rimless and soft-edged, matching the curated markers. STROKE_COLOR_EXPR
+        // no longer exists — referencing it threw inside this callback, and
+        // MapLibre's event emitter swallowed the error, so the entire API tier
+        // silently failed to initialise and LIVE VIEWPORT read 0 with the
+        // backend healthy and returning rows.
+        "circle-blur": FILL_BLUR_EXPR,
         "circle-stroke-width": STROKE_WIDTH_EXPR
       }
     });
@@ -599,7 +641,7 @@
     if (visible) start(); else stop();
   }
 
-  map.on("load", () => {
+  onMapReady(() => {
     map.addSource("satellites", { type: "geojson", data: satelliteData });
 
     // Bloom: larger, near-transparent, blurred cyan halo underneath the
@@ -734,7 +776,7 @@
     rafId = requestAnimationFrame(frame);
   }
 
-  map.on("load", () => {
+  onMapReady(() => {
     const beforeId = map.getLayer("hubs") ? "hubs" : undefined;
 
     map.addSource("hub-routes-baseline", { type: "geojson", data: baselineFC() });
