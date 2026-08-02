@@ -217,22 +217,18 @@ button { font-family: inherit; color: inherit; }
   padding-left: 20px;
   white-space: nowrap;
 }
-/* Brand lockup: corona mark + wordmark. The wordmark splits weight rather
-   than colour — "H2" bold against "ELIOS" regular — so the chemistry reads
-   first and the whole lockup still works in a single colour. */
-.brand-mark {
-  width: 26px; height: 26px;
+/* Brand lockup. The supplied artwork carries its own letterforms as paths, so
+   the wordmark is part of the SVG rather than live text — height is the only
+   sizing lever, and the aspect ratio does the rest. The glow is tuned to the
+   mark's teal so it reads as emitted light against the dark ribbon rather
+   than a drop shadow. */
+.brand-lockup {
+  height: 26px;
+  width: auto;
   display: block;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 10px rgba(45, 220, 180, 0.28));
+  filter: drop-shadow(0 0 9px rgba(10, 163, 179, 0.35));
 }
-.ribbon-mark {
-  font-family: var(--font-head);
-  font-size: 15px; font-weight: 400;
-  letter-spacing: 0.10em;
-  color: #ffffff;
-}
-.ribbon-mark b { font-weight: 700; letter-spacing: 0.06em; }
 .ribbon-mark-sep { color: var(--cyan); font-weight: 400; }
 
 /* ---------- Zone C: Analytics/Markets/Tour/status ---------- */
