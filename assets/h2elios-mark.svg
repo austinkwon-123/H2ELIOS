@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="H2ELIOS">
+  <!-- H2ELIOS corona mark.
+       Spike lengths are irregular on purpose: the mark reads as measured data
+       rather than a decorative star, echoing the capacity beams on the globe
+       where a spike's height encodes a real production figure. Each flank is
+       drawn asymmetrically (leading edge bows out, trailing edge tucks in) so
+       the spikes lean like flame rather than sitting as symmetric triangles.
+       The gradient runs green (renewable electrolysis) to blue, so the mark
+       carries the product's own taxonomy colours rather than an arbitrary
+       brand palette. fill-rule evenodd punches the aperture from the body. -->
+  <defs>
+    <linearGradient id="h2e-grad" x1="0.28" y1="0.02" x2="0.60" y2="1">
+      <stop offset="0" stop-color="#2fe0a0"/>
+      <stop offset="0.45" stop-color="#1ab6c8"/>
+      <stop offset="1" stop-color="#0a7fe8"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#h2e-grad)" fill-rule="evenodd"
+    d="M80.92 58.14Q92.28 60.26 97.45 27.04Q103.67 59.69 116.11 56.91Q122.64 66.44 142.97 53.92Q131.1 74.09 141.86 80.92Q139.74 92.28 170.96 97.52Q140.31 103.67 143.09 116.11Q133.56 122.64 144.61 141.6Q125.91 131.1 119.08 141.86Q107.72 139.74 102.62 174.95Q96.33 140.31 83.89 143.09Q77.36 133.56 56.35 146.81Q68.9 125.91 58.14 119.08Q60.26 107.72 31.04 102.41Q59.69 96.33 56.91 83.89Q66.44 77.36 56.12 59.08Q74.09 68.9 80.92 58.14Z
+       M110.95 77.27Q121.89 82.54 124.59 94.39Q127.3 106.23 119.72 115.73Q112.15 125.23 100 125.23Q87.85 125.23 80.28 115.73Q72.7 106.23 75.41 94.39Q78.11 82.54 89.05 77.27Q100 72 110.95 77.27Z"/>
+</svg>

@@ -217,11 +217,22 @@ button { font-family: inherit; color: inherit; }
   padding-left: 20px;
   white-space: nowrap;
 }
+/* Brand lockup: corona mark + wordmark. The wordmark splits weight rather
+   than colour — "H2" bold against "ELIOS" regular — so the chemistry reads
+   first and the whole lockup still works in a single colour. */
+.brand-mark {
+  width: 26px; height: 26px;
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(45, 220, 180, 0.28));
+}
 .ribbon-mark {
-  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
-  letter-spacing: 0.08em;
+  font-family: var(--font-head);
+  font-size: 15px; font-weight: 400;
+  letter-spacing: 0.10em;
   color: #ffffff;
 }
+.ribbon-mark b { font-weight: 700; letter-spacing: 0.06em; }
 .ribbon-mark-sep { color: var(--cyan); font-weight: 400; }
 
 /* ---------- Zone C: Analytics/Markets/Tour/status ---------- */
