@@ -325,8 +325,16 @@ button { font-family: inherit; color: inherit; }
 }
 #search-capsule:hover, #search-capsule:focus-within {
   width: 260px;
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(63, 214, 232, 0.18);
   cursor: text;
+}
+#search-capsule:hover { box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(63, 214, 232, 0.18); }
+/* Apple's real Search Field focus ring is two stacked rings, not a border
+   swap — verified against the actual macOS 26 kit (3.5px @ 25% + 1px @ 15%,
+   in system blue). Same two-ring shape, ported to H2ELIOS's cyan: a hover
+   nudge and an active-focus glow are now visibly different states, matching
+   the real component instead of treating hover and keyboard focus as one. */
+#search-capsule:focus-within {
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6), 0 0 0 3.5px rgba(63, 214, 232, 0.25), 0 0 0 1px rgba(63, 214, 232, 0.45);
 }
 .search-icon { color: var(--text-muted); flex-shrink: 0; }
 #network-search {
@@ -367,23 +375,39 @@ button { font-family: inherit; color: inherit; }
 .fac-name { font-size: 12px; font-weight: 500; color: var(--text-hi); line-height: 1.35; }
 .fac-meta { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
 
+/* Liquid Glass pill, not a flat enterprise button: real backdrop blur (15px,
+   verified against Apple's own macOS 26 Materials swatches — see --glass-blur)
+   over a fully-round pill rather than --r-sm's rectangular corner. The cyan
+   tint is H2ELIOS's own, not Apple's system blue — the glass RECIPE is
+   borrowed, the brand color is not. */
 .tour-button {
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-  padding: 6px 13px;
+  padding: 7px 15px;
   color: var(--cyan);
-  background: var(--cyan-dim);
-  border: 1px solid var(--line-accent);
-  border-radius: var(--r-sm);
+  background: var(--glass-sheen), rgba(63, 214, 232, 0.10);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 14px rgba(0, 0, 0, 0.28);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .tour-button svg {
   width: 13px; height: 13px; flex-shrink: 0;
   stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
-.tour-button:hover { background: rgba(63, 214, 232, 0.22); border-color: var(--cyan); }
-.tour-button.active { color: var(--text-hi); background: rgba(63, 214, 232, 0.22); }
+.tour-button:hover {
+  background: var(--glass-sheen), rgba(63, 214, 232, 0.18);
+  border-color: rgba(63, 214, 232, 0.4);
+  transform: translateY(-0.5px);
+}
+.tour-button.active {
+  color: var(--text-hi);
+  background: var(--glass-sheen), rgba(63, 214, 232, 0.24);
+  border-color: rgba(63, 214, 232, 0.5);
+}
 
 .icon-button { display: none; } /* theme toggle retired — single console theme */
 
@@ -605,15 +629,34 @@ button { font-family: inherit; color: inherit; }
   border-bottom: 1px solid var(--line);
 }
 
-#detail-close {
-  position: absolute; top: 10px; right: 10px; z-index: 2;
-  width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  background: transparent;
-  border: 1px solid var(--line); border-radius: 6px;
-  color: var(--text-muted); font-size: 11px; cursor: pointer;
+/* Real macOS traffic lights: 14px dots, 9px gap, verified hex (#ff736a /
+   #febc2e / #19c332) and 0.5px rgba(0,0,0,.1) ring, pulled from the actual
+   macOS 26 kit's Window Controls component. Kept in the top-RIGHT corner
+   (not authentic macOS position, which is top-left) because the panel's own
+   title sits flush top-left via #detail-content::before — putting the
+   dots there would collide with it, and top-right also matches where every
+   other floating panel's close control already lives in this app. Only the
+   Close dot is wired up; Minimize/Zoom paint the full real cluster (a
+   floating panel has no window states for them to control) since a single
+   red dot alone reads as an error state, not a window control. */
+.window-controls {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  display: flex; align-items: center; gap: 9px;
+  padding: 1px;
+  background: transparent; border: none;
+  cursor: pointer;
 }
-#detail-close:hover { color: var(--text-hi); border-color: var(--line-strong); }
+.wc-dot {
+  width: 14px; height: 14px;
+  border-radius: 100px;
+  border: 0.5px solid rgba(0, 0, 0, 0.25);
+  transition: filter 0.12s ease;
+}
+.wc-close { background: #ff736a; }
+.wc-min { background: #febc2e; }
+.wc-zoom { background: #19c332; }
+.window-controls:hover .wc-dot { filter: brightness(1.12); }
+.window-controls:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 100px; }
 
 .detail-kicker {
   font: var(--overline); letter-spacing: var(--overline-tracking);
@@ -1455,7 +1498,41 @@ button { font-family: inherit; color: inherit; }
   display: flex; align-items: center; gap: 8px;
   font-size: 11.5px; color: var(--text-hi); cursor: pointer;
 }
-.sandbox-incentive-row input { accent-color: var(--cyan); cursor: pointer; }
+/* Real Apple Switch proportions (54x24 track, 2px knob inset, fully-round
+   1000px radius, cyan tint standing in for Apple's system-blue --controls/tint)
+   verified against the actual macOS 26 kit — built on the native checkbox via
+   appearance:none rather than a div, so :checked/change/focus semantics and
+   every existing JS hook (lcoh-incentive-toggle's change listener) are
+   untouched; only the paint changes. */
+.sandbox-incentive-row input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  position: relative;
+  width: 38px; height: 22px;
+  margin: 0; padding: 1.5px;
+  background: rgba(255, 255, 255, 0.14);
+  border: none; border-radius: 1000px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+  flex-shrink: 0;
+}
+.sandbox-incentive-row input[type="checkbox"]::before {
+  content: "";
+  position: absolute; top: 1.5px; left: 1.5px;
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.sandbox-incentive-row input[type="checkbox"]:checked {
+  background: var(--cyan);
+}
+.sandbox-incentive-row input[type="checkbox"]:checked::before {
+  transform: translateX(16px);
+}
+.sandbox-incentive-row input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--cyan); outline-offset: 2px;
+}
 
 .sandbox-verdict {
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
@@ -1678,7 +1755,12 @@ button { font-family: inherit; color: inherit; }
   --glass-sheen:
     radial-gradient(150% 100px at 12% -12%, rgba(255, 255, 255, 0.16), transparent 62%),
     linear-gradient(158deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 42%, rgba(10, 15, 25, 0.34) 100%);
-  --glass-edge: 1px solid rgba(255, 255, 255, 0.15);
+  /* Apple's real Materials export has no border at all — just blur and a
+     translucent fill; a hairline edge is a web-only substitute for the way
+     real vibrancy catches light, since backdrop-filter alone doesn't do that.
+     Lightened from 0.15 to a barely-there 0.08 so it reads as a light catch
+     on glass rather than a drawn outline. */
+  --glass-edge: 1px solid rgba(255, 255, 255, 0.08);
   --glass-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.20),
     0 10px 30px rgba(0, 0, 0, 0.38);
