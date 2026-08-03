@@ -87,6 +87,12 @@
   <button class="dock-btn active has-tip tip-right" data-layer="flows" aria-label="Supply-chain flows" data-tip="Supply-chain flows"><svg viewBox="0 0 24 24"><path d="M3 18c3-10 15-10 18 0"/><circle cx="3" cy="18" r="1.6"/><circle cx="21" cy="18" r="1.6"/></svg></button>
   <div class="dock-sep" data-dock-group="Data"></div>
   <button class="dock-btn active has-tip tip-right" data-layer="iea" aria-label="IEA announced projects (3,338 records)" data-tip="IEA announced projects (3,338 records)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
+  <!-- Off by default. 936 of the 3,338 IEA records ship no coordinates, and the
+       build falls back to the country centroid plus a jitter — which drops
+       Australia's into the Simpson Desert and America's into rural Kansas.
+       They are real projects but their POSITION is fiction, so the globe shows
+       only precisely-located records unless this is switched on. -->
+  <button class="dock-btn has-tip tip-right" data-layer="ieaApprox" aria-label="Country-level estimated positions (936 IEA records)" data-tip="Country-level estimated positions (936 IEA records)"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" stroke-dasharray="3 2.4"/><circle cx="12" cy="10" r="2.2"/></svg></button>
   <!-- Off by default: every row in the backend has data_source='iea', so this
        tier draws the same 3,338 projects the IEA layer already shows. Leaving
        both on double-draws the entire dataset. -->

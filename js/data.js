@@ -26,7 +26,10 @@ window.HYDROGEN_DATA = {
         color: "pink", capacity: "2 MW (electrolyzer)", status: "Planned", scale: 2,
         operator: "Energy Harbor", source: "https://pubs.aip.org/physicstoday/article-pdf/73/8/20/10124577/20_1_online.pdf", updated: "2022"
       }),
-      feat([-79.0377, 43.0962], {
+      // Robert Moses generating station, Lewiston NY (43.14306, -79.03972) — the
+      // dam itself, not the city of Niagara Falls ~5km downriver where this was
+      // previously plotted. Linde's Niagara Falls plant below IS in the city.
+      feat([-79.0397, 43.1431], {
         name: "Niagara Power Project", category: "upstream", subtype: "Hydroelectric Dam",
         color: "green", capacity: "120 MW (contracted to Plug Power)", status: "Operating", scale: 5,
         operator: "NYPA", source: "https://www.nypa.gov/news/press-releases/2023/20230525-economic-development-awards", updated: "2023"
@@ -184,7 +187,10 @@ window.HYDROGEN_DATA = {
       feat([21.6880, 65.8250], { name: "Stegra Boden Electrolyzers", category: "production", subtype: "Alkaline Electrolyzer (Europe's largest)", color: "green", capacity: "700+ MW", status: "Under Construction (final modules installed Apr 2026)", scale: 7, region: "europe", note: "€6.5B+ financed green-steel anchor. Offtakes signed: Porsche, Mercedes-Benz, Volvo, ZF, IKEA, Microsoft. Targets 5 Mt near-zero steel/yr by 2030.", operator: "Stegra (ex-H2 Green Steel)", source: "https://stegra.com/", updated: "Apr 2026" }),
       feat([9.7550, 55.5640], { name: "HySynergy Fredericia", category: "production", subtype: "Alkaline Electrolyzer", color: "green", capacity: "20 MW (phase 1)", status: "Operating", scale: 3, region: "europe", operator: "Everfuel (Denmark)", source: "https://www.everfuel.com/projects/hysynergy/", updated: "2025" }),
       feat([12.0100, 51.3200], { name: "Leuna H2 (Linde/ITM)", category: "production", subtype: "PEM Electrolyzer", color: "green", capacity: "24 MW", status: "Operating", scale: 3, region: "europe", operator: "Linde / ITM Power", source: "https://www.linde.com/", updated: "Jun 2026" }),
-      feat([4.3000, 51.8900], { name: "Air Liquide ELYgator", category: "production", subtype: "PEM Electrolyzer", color: "green", capacity: "200 MW", status: "Under Construction", scale: 5, region: "europe", operator: "Air Liquide (Rotterdam)", source: "https://www.airliquide.com/", updated: "2025" }),
+      // Maasvlakte, not Botlek. ELYgator was announced for Terneuzen in 2022 and
+      // relocated; the July 2025 FID sites it at Maasvlakte in the Port of
+      // Rotterdam, ~22km west of where this sat.
+      feat([4.0480, 51.9620], { name: "Air Liquide ELYgator", category: "production", subtype: "PEM Electrolyzer", color: "green", capacity: "200 MW", status: "Under Construction", scale: 5, region: "europe", operator: "Air Liquide (Rotterdam)", source: "https://www.airliquide.com/", updated: "2025" }),
       feat([4.2800, 51.8950], { name: "Air Products Botlek Blue H2", category: "production", subtype: "SMR + CCS", color: "blue", capacity: "110 kt/yr", status: "Under Construction", scale: 6, region: "europe", operator: "Air Products (Rotterdam)", source: "https://www.airproducts.com/", updated: "Jun 2026" }),
       feat([4.3520, 51.8850], { name: "Shell Pernis Blue H2", category: "production", subtype: "SMR + CCS", color: "blue", capacity: "100 kt/yr", status: "Under Construction", scale: 6, region: "europe", operator: "Shell (Rotterdam)", source: "https://www.shell.com/", updated: "Jun 2026" }),
       feat([6.9740, 50.8260], { name: "REFHYNE (Wesseling)", category: "production", subtype: "PEM Electrolyzer", color: "green", capacity: "10 MW", status: "Operating", scale: 2, region: "europe", operator: "Shell / ITM Power", source: "https://refhyne.eu/", updated: "Jun 2026" }),
@@ -541,7 +547,7 @@ window.HYDROGEN_DATA = {
   // Real supply-chain relationships rendered as animated energy-flow arcs.
   flows: [
     { name: "NYPA hydropower → Plug Power STAMP (contract; project cancelled 2026)", color: "green",
-      from: [-79.0377, 43.0962], to: [-78.3894, 43.0836] },
+      from: [-79.0397, 43.1431], to: [-78.3894, 43.0836] },
     { name: "ACES wind & solar → ACES electrolyzers", color: "green",
       from: [-112.5766, 39.4600], to: [-112.5760, 39.4550] },
     { name: "ACES electrolyzers → Delta salt caverns", color: "green",

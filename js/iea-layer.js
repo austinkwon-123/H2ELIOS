@@ -13,11 +13,24 @@
   // Register with the dock toggle system (app.js wires buttons on load).
   TOGGLE_MAP.iea = ["iea-clusters", "iea-cluster-count", "iea-points"];
 
+  // 936 of the 3,338 IEA records arrive with no coordinates at all. build-iea.js
+  // falls back to the country centroid plus a deterministic jitter so the record
+  // is not lost — but a centroid is not a location: Australia's land in the
+  // Simpson Desert, America's in rural Kansas, Japan's in the Japanese Alps.
+  // Plotting them alongside surveyed coordinates makes the map assert positions
+  // the source never claimed, so they are excluded unless explicitly requested.
+  function showApprox() {
+    const btn = document.querySelector('.dock-btn[data-layer="ieaApprox"]');
+    return btn ? btn.classList.contains("active") : false;
+  }
+
   function filteredIEA() {
+    const approxOn = showApprox();
     return {
       type: "FeatureCollection",
       features: IEA.features.filter((f) => {
         const p = f.properties;
+        if (!approxOn && Number(p.approx)) return false;
         if (statusFilter !== "all" && p.statusClass !== statusFilter) return false;
         if (regionFilter !== "all" && !(REGION_GROUPS[regionFilter] || []).includes(p.region)) return false;
         if (colorFilter && p.color !== colorFilter) return false;
@@ -30,7 +43,7 @@
     const beforeId = map.getLayer("hubs") ? "hubs" : undefined;
 
     map.addSource("iea", {
-      type: "geojson", data: IEA,
+      type: "geojson", data: filteredIEA(),
       cluster: true, clusterRadius: 42, clusterMaxZoom: 8
     });
 
@@ -71,9 +84,17 @@
         // Softened to match the curated markers: no hard edge, lower opacity.
         "circle-radius": ["+", 2.6, ["*", 0.6, ["coalesce", ["get", "scale"], 1]]],
         "circle-blur": 0.65,
-        "circle-opacity": ["match", ["get", "statusClass"],
-          "operating", 0.55, "construction", 0.46, "atrisk", 0.3, 0.28],
-        "circle-stroke-width": 0
+        // Country-centroid records, when switched on, are drawn as a hollow ring
+        // instead of a filled cloud. A viewer must be able to tell at a glance
+        // which dots are a surveyed position and which are only "somewhere in
+        // this country" — same encoding the detail panel already spells out.
+        "circle-opacity": ["*",
+          ["match", ["get", "statusClass"], "operating", 0.55, "construction", 0.46, "atrisk", 0.3, 0.28],
+          ["case", ["==", ["to-number", ["coalesce", ["get", "approx"], 0]], 1], 0.12, 1]
+        ],
+        "circle-stroke-color": HOLO,
+        "circle-stroke-opacity": 0.45,
+        "circle-stroke-width": ["case", ["==", ["to-number", ["coalesce", ["get", "approx"], 0]], 1], 1, 0]
       }
     }, beforeId);
 
@@ -123,5 +144,28 @@
   applyFilters = function () {
     _applyFilters();
     if (map.getSource && map.getSource("iea")) map.getSource("iea").setData(filteredIEA());
+  };
+
+  // The approximate-position control needs no TOGGLE_MAP entry — it changes
+  // which features the source contains, not a layer's visibility. Deferred to a
+  // macrotask because wireDock() in 03-filters.js is what flips .active, and it
+  // binds later than this module parses; running synchronously here would read
+  // the class from before the toggle and invert the switch.
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest && e.target.closest('.dock-btn[data-layer="ieaApprox"]');
+    if (!btn) return;
+    setTimeout(() => { if (typeof applyFilters === "function") applyFilters(); }, 0);
+  });
+
+  // Exposed for verification.
+  window.H2GIea = {
+    debug() {
+      return {
+        total: IEA.features.length,
+        countryCentroidRecords: IEA.features.filter((f) => Number(f.properties.approx)).length,
+        approxShown: showApprox(),
+        plotted: filteredIEA().features.length
+      };
+    }
   };
 })();

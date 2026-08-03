@@ -1,57 +1,83 @@
 /* ==========================================================================
-   H2Grid · True 3D elevated arcs (Command Center)
+   H2ELIOS · True 3D elevated arcs + raised pipeline conduits
    Raw WebGL2, via MapLibre's CustomLayerInterface — no Deck.gl/Three.js.
    Native `line`/`fill-extrusion` layers drape to the map surface; this
-   bypasses that entirely by writing straight to the GPU. Each arc is a
+   bypasses that entirely by writing straight to the GPU. Each route is a
    triangle-strip "ribbon" whose vertices are lifted off the globe surface
-   in the vertex shader by a sine elevation profile, then projected through
-   MapLibre's own projectTileFor3D() — injected per-frame via
+   in the vertex shader, then projected through MapLibre's own
+   projectTileFor3D() — injected per-frame via
    shaderDescription.vertexShaderPrelude, the officially supported v5
    mechanism for custom layers that must stay correct under BOTH the globe
    and mercator projections (it interpolates the two automatically across
    the globe->mercator zoom transition around z12, which a hand-rolled
    projection matrix would not do for this app's globe view).
 
-   Visualizes the app's real curated supply-chain corridors (D.flows, from
-   data.js — the same dataset the 2D draped "flows" layer in 01-core.js
-   already renders) rather than placeholder demo endpoints, so this is a
-   true-3D upgrade of an existing real layer, not a decorative addition.
-   Each route is colored by its own hydrogen-taxonomy color (COLORS, from
-   01-core.js) and its apex height/width scale with the route's real
-   great-circle distance (kmDist(), from 01-core.js) so a ~5km on-site
-   corridor reads as a small bump and a ~9,000km intercontinental one reads
-   as a sweeping arc, rather than every route getting identical geometry.
+   TWO route classes, because they are two different physical things and
+   drawing them the same way would be a lie:
 
-   Independent of the API-data pipeline; own dock toggle (data-layer=
-   "commandArcs"), wired directly here since a custom-type layer has no
-   setLayoutProperty visibility switch for TOGGLE_MAP to drive.
+     · CORRIDORS (D.flows) — contractual supply-chain relationships between
+       two sites, e.g. NEOM -> Rotterdam ammonia. Nothing physical connects
+       them, so these are drawn as great-circle arcs sweeping high above
+       the globe, apex scaled by real distance.
+
+     · PIPELINES (D.pipelines) — actual buried/laid steel with a surveyed
+       right-of-way. These follow their REAL polyline vertex-for-vertex
+       (densified along each segment by great-circle interpolation so long
+       spans bend with the globe instead of cutting through it) and sit on
+       a low flat plateau just above the surface. They read as raised
+       conduits tracing the true route, never as arcs through the sky —
+       an arc here would put the pipe hundreds of km from where it is.
+
+   Elevation is computed per-vertex on the CPU and uploaded in metres, so
+   the shader needs no branch to tell the two profiles apart.
+
+   Wired to the existing "flows" and "pipelines" dock controls: each 3D
+   class is simply how its already-toggled dataset looks in 3D.
    ======================================================================= */
 (function () {
-  const ARC_STEPS = 96;
+  const ARC_STEPS = 96;          // samples along a corridor great circle
+  const PIPE_STEP_KM = 25;       // target spacing when densifying a pipeline segment
+  const FLOATS_PER_VERTEX = 9;
+  const VERTEX_STRIDE = FLOATS_PER_VERTEX * 4;
 
   function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
+  function smoothstep(e0, e1, x) {
+    const t = clamp((x - e0) / (e1 - e0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+  function toRad(d) { return (d * Math.PI) / 180; }
+  function toDeg(r) { return (r * 180) / Math.PI; }
+
+  // Each 3D class follows the dock control for its own dataset: "flows" drives
+  // the corridors (it already drives the draped 2D flow lines rendering the
+  // same D.flows), "pipelines" drives the raised conduits (same, for the draped
+  // pipeline lines). A custom-type layer has no setLayoutProperty visibility
+  // switch for TOGGLE_MAP to drive, so this reads the control directly.
+  //
+  // Polled per frame rather than bound with a click listener on purpose:
+  // wireDock() in 03-filters.js is what flips the .active class, and it
+  // registers its handler inside 01-core.js's map "load" callback — after this
+  // module parses. A listener added here would therefore fire FIRST and read
+  // the class from before the toggle, inverting every switch. render() already
+  // runs every frame for the traveling pulse, so reading the live class there
+  // is correct regardless of listener order and needs no state to keep in sync.
+  const dockCache = {};
+  function dockOn(layerKey) {
+    if (!dockCache[layerKey]) dockCache[layerKey] = document.querySelector(`.dock-btn[data-layer="${layerKey}"]`);
+    const btn = dockCache[layerKey];
+    return btn ? btn.classList.contains("active") : true;
+  }
 
   function hexToRgb01(hex) {
     const n = parseInt(hex.slice(1), 16);
     return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
   }
 
-  // Apex height and ribbon width scale with the route's real great-circle
-  // distance: short on-site corridors get a small bump, long intercontinental
-  // corridors get a tall, wide, sweeping arc.
-  function paramsForDistance(distKm) {
-    const height = clamp(distKm * 260, 40000, 2400000); // meters above the sphere surface
-    const halfWidth = clamp(height / 1.6e9, 0.00035, 0.0016); // mercator [0,1] units
-    return { height, halfWidth };
-  }
-
-  const ROUTES = D.flows.map((f) => {
-    const { height, halfWidth } = paramsForDistance(kmDist(f.from, f.to));
-    return { from: f.from, to: f.to, height, halfWidth, colorRGB: hexToRgb01(COLORS[f.color] || COLORS.gray_blue) };
-  });
-
-  function toRad(d) { return (d * Math.PI) / 180; }
-  function toDeg(r) { return (r * 180) / Math.PI; }
+  // Status dims the route rather than recolouring it: colour already encodes
+  // the hydrogen taxonomy (green/blue/pink/...) and must stay readable. Under
+  // additive blending, scaling RGB scales the emitted light, so this is a
+  // brightness control that needs no extra vertex attribute.
+  const STATUS_GAIN = { operating: 1.0, construction: 0.85, planned: 0.62, atrisk: 0.45, other: 0.7 };
 
   // Spherical linear interpolation (great-circle), same technique already
   // validated for the comet-pulse hub routes in 18-api-live.js.
@@ -70,43 +96,121 @@
     return [toDeg(Math.atan2(y, x)), toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)))];
   }
 
-  // Builds one triangle-strip ribbon for a single route. Each along-path
-  // sample contributes 2 vertices (left/right of the travel direction),
-  // interleaved as [mercatorX, mercatorY, progress, side, r, g, b, maxHeight].
-  // progress (0..1) drives both the vertex shader's elevation profile and
-  // the fragment shader's endpoint fade; side (-1..+1) drives the fragment
-  // shader's cross-beam glow falloff; r/g/b/maxHeight are baked per-route
-  // constants carried on every vertex so the shader needs no per-route
-  // uniform (lets render() draw every route's buffer in one uniform state).
-  function buildRibbon(route) {
-    const { from, to, halfWidth, height, colorRGB } = route;
-    const lngLats = [];
-    for (let i = 0; i <= ARC_STEPS; i++) lngLats.push(slerp(from, to, i / ARC_STEPS));
-    const merc = lngLats.map((p) => maplibregl.MercatorCoordinate.fromLngLat({ lng: p[0], lat: p[1] }));
+  function pathLengthKm(lngLats) {
+    let km = 0;
+    for (let i = 1; i < lngLats.length; i++) km += kmDist(lngLats[i - 1], lngLats[i]);
+    return km;
+  }
 
+  // Cumulative arc-length parameterisation. Using distance rather than vertex
+  // index means the traveling pulse moves at a constant ground speed even on a
+  // polyline whose segments are wildly uneven (the Gulf Coast network has a
+  // 140km leg next to a 25km one).
+  function progressAlong(lngLats) {
+    const cum = [0];
+    for (let i = 1; i < lngLats.length; i++) cum.push(cum[i - 1] + kmDist(lngLats[i - 1], lngLats[i]));
+    const total = cum[cum.length - 1] || 1;
+    return cum.map((c) => c / total);
+  }
+
+  // ---- Route builders -----------------------------------------------------
+
+  // A contractual corridor: pure great circle, sine elevation profile. Apex
+  // height and ribbon width scale with real distance, so a ~5km on-site link
+  // reads as a small bump and a ~9,000km intercontinental one as a sweeping arc.
+  function corridorRoute(flow) {
+    const distKm = kmDist(flow.from, flow.to);
+    const apex = clamp(distKm * 260, 40000, 2400000);
+    const lngLats = [];
+    for (let i = 0; i <= ARC_STEPS; i++) lngLats.push(slerp(flow.from, flow.to, i / ARC_STEPS));
+    const t = progressAlong(lngLats);
+    return {
+      kind: "corridor",
+      lngLats,
+      progress: t,
+      elevations: t.map((f) => Math.sin(f * Math.PI) * apex),
+      halfWidth: clamp(apex / 1.6e9, 0.00035, 0.0016),
+      wave: clamp(distKm / 260, 3, 22),
+      colorRGB: hexToRgb01(COLORS[flow.color] || COLORS.gray_blue)
+    };
+  }
+
+  // A real pipeline: the reported LineString, densified so each segment is
+  // sampled roughly every PIPE_STEP_KM along its great circle. The vertices
+  // themselves are never moved — only subdivided — so the conduit sits exactly
+  // on the surveyed route.
+  function densify(coords) {
+    const out = [coords[0]];
+    for (let i = 1; i < coords.length; i++) {
+      const a = coords[i - 1], b = coords[i];
+      const steps = Math.max(2, Math.ceil(kmDist(a, b) / PIPE_STEP_KM));
+      for (let s = 1; s <= steps; s++) out.push(slerp(a, b, s / steps));
+    }
+    return out;
+  }
+
+  function pipelineRoute(feature) {
+    const p = feature.properties;
+    const lngLats = densify(feature.geometry.coordinates);
+    const lengthKm = pathLengthKm(lngLats);
+    // Deliberately small: a pipeline is on the ground. The lift is only enough
+    // to separate the conduit from the draped 2D line beneath it and give it a
+    // readable body in 3D — it is a rendering convention, not a claim about
+    // elevation.
+    const lift = clamp(lengthKm * 110, 12000, 160000);
+    const t = progressAlong(lngLats);
+    const gain = STATUS_GAIN[p.statusClass] || STATUS_GAIN.other;
+    const rgb = hexToRgb01(COLORS[p.color] || COLORS.gray_blue);
+    return {
+      kind: "pipeline",
+      lngLats,
+      progress: t,
+      // Flat plateau with soft ramps at each end: the conduit rises out of the
+      // terminal and runs level, instead of arcing away from its own route.
+      elevations: t.map((f) => lift * smoothstep(0, 0.10, f) * smoothstep(0, 0.10, 1 - f)),
+      halfWidth: clamp(lengthKm * 4e-7, 0.00030, 0.00075),
+      wave: clamp(lengthKm / 260, 2, 14),
+      colorRGB: [rgb[0] * gain, rgb[1] * gain, rgb[2] * gain]
+    };
+  }
+
+  // ---- Geometry -----------------------------------------------------------
+
+  // Builds one triangle-strip ribbon. Each along-path sample contributes 2
+  // vertices (left/right of the travel direction), interleaved as
+  // [mercatorX, mercatorY, progress, side, r, g, b, elevationMetres, waveCount].
+  // progress (0..1) drives the fragment shader's endpoint fade and pulse phase;
+  // side (-1..+1) drives the cross-beam glow falloff; the rest are baked
+  // per-route constants carried on every vertex so render() can draw every
+  // route from one uniform state.
+  function buildRibbon(route) {
+    const { lngLats, progress, elevations, halfWidth, colorRGB, wave } = route;
+    const merc = lngLats.map((p) => maplibregl.MercatorCoordinate.fromLngLat({ lng: p[0], lat: p[1] }));
+    const last = merc.length - 1;
     const verts = [];
-    for (let i = 0; i <= ARC_STEPS; i++) {
-      const t = i / ARC_STEPS;
-      const prev = merc[Math.max(0, i - 1)], next = merc[Math.min(ARC_STEPS, i + 1)];
+    for (let i = 0; i <= last; i++) {
+      const prev = merc[Math.max(0, i - 1)], next = merc[Math.min(last, i + 1)];
       let dx = next.x - prev.x, dy = next.y - prev.y;
       const len = Math.hypot(dx, dy) || 1e-9;
       dx /= len; dy /= len;
       const nx = -dy, ny = dx; // perpendicular to travel direction, in the mercator plane
-      const p = merc[i];
-      verts.push(p.x + nx * halfWidth, p.y + ny * halfWidth, t, 1, colorRGB[0], colorRGB[1], colorRGB[2], height);
-      verts.push(p.x - nx * halfWidth, p.y - ny * halfWidth, t, -1, colorRGB[0], colorRGB[1], colorRGB[2], height);
+      const p = merc[i], t = progress[i], e = elevations[i];
+      verts.push(p.x + nx * halfWidth, p.y + ny * halfWidth, t, 1, colorRGB[0], colorRGB[1], colorRGB[2], e, wave);
+      verts.push(p.x - nx * halfWidth, p.y - ny * halfWidth, t, -1, colorRGB[0], colorRGB[1], colorRGB[2], e, wave);
     }
     return new Float32Array(verts);
   }
 
-  const VERTEX_STRIDE = 8 * 4; // 8 floats * 4 bytes/float
+  const CORRIDORS = D.flows.map(corridorRoute);
+  const PIPELINES = D.pipelines.features
+    .filter((f) => f.geometry && f.geometry.type === "LineString" && f.geometry.coordinates.length > 1)
+    .map(pipelineRoute);
 
   const arcLayer = {
     id: "h2grid-3d-arcs",
     type: "custom",
-    renderingMode: "3d", // conformal z: equal world lengths render as cubes, so the sine elevation reads as real height
+    renderingMode: "3d", // conformal z: equal world lengths render as cubes, so the elevation reads as real height
     shaderMap: new Map(),
-    visible: true,
     buffers: [],
 
     getShader(gl, shaderDescription) {
@@ -125,18 +229,20 @@ in vec2 a_pos;
 in float a_progress;
 in float a_side;
 in vec3 a_color;
-in float a_maxHeight;
+in float a_elevation;
+in float a_wave;
 
 out float v_progress;
 out float v_side;
 out vec3 v_color;
+out float v_wave;
 
 void main() {
-  float elevation = sin(a_progress * 3.14159265) * a_maxHeight;
-  gl_Position = projectTileFor3D(a_pos, elevation);
+  gl_Position = projectTileFor3D(a_pos, a_elevation);
   v_progress = a_progress;
   v_side = a_side;
   v_color = a_color;
+  v_wave = a_wave;
 }`;
 
       const fragmentSource = `#version 300 es
@@ -145,6 +251,7 @@ precision highp float;
 in float v_progress;
 in float v_side;
 in vec3 v_color;
+in float v_wave;
 
 uniform float u_time;
 
@@ -161,9 +268,10 @@ void main() {
   // starting and ending with a hard-cut edge.
   float endFade = smoothstep(0.0, 0.06, v_progress) * smoothstep(0.0, 0.06, 1.0 - v_progress);
 
-  // Traveling brightness pulse along the beam, so it reads as live energy
-  // flow rather than a static glowing tube.
-  float pulse = 0.5 + 0.5 * sin(v_progress * 18.0 - u_time * 2.2);
+  // Traveling brightness pulse. The wave count is baked per route from its
+  // real length, so a 32km pipeline shows two slow pulses instead of the same
+  // 18 crammed into a few pixels as a 9,000km corridor.
+  float pulse = 0.5 + 0.5 * sin(v_progress * v_wave - u_time * 2.2);
 
   float alpha = (cross * 0.55 + core * 0.45) * endFade * (0.65 + 0.35 * pulse);
   fragColor = vec4(v_color * (0.8 + 0.6 * pulse), alpha);
@@ -190,17 +298,18 @@ void main() {
     },
 
     onAdd(_map, gl) {
-      this.buffers = ROUTES.map((route) => {
+      this.buffers = CORRIDORS.concat(PIPELINES).map((route) => {
         const data = buildRibbon(route);
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-        return { vbo, count: data.length / 8 };
+        return { vbo, kind: route.kind, count: data.length / FLOATS_PER_VERTEX };
       });
     },
 
     render(gl, args) {
-      if (!this.visible) return;
+      const show = { corridor: dockOn("flows"), pipeline: dockOn("pipelines") };
+      if (!show.corridor && !show.pipeline) return;
 
       const program = this.getShader(gl, args.shaderData);
       gl.useProgram(program);
@@ -222,9 +331,11 @@ void main() {
       const aProgress = gl.getAttribLocation(program, "a_progress");
       const aSide = gl.getAttribLocation(program, "a_side");
       const aColor = gl.getAttribLocation(program, "a_color");
-      const aMaxHeight = gl.getAttribLocation(program, "a_maxHeight");
+      const aElevation = gl.getAttribLocation(program, "a_elevation");
+      const aWave = gl.getAttribLocation(program, "a_wave");
 
       this.buffers.forEach((buf) => {
+        if (!show[buf.kind]) return;
         gl.bindBuffer(gl.ARRAY_BUFFER, buf.vbo);
         gl.enableVertexAttribArray(aPos);
         gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, VERTEX_STRIDE, 0);
@@ -234,8 +345,10 @@ void main() {
         gl.vertexAttribPointer(aSide, 1, gl.FLOAT, false, VERTEX_STRIDE, 3 * 4);
         gl.enableVertexAttribArray(aColor);
         gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, VERTEX_STRIDE, 4 * 4);
-        gl.enableVertexAttribArray(aMaxHeight);
-        gl.vertexAttribPointer(aMaxHeight, 1, gl.FLOAT, false, VERTEX_STRIDE, 7 * 4);
+        gl.enableVertexAttribArray(aElevation);
+        gl.vertexAttribPointer(aElevation, 1, gl.FLOAT, false, VERTEX_STRIDE, 7 * 4);
+        gl.enableVertexAttribArray(aWave);
+        gl.vertexAttribPointer(aWave, 1, gl.FLOAT, false, VERTEX_STRIDE, 8 * 4);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, buf.count);
       });
 
@@ -243,18 +356,31 @@ void main() {
     }
   };
 
-  map.on("load", () => {
-    map.addLayer(arcLayer);
+  // map.on("load") alone is a one-shot that is missed whenever the style
+  // finishes before this module parses — the failure mode that silently left
+  // the spike layer unadded in 20-spikes.js. isStyleLoaded() is the correct
+  // readiness test, with "styledata" as a net for later style changes.
+  function addArcLayer() {
+    if (!map.getLayer(arcLayer.id)) map.addLayer(arcLayer);
+  }
+  if (map.isStyleLoaded()) addArcLayer();
+  map.on("load", addArcLayer);
+  map.on("styledata", addArcLayer);
 
-    // Driven by the single "flows" control now. The 3D arcs and the draped
-    // 2D flow lines both render D.flows, so they were two switches for one
-    // dataset; the arcs simply become how that dataset looks in 3D.
-    const btn = document.querySelector('.dock-btn[data-layer="flows"]');
-    if (btn) {
-      btn.addEventListener("click", () => {
-        arcLayer.visible = btn.classList.contains("active");
-        map.triggerRepaint();
-      });
+  // Exposed for verification and for 22-demo.js.
+  window.H2GArcs = {
+    debug() {
+      return {
+        corridors: CORRIDORS.length,
+        pipelines: PIPELINES.length,
+        buffers: arcLayer.buffers.length,
+        visible: { corridor: dockOn("flows"), pipeline: dockOn("pipelines") },
+        pipelineSamples: PIPELINES.map((r) => ({
+          points: r.lngLats.length,
+          lengthKm: Math.round(pathLengthKm(r.lngLats)),
+          maxLiftM: Math.round(Math.max.apply(null, r.elevations))
+        }))
+      };
     }
-  });
+  };
 })();
