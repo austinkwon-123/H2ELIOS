@@ -1,6 +1,6 @@
 /* ==========================================================================
    H2Grid · Search & stats
-   Facility search, header counters, IEA/intel ticker.
+   Facility search, header counters.
    Browser classic scripts share one global lexical scope, so map, helpers &
    state from core are visible here. Load order matters — see index.html.
    ======================================================================= */
@@ -119,7 +119,7 @@ function centroidOf(f) {
 }
 
 
-// ---- Stats + intel ticker ------------------------------------------------------------------------------
+// ---- Stats ------------------------------------------------------------------------------
 function renderStats() {
   const staticFeats = [
     ...D.upstream.features, ...D.production.features, ...D.manufacturing.features,
@@ -146,18 +146,3 @@ function setStationCount(n) {
   if (el) el.textContent = n; // ribbon telemetry readout removed - harmless no-op
 }
 
-function startTicker() {
-  const el = document.getElementById("ticker-text");
-  const facts = (D.ieaGlobal && D.ieaGlobal.facts) || [];
-  if (!facts.length || !el) return;
-  let i = 0;
-  const show = () => {
-    el.classList.remove("swap");
-    void el.offsetWidth; // restart animation
-    el.classList.add("swap");
-    el.textContent = facts[i % facts.length];
-    i++;
-  };
-  show();
-  setInterval(show, 7000);
-}

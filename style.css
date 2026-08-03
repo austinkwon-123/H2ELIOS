@@ -106,7 +106,24 @@ button { font-family: inherit; color: inherit; }
 *::-webkit-scrollbar-corner { background: transparent; }
 
 /* ---------- Stage: map + ambient texture ---------- */
-#map { position: fixed; inset: 0; }
+/* Apple-wallpaper-inspired base, in place of a flat --bg-0: real macOS
+   wallpapers (Tahoe/Sequoia-era) are diagonal multi-tone sweeps — dark at
+   the corners, a lighter blue-to-teal band flowing through the middle —
+   rather than a flat void or a literal cyan/violet "nebula". Approximates
+   that recipe rather than embedding Apple's actual wallpaper art (which is
+   copyrighted and not H2ELIOS's to ship), staying dark/navy throughout
+   since this is a dark console, not a daytime desktop background. Sits
+   behind everything else in #map — the starfield/spotlight/grid layers
+   still paint on top via ::before/::after, and the WebGL canvas covers it
+   entirely except where it renders transparent (the space around the
+   globe), which is exactly where a background is visible at all. */
+#map {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 85% 65% at 66% 6%, rgba(64, 140, 180, 0.30), transparent 55%),
+    radial-gradient(ellipse 75% 55% at 12% 96%, rgba(24, 96, 112, 0.26), transparent 60%),
+    linear-gradient(128deg, #040914 0%, #0a1a2c 30%, #0d2436 50%, #0a2a34 68%, #050e18 100%);
+}
 
 /* ambient space field: sparse stars + micro-grid, fades as you zoom in
    (--bg-fx driven from the map zoom handler in js/07-live.js) */
@@ -135,7 +152,11 @@ button { font-family: inherit; color: inherit; }
        second bloom of equal weight. Rides the same --bg-fx opacity as the
        stars, so it still fades in lockstep with them as you approach the
        surface. */
-    radial-gradient(46vw circle at 50% 46%, rgba(42, 184, 218, 0.11), transparent 62%),
+    /* Eased 0.11 -> 0.08: the #map base rule now carries its own colour
+       (the Apple-wallpaper diagonal wash), so this spotlight only needs to
+       add the globe-specific highlight on top, not supply all the colour
+       on its own the way it did over a flat void. */
+    radial-gradient(46vw circle at 50% 46%, rgba(42, 184, 218, 0.08), transparent 62%),
     radial-gradient(620px circle at 86% 80%, rgba(139, 110, 200, 0.05), transparent 65%),
     linear-gradient(rgba(28, 42, 74, 0.045) 1px, transparent 1px),
     linear-gradient(90deg, rgba(28, 42, 74, 0.045) 1px, transparent 1px);
@@ -241,13 +262,16 @@ button { font-family: inherit; color: inherit; }
    pill surface, sitting on top of (not embedded in) the ribbon, each
    collapsed to a compact idle state that pops open on hover/focus.
    ========================================================================= */
+/* No border-bottom: real Apple toolbars separate themselves from content
+   with blur + shadow alone, not a hard line (same reasoning as --glass-edge
+   elsewhere in this file) - the ribbon reads as glass floating over the
+   globe now instead of a panel with a drawn edge. */
 #command-ribbon {
   position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000;
   display: flex; align-items: center; justify-content: space-between;
   background: rgba(10, 15, 25, 0.55);
   -webkit-backdrop-filter: blur(18px) saturate(130%);
   backdrop-filter: blur(18px) saturate(130%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
@@ -692,28 +716,35 @@ button { font-family: inherit; color: inherit; }
    (not authentic macOS position, which is top-left) because the panel's own
    title sits flush top-left via #detail-content::before — putting the
    dots there would collide with it, and top-right also matches where every
-   other floating panel's close control already lives in this app. Only the
-   Close dot is wired up; Minimize/Zoom paint the full real cluster (a
-   floating panel has no window states for them to control) since a single
-   red dot alone reads as an error state, not a window control. */
+   other floating panel's close control already lives in this app.
+
+   Each dot is its OWN <button> now, not one button wrapping three <span>s —
+   the earlier version made all three fire the same close handler, which is
+   why the "close/minimize/zoom" cluster only ever closed regardless of
+   which dot was clicked. Close and Minimize are wired (js/01-core.js,
+   05-detail.js, 16-ai-features.js); Zoom stays visually present but inert
+   (disabled) rather than faking a third behaviour that doesn't exist yet —
+   a floating panel has no real "fullscreen" state to zoom into. */
 .window-controls {
   position: absolute; top: 12px; right: 12px; z-index: 2;
   display: flex; align-items: center; gap: 9px;
-  padding: 1px;
-  background: transparent; border: none;
-  cursor: pointer;
 }
 .wc-dot {
+  appearance: none; -webkit-appearance: none;
   width: 14px; height: 14px;
+  padding: 0; margin: 0;
   border-radius: 100px;
   border: 0.5px solid rgba(0, 0, 0, 0.25);
-  transition: filter 0.12s ease;
+  cursor: pointer;
+  transition: filter 0.12s ease, transform 0.15s var(--motion-spring);
 }
 .wc-close { background: #ff736a; }
 .wc-min { background: #febc2e; }
 .wc-zoom { background: #19c332; }
-.window-controls:hover .wc-dot { filter: brightness(1.12); }
-.window-controls:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 100px; }
+.wc-dot:hover { filter: brightness(1.2); transform: scale(1.15); }
+.wc-dot:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.wc-dot:disabled { cursor: default; opacity: 0.55; }
+.wc-dot:disabled:hover { filter: none; transform: none; }
 
 .detail-kicker {
   font: var(--overline); letter-spacing: var(--overline-tracking);
@@ -821,31 +852,10 @@ button { font-family: inherit; color: inherit; }
 }
 .maplibregl-ctrl-group button span { filter: invert(0.7) opacity(0.8); }
 
-/* ---------- Intelligence feed (bottom-right): thin, subdued ---------- */
-#insight-ticker {
-  bottom: 14px; right: 14px;
-  max-width: min(400px, 34vw);
-  padding: 5px 11px;
-  border-radius: var(--r-sm);
-  text-decoration: none;
-  color: var(--text-muted);
-  font-size: 10.5px;
-  line-height: 1.4;
-  transition: color 0.2s ease, border-color 0.2s ease;
-}
-#insight-ticker:hover { color: var(--text); border-color: var(--line-accent); }
-.ticker-tag {
-  flex-shrink: 0;
-  display: inline-flex; align-items: center;
-  font: var(--overline); letter-spacing: var(--overline-tracking);
-  color: var(--cyan);
-  padding: 2px 6px;
-  border: 1px solid var(--line-accent);
-  border-radius: 4px;
-}
-/* Live-feed indicator: a tiny glowing dot that pulses independently of the
-   ticker-text swap animation, so the feed reads as "live" even in the
-   silent gap between headline rotations. */
+/* Live-feed indicator: a tiny glowing dot, still used by #analytics-panel's
+   "INTEL" news section header — the bottom-right ticker capsule that
+   originally owned this class (and its own .ticker-tag/#ticker-text rules,
+   removed) is gone, this is what's left in use. */
 .pulse-dot {
   display: inline-block;
   width: 5px; height: 5px;
@@ -859,9 +869,36 @@ button { font-family: inherit; color: inherit; }
   0%, 100% { opacity: 1; box-shadow: 0 0 3px var(--cyan), 0 0 7px var(--cyan); }
   50% { opacity: 0.4; box-shadow: 0 0 2px var(--cyan); }
 }
-#ticker-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#ticker-text.swap { animation: tickswap 0.4s ease; }
-@keyframes tickswap { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: none; } }
+
+/* ---------- Minimized panel tray (bottom-centre) ----------
+   Where a panel goes when its Minimize dot is clicked, rather than fully
+   closing — a small glass pill per minimized panel, click to restore.
+   Foundation for a later side-by-side comparison view (multiple panels
+   minimized at once, then restored together); the compare view itself
+   isn't built yet, this is just the dock/restore mechanism it would sit on
+   top of. Empty tray takes no space and can't intercept clicks. */
+#minimized-tray {
+  position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+  z-index: 25;
+  display: flex; gap: 8px;
+}
+#minimized-tray:empty { display: none; }
+.min-chip {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 14px 7px 10px;
+  background: var(--glass-sheen), var(--panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: var(--glass-edge);
+  border-radius: 999px;
+  box-shadow: var(--glass-shadow);
+  font-size: 11px; font-weight: 600; color: var(--text-hi);
+  cursor: pointer;
+  animation: rise 0.3s var(--motion-spring);
+  transition: border-color 0.15s ease, transform 0.25s var(--motion-spring);
+}
+.min-chip:hover { border-color: rgba(63, 214, 232, 0.4); transform: translateY(-2px); }
+.min-chip .wc-dot { width: 8px; height: 8px; pointer-events: none; }
 
 #attribution {
   position: fixed; bottom: 3px; right: 10px; z-index: 15;
@@ -985,7 +1022,6 @@ button { font-family: inherit; color: inherit; }
    need viewport-specific repositioning hacks - just a narrower max-width on
    the nav island so overflow-x:auto kicks in sooner on small screens. */
 @media (max-width: 900px) {
-  #insight-ticker { display: none; }
   #tab-nav { max-width: min(70vw, 480px); }
 }
 /* Ribbon + tab-nav handling for this width moved to the "Small screens"
@@ -1667,25 +1703,15 @@ button { font-family: inherit; color: inherit; }
   line-height: 1.5;
   color: var(--text);
 }
-#regional-ai-close {
-  position: absolute; top: 10px; right: 10px; z-index: 2;
-  width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  background: transparent;
-  border: 1px solid var(--line); border-radius: 6px;
-  color: var(--text-muted); font-size: 11px; cursor: pointer;
-}
-#regional-ai-close:hover { color: var(--text-hi); border-color: var(--line-strong); }
-#regional-ai-panel::after {
-  content: "";
-  position: absolute; inset: 4px;
-  border: 1px solid transparent;
-  pointer-events: none;
-}
-#regional-ai-panel::after {
-  border-color: var(--line) transparent transparent var(--line);
-  border-width: 1px 0 0 1px;
-}
+/* #regional-ai-close's old ID-specific 24x24-box rule used to beat the
+   shared .window-controls class on specificity (an ID always outranks a
+   class), so the traffic-light dots added for this panel were being forced
+   into that old single-button box instead of laying out as their own row —
+   removed now that .window-controls/.wc-dot below are the only rule for
+   this element. Also removed the tactical-HUD top-left corner bracket
+   (::after) that used to sit on this panel — a leftover "sci-fi console"
+   decoration that reads as dated next to the glass material everywhere
+   else in the app now. */
 
 /* Detail Card custom additions */
 .detail-ai-block {

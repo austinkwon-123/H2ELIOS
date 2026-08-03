@@ -143,9 +143,11 @@
 
 <!-- Right: detail sheet -->
 <div class="glass right-panel-slot" id="detail-card" hidden>
-  <button id="detail-close" class="window-controls" title="Close" aria-label="Close">
-    <span class="wc-dot wc-close"></span><span class="wc-dot wc-min"></span><span class="wc-dot wc-zoom"></span>
-  </button>
+  <div class="window-controls" role="group" aria-label="Panel controls">
+    <button id="detail-close" class="wc-dot wc-close" type="button" title="Close" aria-label="Close"></button>
+    <button id="detail-minimize" class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
+    <button class="wc-dot wc-zoom" type="button" title="Zoom (not yet available)" aria-label="Zoom" disabled></button>
+  </div>
   <div id="detail-content"></div>
 </div>
 
@@ -196,19 +198,18 @@
   </div>
 </div>
 
-<!-- Bottom-right: global intel ticker -->
-<a class="glass capsule" id="insight-ticker" href="https://www.iea.org/data-and-statistics/data-tools/hydrogen-tracker" target="_blank" rel="noopener" title="IEA Hydrogen Tracker / Global Hydrogen Review 2026 + July 2026 global assessment">
-  <span class="ticker-tag"><span class="pulse-dot" aria-hidden="true"></span>INTEL</span>
-  <span id="ticker-text">Loading global hydrogen pulse…</span>
- </a>
- 
+<!-- Minimized panels dock here (see js/01-core.js minimizePanel()). -->
+<div id="minimized-tray" aria-label="Minimized panels"></div>
+
  <div id="attribution">Data: DOE · IEA Hydrogen Tracker · EIA · GEM · company sources — see citations · © OpenStreetMap © CARTO · Web lines are illustrative · Prototype</div>
- 
+
  <!-- Left: AI regional overview panel -->
  <div class="glass right-panel-slot" id="regional-ai-panel" hidden>
-   <button id="regional-ai-close" class="window-controls" title="Close AI Panel" aria-label="Close AI Panel">
-     <span class="wc-dot wc-close"></span><span class="wc-dot wc-min"></span><span class="wc-dot wc-zoom"></span>
-   </button>
+   <div class="window-controls" role="group" aria-label="Panel controls">
+     <button id="regional-ai-close" class="wc-dot wc-close" type="button" title="Close AI Panel" aria-label="Close AI Panel"></button>
+     <button id="regional-ai-minimize" class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
+     <button class="wc-dot wc-zoom" type="button" title="Zoom (not yet available)" aria-label="Zoom" disabled></button>
+   </div>
    <div class="ai-title">
      <svg viewBox="0 0 24 24" width="14" height="14" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
      <span>AI Regional Overview</span>

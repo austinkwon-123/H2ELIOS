@@ -144,11 +144,13 @@ function updateRegionalAIPanel() {
 
   if (regionFilter === "all") {
     panel.hidden = true;
+    removeMinimizedChip("regional-ai-panel");
     return;
   }
 
   closeOtherRightPanels("regional-ai-panel");
   panel.hidden = false;
+  removeMinimizedChip("regional-ai-panel"); // a region-filter change re-shows the panel itself, so a stale minimize chip shouldn't linger pointing at content that's already back on screen
   contentBox.innerHTML = `<div class="news-empty">Generating AI synthesis...</div>`;
 
   const cacheKey = `${AI_CACHE_PREFIX}overview_${regionFilter}`;
@@ -191,11 +193,14 @@ function updateRegionalAIPanel() {
 function closeRegionalAIPanel() {
   const panel = document.getElementById("regional-ai-panel");
   if (panel) panel.hidden = true;
+  removeMinimizedChip("regional-ai-panel");
 }
 
 function wireRegionalAIClose() {
   const closeBtn = document.getElementById("regional-ai-close");
   if (closeBtn) closeBtn.addEventListener("click", closeRegionalAIPanel);
+  const minBtn = document.getElementById("regional-ai-minimize");
+  if (minBtn) minBtn.addEventListener("click", () => minimizePanel("regional-ai-panel", "AI Regional Overview"));
 }
 
 // 2. Project detail view AI analysis generator

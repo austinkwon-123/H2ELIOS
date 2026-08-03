@@ -9,7 +9,7 @@
 // The global hydrogen network as a rotating 3D GLOBE (MapLibre GL v5 globe
 // projection) wrapped in Liquid Glass 2.0 UI with dark & light themes.
 // Carries over v4: five regions, gigafactories, contracted corridors,
-// capacity-scaled markers, status-differentiated styling, intel ticker.
+// capacity-scaled markers, status-differentiated styling.
 
 // ---- Config -----------------------------------------------------------
 // Free key from https://developer.nrel.gov/signup/ — DEMO_KEY works but is
@@ -249,8 +249,46 @@ function closeOtherRightPanels(exceptId) {
     if (id !== exceptId) {
       const el = document.getElementById(id);
       if (el && !el.hidden) close();
+      removeMinimizedChip(id); // a panel closed elsewhere shouldn't leave a stale restore chip
     }
   });
+}
+
+// ---- Minimize-to-tray: a panel's Minimize dot sends it to a small glass
+// pill at the bottom of the screen instead of closing it outright; clicking
+// the pill restores the panel exactly as it was. Foundation for a later
+// side-by-side comparison view (multiple panels minimized, then restored
+// together) - the compare view itself isn't built yet, this is just the
+// dock/restore mechanism it would sit on top of.
+function ensureMinimizedTray() {
+  let tray = document.getElementById("minimized-tray");
+  if (!tray) {
+    tray = document.createElement("div");
+    tray.id = "minimized-tray";
+    document.body.appendChild(tray);
+  }
+  return tray;
+}
+function removeMinimizedChip(panelId) {
+  const chip = document.getElementById("min-chip-" + panelId);
+  if (chip) chip.remove();
+}
+function minimizePanel(panelId, label) {
+  const panel = document.getElementById(panelId);
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  if (document.getElementById("min-chip-" + panelId)) return;
+  const chip = document.createElement("button");
+  chip.id = "min-chip-" + panelId;
+  chip.className = "min-chip";
+  chip.type = "button";
+  chip.title = "Restore " + label;
+  chip.innerHTML = `<span class="wc-dot wc-min" aria-hidden="true"></span><span>${label}</span>`;
+  chip.addEventListener("click", () => {
+    panel.hidden = false;
+    chip.remove();
+  });
+  ensureMinimizedTray().appendChild(chip);
 }
 
 
@@ -380,9 +418,7 @@ map.on("load", () => {
   wireSearchHotkey();
   wireClicks();
   wireDetailClose();
-  wireTour();
   wireTheme();
-  startTicker();
 
   renderStats();
   startAnimations();

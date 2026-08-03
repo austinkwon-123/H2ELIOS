@@ -88,10 +88,12 @@ function closeDetailPanel() {
   document.getElementById("detail-card").hidden = true;
   selectedName = null;
   map.getSource("selection").setData(emptyFC());
+  removeMinimizedChip("detail-card");
 }
 
 function wireDetailClose() {
   document.getElementById("detail-close").addEventListener("click", closeDetailPanel);
+  document.getElementById("detail-minimize").addEventListener("click", () => minimizePanel("detail-card", "Project Intelligence"));
 }
 
 
