@@ -1662,7 +1662,15 @@ button { font-family: inherit; color: inherit; }
       One recipe now drives every sub-tab surface.
    ========================================================================= */
 :root {
-  --glass-blur: 26px;
+  /* 15px verified against Apple's own macOS 26 "Materials" reference (both the
+     Light and Dark swatch sets use the same 15px backdrop blur across all five
+     material weights — UltraThin through UltraThick; only fill opacity changes
+     between weights, not blur radius). Was a 26px guess from a screenshot;
+     corrected via the Figma MCP connector against the real file. --glass-sat
+     has no equivalent in that export — Figma's material swatches are a static
+     blur+opacity rectangle, not a live vibrancy render, so there's no real
+     saturation figure to check this against — left as the original estimate. */
+  --glass-blur: 15px;
   --glass-sat: 165%;
   --r-glass: 22px;
   /* Specular sheen + body, as background layers rather than a ::before, so
