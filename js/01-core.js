@@ -239,17 +239,25 @@ class ResetViewControl {
 }
 map.addControl(new ResetViewControl(), "top-left");
 
+// Switching between right-panel-slot panels (a project's detail, the AI
+// regional overview, Markets) used to fully CLOSE whichever one was open —
+// so opening Markets while a project was selected just discarded it. Now it
+// minimizes the other panel(s) instead, same as clicking their own Minimize
+// dot would: nothing already open is ever lost to switching tabs, only to an
+// explicit Close. detail-card minimizes via the same real snapshot mechanism
+// its own dot uses (needs lastDetailProps, set in js/05-detail.js's
+// showDetail()); the other two use the plain chip minimize since they're
+// single-instance app state, not per-object records.
 function closeOtherRightPanels(exceptId) {
-  const closers = {
-    "detail-card": closeDetailPanel,
-    "regional-ai-panel": closeRegionalAIPanel,
-    "markets-panel": closeMarketsPanel
+  const minimizers = {
+    "detail-card": () => { if (typeof lastDetailProps !== "undefined" && lastDetailProps) minimizeDetailPanel(lastDetailProps); else closeDetailPanel(); },
+    "regional-ai-panel": () => minimizePanel("regional-ai-panel", "AI Regional Overview"),
+    "markets-panel": () => minimizePanel("markets-panel", "Markets")
   };
-  Object.entries(closers).forEach(([id, close]) => {
+  Object.entries(minimizers).forEach(([id, minimize]) => {
     if (id !== exceptId) {
       const el = document.getElementById(id);
-      if (el && !el.hidden) close();
-      removeMinimizedChip(id); // a panel closed elsewhere shouldn't leave a stale restore chip
+      if (el && !el.hidden) minimize();
     }
   });
 }
@@ -351,7 +359,7 @@ function minimizeDetailPanel(props, reuseId) {
       <button class="wc-dot wc-zoom" type="button" title="Enlarge" aria-label="Enlarge"></button>
     </div>
     <div class="mini-card-name">${escapeHtml(props.name)}</div>
-    <div class="mini-card-sub"><span class="mini-card-swatch" style="background:${c}"></span>${escapeHtml(props.status || "—")}</div>
+    <div class="mini-card-sub"><span class="mini-card-swatch" style="background:${c}"></span><span class="mini-card-status">${escapeHtml(props.status || "—")}</span></div>
     <div class="mini-card-cap">${escapeHtml(props.capacity || "—")}</div>`;
   mini.querySelector(".wc-close").addEventListener("click", () => mini.remove());
   mini.querySelector(".wc-zoom").addEventListener("click", () => {

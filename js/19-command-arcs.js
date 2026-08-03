@@ -117,10 +117,17 @@
 
   // A contractual corridor: pure great circle, sine elevation profile. Apex
   // height and ribbon width scale with real distance, so a ~5km on-site link
-  // reads as a small bump and a ~9,000km intercontinental one as a sweeping arc.
+  // reads as a small bump and a ~9,000km intercontinental one as a sweeping
+  // arc. Floor raised 40,000 -> 90,000: on-site corridors like ACES's own
+  // internal links (sub-1km) were hitting the OLD floor regardless of their
+  // real distance, and 40km of apex over a <1km base rendered as barely a
+  // ripple at globe scale — not visibly an arc at all. 90km keeps the same
+  // proportional-to-distance formula for everything above it, just raises
+  // the floor enough that the shortest corridors read as an actual parabola
+  // rather than a near-flat line.
   function corridorRoute(flow) {
     const distKm = kmDist(flow.from, flow.to);
-    const apex = clamp(distKm * 260, 40000, 2400000);
+    const apex = clamp(distKm * 260, 90000, 2400000);
     const lngLats = [];
     for (let i = 0; i <= ARC_STEPS; i++) lngLats.push(slerp(flow.from, flow.to, i / ARC_STEPS));
     const t = progressAlong(lngLats);
@@ -131,7 +138,8 @@
       elevations: t.map((f) => Math.sin(f * Math.PI) * apex),
       halfWidth: clamp(apex / 1.6e9, 0.00035, 0.0016),
       wave: clamp(distKm / 260, 3, 22),
-      colorRGB: hexToRgb01(COLORS[flow.color] || COLORS.gray_blue)
+      colorRGB: hexToRgb01(COLORS[flow.color] || COLORS.gray_blue),
+      sourceProps: flow // sparse — {name, color, from, to} — kept for click hit-testing (see bindHitTesting)
     };
   }
 
@@ -170,7 +178,8 @@
       elevations: t.map((f) => lift * smoothstep(0, 0.10, f) * smoothstep(0, 0.10, 1 - f)),
       halfWidth: clamp(lengthKm * 4e-7, 0.00030, 0.00075),
       wave: clamp(lengthKm / 260, 2, 14),
-      colorRGB: [rgb[0] * gain, rgb[1] * gain, rgb[2] * gain]
+      colorRGB: [rgb[0] * gain, rgb[1] * gain, rgb[2] * gain],
+      sourceProps: p // full facility-style properties — same object the draped 2D "pipelines" layer's own click handler uses
     };
   }
 
@@ -366,6 +375,62 @@ void main() {
   if (map.isStyleLoaded()) addArcLayer();
   map.on("load", addArcLayer);
   map.on("styledata", addArcLayer);
+
+  // ---- Click hit-testing --------------------------------------------------
+  // Custom WebGL layers aren't hit-testable by MapLibre's own picking — a
+  // click always misses the visible 3D beam. The draped 2D "flows-base"/
+  // "pipelines" lines these arcs are drawn FROM are already clickable
+  // (js/05-detail.js wireClicks()), but they're thin and sit at ground
+  // level while the beam floats well above them, so a click aimed at the
+  // thing a user can actually see usually misses the real hit target
+  // entirely.
+  //
+  // This approximates a hit by testing screen-space distance from the click
+  // to each route's GROUND track (ignoring the beam's elevation — properly
+  // projecting an elevated point under globe projection would mean
+  // reimplementing MapLibre's own projection matrices, which the custom
+  // layer receives per-frame but a normal click handler has no access to).
+  // A generous pixel tolerance stands in for that missing elevation
+  // awareness: not a pixel-accurate pick on the beam itself, but a real
+  // click near a corridor/pipeline's path now does something, where before
+  // it did nothing at all. Only runs when the click didn't already land on
+  // a real clickable layer, so this never steals a click from a marker.
+  const HIT_TOLERANCE_PX = 16;
+  const CLICKABLE_LAYERS = ["upstream", "production", "manufacturing", "storage", "pipelines", "endUse", "fuelingStations", "hubs", "flows-base"];
+
+  function distToSegment(p, a, b) {
+    const abx = b.x - a.x, aby = b.y - a.y;
+    const len2 = abx * abx + aby * aby;
+    let t = len2 > 0 ? ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const x = a.x + t * abx, y = a.y + t * aby;
+    return Math.hypot(p.x - x, p.y - y);
+  }
+
+  function nearestRouteAt(point) {
+    let best = null, bestDist = HIT_TOLERANCE_PX;
+    CORRIDORS.concat(PIPELINES).forEach((route) => {
+      if (!dockOn(route.kind === "corridor" ? "flows" : "pipelines")) return;
+      const pts = route.lngLats.map((ll) => map.project(ll));
+      for (let i = 1; i < pts.length; i++) {
+        const d = distToSegment(point, pts[i - 1], pts[i]);
+        if (d < bestDist) { bestDist = d; best = route; }
+      }
+    });
+    return best;
+  }
+
+  map.on("click", (e) => {
+    // Not e.defaultPrevented — MapLibre's own click event doesn't reliably
+    // carry that signal across its layer-specific vs. general handlers.
+    // queryRenderedFeatures at the same point is the certain way to know
+    // whether a real layer (and therefore its own wireClicks() handler) was
+    // actually under the cursor, independent of handler dispatch order.
+    const hits = map.queryRenderedFeatures(e.point, { layers: CLICKABLE_LAYERS.filter((id) => map.getLayer(id)) });
+    if (hits.length) return; // a real layer was clicked — its own handler already ran
+    const route = nearestRouteAt(e.point);
+    if (route && typeof selectFacility === "function") selectFacility(route.sourceProps, [e.lngLat.lng, e.lngLat.lat]);
+  });
 
   // Exposed for verification and for 22-demo.js.
   window.H2GArcs = {
