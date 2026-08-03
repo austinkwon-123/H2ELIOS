@@ -106,13 +106,20 @@ button { font-family: inherit; color: inherit; }
 *::-webkit-scrollbar-corner { background: transparent; }
 
 /* ---------- Stage: map + ambient texture ---------- */
-/* Apple-wallpaper-inspired base, in place of a flat --bg-0: real macOS
-   wallpapers (Tahoe/Sequoia-era) are diagonal multi-tone sweeps — dark at
-   the corners, a lighter blue-to-teal band flowing through the middle —
-   rather than a flat void or a literal cyan/violet "nebula". Approximates
-   that recipe rather than embedding Apple's actual wallpaper art (which is
-   copyrighted and not H2ELIOS's to ship), staying dark/navy throughout
-   since this is a dark console, not a daytime desktop background. Sits
+/* Apple-wallpaper-STRUCTURED base, built from real sampled values rather
+   than a guess. Downloaded the actual macOS 26 dark wallpaper via the
+   Figma connector and sampled its pixels directly (Node + a from-scratch
+   PNG decoder, no image tooling installed): it is not a soft blob-gradient
+   at all — it's a satin/fabric fold, near-black indigo at the corners
+   (~#050459, #040351, #000d89 sampled) with a NARROW bright diagonal seam
+   where the fold catches light (~#5358ca), not a wide soft wash. The first
+   version of this rule missed that structure entirely (and had the wrong
+   hue — the real wallpaper is indigo/violet, this app is cyan). Recreated
+   here as a real seam band, not a radial blob, with the sampled indigo hue
+   rotated to H2ELIOS's own cyan/blue rather than shipping Apple's actual
+   color (or their actual artwork, which stays un-embedded — see below).
+   Still an original CSS gradient, not Apple's copyrighted wallpaper file,
+   which isn't H2ELIOS's to ship; this only borrows the structure. Sits
    behind everything else in #map — the starfield/spotlight/grid layers
    still paint on top via ::before/::after, and the WebGL canvas covers it
    entirely except where it renders transparent (the space around the
@@ -120,9 +127,17 @@ button { font-family: inherit; color: inherit; }
 #map {
   position: fixed; inset: 0;
   background:
-    radial-gradient(ellipse 85% 65% at 66% 6%, rgba(64, 140, 180, 0.30), transparent 55%),
-    radial-gradient(ellipse 75% 55% at 12% 96%, rgba(24, 96, 112, 0.26), transparent 60%),
-    linear-gradient(128deg, #040914 0%, #0a1a2c 30%, #0d2436 50%, #0a2a34 68%, #050e18 100%);
+    /* the seam: narrow, not a blob — this is what makes it read as a fold
+       catching light rather than a generic gradient wash */
+    linear-gradient(128deg,
+      transparent 36%,
+      rgba(40, 130, 160, 0.20) 45%,
+      rgba(63, 214, 232, 0.16) 49%,
+      rgba(40, 130, 160, 0.20) 53%,
+      transparent 62%),
+    radial-gradient(ellipse 80% 60% at 82% 10%, rgba(10, 60, 100, 0.32), transparent 58%),
+    radial-gradient(ellipse 70% 55% at 90% 82%, rgba(45, 90, 110, 0.22), transparent 60%),
+    linear-gradient(128deg, #04070f 0%, #061224 24%, #082036 46%, #0a2a3a 66%, #051018 100%);
 }
 
 /* ambient space field: sparse stars + micro-grid, fades as you zoom in
