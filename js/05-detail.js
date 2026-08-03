@@ -93,7 +93,7 @@ function closeDetailPanel() {
 
 function wireDetailClose() {
   document.getElementById("detail-close").addEventListener("click", closeDetailPanel);
-  document.getElementById("detail-minimize").addEventListener("click", () => minimizePanel("detail-card", "Project Intelligence"));
+  document.getElementById("detail-minimize").addEventListener("click", () => minimizePanel("detail-card", selectedName || "Project"));
 }
 
 

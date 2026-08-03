@@ -675,13 +675,38 @@ button { font-family: inherit; color: inherit; }
    fixed corner radius spec was pulled for a panel this size, so --r-glass
    (verified in use elsewhere in this file) carries over rather than
    guessing a second number. */
-#detail-card, #analytics-panel, #markets-panel, #regional-ai-panel {
+#detail-card, #analytics-panel, #markets-panel, #regional-ai-panel, .detail-snapshot {
   background: var(--glass-sheen), var(--panel);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   border: var(--glass-edge);
   border-radius: var(--r-glass);
   box-shadow: var(--glass-shadow);
+}
+
+/* ---------- Comparison snapshots ----------
+   Minimizing a project's detail panel clones it into one of these instead
+   of just hiding the single shared #detail-card (see minimizePanel() in
+   js/01-core.js) — multiple different projects can be minimized and
+   restored at once, laid out in a row here, which a single hide/show
+   toggle on one shared element could never support. row-reverse + wrap so
+   the newest restored snapshot lands nearest the original detail-card
+   position and older ones cascade leftward/downward rather than overlapping
+   it exactly. */
+#snapshot-row {
+  position: fixed; top: 74px; right: 14px; z-index: 20;
+  display: flex; flex-direction: row-reverse; flex-wrap: wrap;
+  gap: 12px;
+  max-width: calc(100vw - 28px);
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.detail-snapshot {
+  position: static !important; /* overrides the fixed positioning .glass/.right-panel-slot give the original */
+  width: 340px;
+  max-height: calc(100vh - 130px);
+  pointer-events: auto;
+  animation: rise 0.3s var(--motion-spring);
 }
 
 /* ---------- Inspector (right): data terminal ---------- */

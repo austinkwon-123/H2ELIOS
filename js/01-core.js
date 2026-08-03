@@ -254,12 +254,22 @@ function closeOtherRightPanels(exceptId) {
   });
 }
 
-// ---- Minimize-to-tray: a panel's Minimize dot sends it to a small glass
-// pill at the bottom of the screen instead of closing it outright; clicking
-// the pill restores the panel exactly as it was. Foundation for a later
-// side-by-side comparison view (multiple panels minimized, then restored
-// together) - the compare view itself isn't built yet, this is just the
-// dock/restore mechanism it would sit on top of.
+// ---- Minimize-to-tray -----------------------------------------------------
+// A panel's Minimize dot sends it to a small glass pill at the bottom of the
+// screen instead of closing it outright; clicking the pill restores it.
+//
+// #detail-card is special-cased: it's a SINGLE shared DOM element whose
+// content gets overwritten every time selectFacility() runs, so hiding and
+// re-showing that one element (the original approach) could never support
+// comparing two different projects — minimizing project A, then selecting
+// project B, would silently overwrite A's content before you ever got back
+// to it. Minimizing detail-card now clones its current content into an
+// independent snapshot panel first, then resets the live panel so a new
+// selection is free to use it — each snapshot is its own DOM node with its
+// own chip, so multiple projects can be minimized and restored side by side
+// in #snapshot-row for actual comparison, not just a single restore slot.
+// Other panel types (analytics/markets/AI) are single-instance app state,
+// not per-object records, so they keep the simpler hide/show behaviour.
 function ensureMinimizedTray() {
   let tray = document.getElementById("minimized-tray");
   if (!tray) {
@@ -269,26 +279,62 @@ function ensureMinimizedTray() {
   }
   return tray;
 }
+function ensureSnapshotRow() {
+  let row = document.getElementById("snapshot-row");
+  if (!row) {
+    row = document.createElement("div");
+    row.id = "snapshot-row";
+    document.body.appendChild(row);
+  }
+  return row;
+}
 function removeMinimizedChip(panelId) {
   const chip = document.getElementById("min-chip-" + panelId);
   if (chip) chip.remove();
 }
-function minimizePanel(panelId, label) {
-  const panel = document.getElementById(panelId);
-  if (!panel || panel.hidden) return;
-  panel.hidden = true;
-  if (document.getElementById("min-chip-" + panelId)) return;
+function addMinimizedChip(chipId, label, onRestore) {
+  if (document.getElementById("min-chip-" + chipId)) return;
   const chip = document.createElement("button");
-  chip.id = "min-chip-" + panelId;
+  chip.id = "min-chip-" + chipId;
   chip.className = "min-chip";
   chip.type = "button";
   chip.title = "Restore " + label;
   chip.innerHTML = `<span class="wc-dot wc-min" aria-hidden="true"></span><span>${label}</span>`;
-  chip.addEventListener("click", () => {
-    panel.hidden = false;
-    chip.remove();
-  });
+  chip.addEventListener("click", () => { chip.remove(); onRestore(); });
   ensureMinimizedTray().appendChild(chip);
+}
+
+let snapshotSeq = 0;
+function minimizePanel(panelId, label) {
+  const panel = document.getElementById(panelId);
+  if (!panel || panel.hidden) return;
+
+  if (panelId !== "detail-card") {
+    panel.hidden = true;
+    addMinimizedChip(panelId, label, () => { panel.hidden = false; });
+    return;
+  }
+
+  const snapId = "detail-snapshot-" + (++snapshotSeq);
+  const snap = panel.cloneNode(true);
+  snap.id = snapId;
+  snap.classList.add("detail-snapshot");
+  snap.removeAttribute("hidden");
+  // Re-point the cloned window-controls at this snapshot instead of the
+  // live panel: Close removes the snapshot outright, Minimize re-docks it
+  // to the tray. cloneNode never copies event listeners, so these are the
+  // ONLY handlers this clone has — the ids are cleared so it can't collide
+  // with (or accidentally be driven by) the live panel's own listeners.
+  const closeBtn = snap.querySelector(".wc-close");
+  const minBtn = snap.querySelector(".wc-min");
+  if (closeBtn) { closeBtn.removeAttribute("id"); closeBtn.addEventListener("click", () => { snap.remove(); removeMinimizedChip(snapId); }); }
+  if (minBtn) { minBtn.removeAttribute("id"); minBtn.addEventListener("click", () => { snap.hidden = true; addMinimizedChip(snapId, label, () => { snap.hidden = false; ensureSnapshotRow().appendChild(snap); }); }); }
+  ensureSnapshotRow().appendChild(snap);
+
+  panel.hidden = true;
+  selectedName = null;
+  if (map.getSource("selection")) map.getSource("selection").setData(emptyFC());
+  addMinimizedChip(snapId, label, () => { snap.hidden = false; ensureSnapshotRow().appendChild(snap); });
 }
 
 

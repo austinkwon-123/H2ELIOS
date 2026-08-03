@@ -79,21 +79,10 @@ body::after {
 @keyframes retspin { to { transform: rotate(360deg); } }
 @keyframes retpulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
-/* ---------- Hairline corner brackets on the inspector + analytics panel ---------- */
-#detail-card::after, #analytics-panel::after, #markets-panel::after {
-  content: "";
-  position: absolute; inset: 5px;
-  border-radius: 8px;
-  pointer-events: none;
-  opacity: 0.4;
-  background:
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 top 0 / 12px 1px,
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 top 0 / 1px 12px,
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 top 0 / 12px 1px,
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 top 0 / 1px 12px,
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 bottom 0 / 12px 1px,
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) left 0 bottom 0 / 1px 12px,
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 bottom 0 / 12px 1px,
-    linear-gradient(rgba(63,214,232,0.9), rgba(63,214,232,0.9)) right 0 bottom 0 / 1px 12px;
-  background-repeat: no-repeat;
-}
+/* Hairline corner brackets on #detail-card/#analytics-panel/#markets-panel
+   removed — this file (hud.css, a SEPARATE stylesheet from style.css) was
+   never checked during the earlier pass that removed the matching
+   decoration on #regional-ai-panel, so this 4-corner version kept rendering
+   on three other panels the whole time. Same reasoning as that removal:
+   a tactical-console corner-tick reads as dated next to the glass material
+   everywhere else now. */
