@@ -1,7 +1,7 @@
 /* ==========================================================================
    H2Grid · Feature demo
-   A self-playing walkthrough of what the globe can DO, as opposed to
-   06-tour.js, which walks through hydrogen projects and what they mean.
+   A self-playing walkthrough of what the globe can DO. Supersedes the
+   older, separate project-narration "Tour" card (06-tour.js, removed).
 
    Every step drives the real controls — the same globals the dock buttons and
    filter flyouts write to — rather than faking a visual. What you watch is the

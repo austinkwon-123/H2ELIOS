@@ -64,7 +64,7 @@ window.eval(M("news-data.js"));
 // does not, so concatenate them here in index.html load order.
 window.eval([
   "01-core.js", "02-layers.js", "03-filters.js", "04-search.js",
-  "05-detail.js", "06-tour.js", "07-live.js", "iea-layer.js", "hud.js",
+  "05-detail.js", "07-live.js", "iea-layer.js", "hud.js",
   "08-analytics.js", "09-router.js", "10-calculator.js",
   "11-market.js", "12-technology.js", "13-demand-transport.js",
   "14-policy.js", "15-companies.js", "16-ai-features.js",
@@ -191,11 +191,7 @@ setTimeout(() => {
   ok(doc.querySelectorAll(".rel-row").length === 3, "3 relationship rows");
   click(doc.getElementById("detail-close"));
 
-  // Tour still 10 stops
-  click(doc.getElementById("tour-btn"));
-  for (let i = 0; i < 9; i++) click(doc.getElementById("tour-next"));
-  ok(doc.getElementById("tour-step-label").textContent === "10 / 10", "tour reaches 10/10");
-  click(doc.getElementById("tour-next"));
+  ok(!doc.getElementById("tour-btn"), "old project-narration Tour removed (superseded by Demo)");
 
   ok((window.HYDROGEN_DATA.ieaGlobal.facts || []).length >= 8, "intel ticker facts present");
 

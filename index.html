@@ -49,7 +49,6 @@
     </div>
     <button id="analytics-btn" class="tour-button"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="4" height="10"/><rect x="10" y="5" width="4" height="15"/><rect x="17" y="13" width="4" height="7"/></svg>Analytics</button>
     <button id="markets-btn" class="tour-button"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Markets</button>
-    <button id="tour-btn" class="tour-button"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z"/></svg>Tour</button>
     <button id="demo-btn" class="tour-button" title="Self-playing walkthrough of every globe feature"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3.5 2"/><path d="M17.5 3.5 21 5l-1.5 3.5"/></svg>Demo</button>
     <span id="api-status" class="pill">Loading…</span>
   </div>
@@ -181,22 +180,9 @@
   <div id="analytics-markets" class="stock-list"></div>
 </div>
 
-<!-- Tour narration -->
-<div class="glass" id="tour-card" hidden>
-  <div class="tour-progress" id="tour-progress"></div>
-  <h3 id="tour-title"></h3>
-  <p id="tour-text"></p>
-  <div class="tour-nav">
-    <button id="tour-prev">←</button>
-    <span id="tour-step-label"></span>
-    <button id="tour-next">Next →</button>
-    <button id="tour-exit" title="Exit tour">✕</button>
-  </div>
-</div>
-
-<!-- Feature demo. Distinct from the tour above: that one walks through
-     hydrogen projects, this one demonstrates what the globe itself can do,
-     driving the real controls rather than replaying a recording. -->
+<!-- Feature demo: walks through hydrogen projects and demonstrates what the
+     globe itself can do, driving the real controls rather than replaying a
+     recording. Superseded the older separate project-narration "Tour" card. -->
 <div class="glass" id="demo-card" hidden>
   <div class="tour-progress" id="demo-progress"></div>
   <h3 id="demo-title"></h3>
@@ -220,7 +206,9 @@
  
  <!-- Left: AI regional overview panel -->
  <div class="glass right-panel-slot" id="regional-ai-panel" hidden>
-   <button id="regional-ai-close" title="Close AI Panel">✕</button>
+   <button id="regional-ai-close" class="window-controls" title="Close AI Panel" aria-label="Close AI Panel">
+     <span class="wc-dot wc-close"></span><span class="wc-dot wc-min"></span><span class="wc-dot wc-zoom"></span>
+   </button>
    <div class="ai-title">
      <svg viewBox="0 0 24 24" width="14" height="14" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
      <span>AI Regional Overview</span>
@@ -229,7 +217,7 @@
      <summary style="cursor:pointer; color:var(--text-muted); font-size:10px; font-weight:600; outline:none; list-style:none; display:flex; align-items:center; gap:4px;">View AI Prompt Context</summary>
      <div style="font-family:var(--font-mono); margin-top:6px; color:var(--text-faint); font-size:8.5px; word-break:break-all; max-height:80px; overflow-y:auto; white-space:pre-wrap;" id="regional-ai-prompt">—</div>
    </details>
-   <div class="ai-prompt-header" style="margin-top:12px; margin-bottom:8px;">AI REGIONAL ANALYSIS</div>
+   <div class="ai-prompt-header" style="margin-top:12px; margin-bottom:8px;">AI Regional Analysis</div>
    <div class="ai-content" id="regional-ai-content">Selecting a region on the filter bar triggers custom AI analysis...</div>
  </div>
  </section>
@@ -261,7 +249,6 @@
  <script src="js/03-filters.js"></script>
  <script src="js/04-search.js"></script>
  <script src="js/05-detail.js"></script>
- <script src="js/06-tour.js"></script>
  <script src="js/07-live.js"></script>
  
  <!-- feature overlays (depend on app modules above) -->

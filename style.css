@@ -54,13 +54,27 @@
   --r-lg: 12px;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
   --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.35);
+  /* Shared spring/elastic curve — a slight overshoot past the rest position
+     before settling, rather than linear ease-out. Used on hover lifts, panel
+     entrances and the dock's hover-scale so those moments read as a spring,
+     not just a fade — the "cursor lifting a sheet of glass" feel. */
+  --motion-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* -- type -------------------------------------------------------------------- */
   --font: "Inter", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-head: "Space Grotesk", var(--font);
   --font-mono: "Space Mono", ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
-  --overline: 600 9px/1 var(--font);
-  --overline-tracking: 0.14em;
+  /* Softened from 9px/1/0.14em: real Apple section headers (verified against
+     the actual macOS 26 Sidebar component — "Favorites", "Locations", "Tags")
+     are bold, small, and at reduced opacity, but NOT uppercase-tracked this
+     hard — 0.14em reads as a technical label shouting, where Apple's own
+     equivalent is closer to a quiet caption. Every label built on this token
+     (stat headers, detail-grid keys, kickers) softens with it; only the two
+     most prominent panel TITLES (as opposed to these small section labels)
+     were also de-capitalized directly — see #detail-content::before and
+     .ai-prompt-header's content in index.html. */
+  --overline: 600 9.5px/1.3 var(--font);
+  --overline-tracking: 0.08em;
 }
 
 * { box-sizing: border-box; }
@@ -113,37 +127,63 @@ button { font-family: inherit; color: inherit; }
     radial-gradient(1px 1px at 94% 30%, rgba(220, 235, 250, 0.42) 50%, transparent 51%),
     radial-gradient(1px 1px at 43% 7%, rgba(200, 220, 245, 0.3) 50%, transparent 51%),
     radial-gradient(1px 1px at 18% 45%, rgba(200, 220, 245, 0.15) 50%, transparent 51%),
-    /* nebula wash: two large, very-low-alpha color clouds (cyan/violet, matching
-       the app's own accent + mfg-taxonomy colors) so the zoomed-out view reads as
-       a galaxy backdrop rather than plain white dots on black. Rides the same
-       --bg-fx opacity as the stars, so it fades in lockstep with them. */
-    radial-gradient(650px circle at 20% 28%, rgba(0, 240, 255, 0.16), transparent 70%),
-    radial-gradient(750px circle at 82% 72%, rgba(167, 139, 250, 0.15), transparent 70%),
-    linear-gradient(rgba(28, 42, 74, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(28, 42, 74, 0.06) 1px, transparent 1px);
+    /* Atmosphere, not decoration: a single large soft spotlight roughly
+       centred behind the globe (indirect environmental light, not a neon
+       halo) replaces the old pair of equal-weight cyan/violet corner blooms
+       that competed with the globe for attention. Violet kept only as a
+       faint accent, well clear of the globe's own position, rather than a
+       second bloom of equal weight. Rides the same --bg-fx opacity as the
+       stars, so it still fades in lockstep with them as you approach the
+       surface. */
+    radial-gradient(46vw circle at 50% 46%, rgba(42, 184, 218, 0.11), transparent 62%),
+    radial-gradient(620px circle at 86% 80%, rgba(139, 110, 200, 0.05), transparent 65%),
+    linear-gradient(rgba(28, 42, 74, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 42, 74, 0.045) 1px, transparent 1px);
   background-size:
     auto, auto, auto, auto, auto, auto, auto, auto, auto, auto,
     auto, auto,
     56px 56px, 56px 56px;
 }
 
-/* Holographic console overlay: a tactical grid over the globe, always on
-   (independent of --bg-fx - unlike the starfield, this isn't meant to fade
-   with zoom, it's the "digital schematic" framing at every distance).
-   Three 60deg-offset repeating-linear-gradients form a triangular line
-   lattice, whose visual dual reads as a hex grid - the standard pure-CSS
-   approximation of a hexagonal tiling without SVG/canvas. z-index not
-   needed: ::after paints after all of #map's real children (the MapLibre
-   canvas) per spec, so it's naturally on top. */
+/* Holographic console overlay: a tactical grid over the globe, plus the
+   two things Apple's real materials rely on that pure gradients can't fake
+   on their own — an edge vignette and fine noise — folded in here since
+   this layer already sits above the canvas at every zoom level.
+
+   The grid itself is dialed back hard from its original flat 0.05: it used
+   to cover the full viewport at constant strength regardless of zoom or
+   context, which read as a permanent technical overlay competing with the
+   globe rather than a detail you'd notice near data. It's now barely-there
+   at rest (0.014) and only gains its old presence back at full zoom-out
+   (rides a fraction of --bg-fx, the same variable the starfield fades on)
+   - a hint of "digital schematic" up close, the fuller lattice only when
+   the view is already abstract enough to want one.
+
+   Vignette: a very soft edge darkening so attention pulls toward the
+   globe/map centre rather than the frame - independent of --bg-fx, since
+   depth shouldn't vanish as you zoom, only the space/nebula elements
+   should.
+
+   Noise: inline SVG feTurbulence, tiled at 128px, blended with soft-light
+   at effectively ~2-3% strength (alpha 0.05 in the SVG's own colour matrix,
+   further softened by the blend mode) - enough to break up gradient
+   banding on the vignette/spotlight, not enough to read as visible grain.
+   background-blend-mode is per-layer positional, matching the 5 images
+   below 1:1: the four grid/vignette layers composite normally with each
+   other and the canvas beneath; only the last (noise) layer blends. */
 #map::after {
   content: "";
   position: absolute; inset: 0;
   pointer-events: none;
-  opacity: 0.05;
+  opacity: calc(0.014 + var(--bg-fx, 1) * 0.02);
+  background-blend-mode: normal, normal, normal, normal, soft-light;
   background-image:
     repeating-linear-gradient(0deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px),
     repeating-linear-gradient(60deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px),
-    repeating-linear-gradient(120deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px);
+    repeating-linear-gradient(120deg, transparent 0, transparent 33px, rgba(0, 240, 255, 0.6) 33px, rgba(0, 240, 255, 0.6) 34px),
+    radial-gradient(ellipse 80% 75% at 50% 48%, transparent 55%, rgba(2, 5, 10, 0.9) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: auto, auto, auto, auto, 128px 128px;
 }
 
 /* Subsolar point marker - a maplibregl.Marker element (18-api-live.js),
@@ -392,7 +432,7 @@ button { font-family: inherit; color: inherit; }
   border-radius: 999px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 14px rgba(0, 0, 0, 0.28);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.3s var(--motion-spring);
 }
 .tour-button svg {
   width: 13px; height: 13px; flex-shrink: 0;
@@ -447,58 +487,51 @@ button { font-family: inherit; color: inherit; }
 /* ---------- Layer rail (left): monochrome outline icons ---------- */
 #layer-dock {
   left: 14px; top: 50%; transform: translateY(-50%);
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 6px 5px;
-  border-radius: var(--r-md);
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 6px;
+  border-radius: 999px;
 }
-.dock-btn {
-  width: 34px; height: 34px;
+/* Real macOS toolbar icon-buttons are rounded pills, not the bare Control
+   Center circles an earlier brainstorm suggested — verified against the
+   actual Sidebar Example pull from the macOS 26 kit, whose own "expand
+   sidebar" toolbar button is a fully-round pill (w36 h20, radius 100) with
+   the icon centred, sitting on the glass rather than boxed. Each icon now
+   floats in its own soft glass pill rather than a flat transparent square;
+   the old active-state left-edge tick (built for a flush rectangular rail)
+   is gone — a floating round control has no edge to tick against, so active
+   state is carried by fill + glow alone, same recipe as the tour-button
+   pills. spring-like hover scale uses --motion-spring (see bottom of file). */
+.dock-btn, .flyout-trigger {
+  width: 32px; height: 32px;
   display: flex; align-items: center; justify-content: center;
-  background: transparent;
-  border: none; border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
   cursor: pointer;
   color: var(--text-faint);
   position: relative;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease,
+              box-shadow 0.15s ease, transform 0.25s var(--motion-spring, ease);
 }
-.dock-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.dock-btn:hover { color: var(--text); background: rgba(120, 160, 200, 0.06); }
+.dock-btn svg, .flyout-trigger svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dock-btn:hover, .flyout-trigger:hover {
+  color: var(--text);
+  background: rgba(63, 214, 232, 0.10);
+  border-color: rgba(63, 214, 232, 0.22);
+  transform: scale(1.09);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
 /* filter: drop-shadow() is the SVG-icon equivalent of text-shadow glow
    (text-shadow itself doesn't apply to stroked SVG paths). */
-.dock-btn.active { color: var(--cyan); filter: drop-shadow(0 0 6px rgba(63, 214, 232, 0.8)); }
-.dock-btn.active::before {
-  content: "";
-  position: absolute; left: -3px; top: 9px; bottom: 9px;
-  width: 2px; border-radius: 1px;
-  background: var(--cyan);
+.dock-btn.active, .flyout-trigger.active {
+  color: var(--cyan);
+  background: rgba(63, 214, 232, 0.16);
+  border-color: rgba(63, 214, 232, 0.4);
+  filter: drop-shadow(0 0 6px rgba(63, 214, 232, 0.8));
+  box-shadow: inset 0 0 8px rgba(63, 214, 232, 0.3), 0 0 10px rgba(63, 214, 232, 0.2);
 }
-.dock-btn:focus-visible { outline: 1px solid var(--cyan); }
-.dock-sep { height: 1px; margin: 3px 7px; background: var(--line); }
-
-/* ---------- Left rail: flyout filter triggers (Status/Region/Color), same
-   box model as .dock-btn but deliberately a different class so wireDock()'s
-   .dock-btn selector (TOGGLE_MAP-driven layer visibility) never binds to
-   them — see js/03-filters.js wireFlyouts(). ---------- */
-.flyout-trigger {
-  width: 34px; height: 34px;
-  display: flex; align-items: center; justify-content: center;
-  background: transparent;
-  border: none; border-radius: var(--r-sm);
-  cursor: pointer;
-  color: var(--text-faint);
-  position: relative;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-.flyout-trigger svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.flyout-trigger:hover { color: var(--text); background: rgba(120, 160, 200, 0.06); }
-.flyout-trigger.active { color: var(--cyan); filter: drop-shadow(0 0 6px rgba(63, 214, 232, 0.8)); }
-.flyout-trigger.active::before {
-  content: "";
-  position: absolute; left: -3px; top: 9px; bottom: 9px;
-  width: 2px; border-radius: 1px;
-  background: var(--cyan);
-}
-.flyout-trigger:focus-visible { outline: 1px solid var(--cyan); }
+.dock-btn:focus-visible, .flyout-trigger:focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; }
+.dock-sep { height: 1px; margin: 3px 9px; background: var(--line); }
 
 /* Flyout panels: positioned just right of the layer-dock (34px button +
    padding). `top` is set inline by wireFlyouts() per open, aligned to
@@ -609,21 +642,45 @@ button { font-family: inherit; color: inherit; }
   max-height: calc(100vh - 130px);
 }
 
+/* These four were still on the older flat --panel-strong fill + plain
+   1px --line border from before the Liquid Glass system existed, so a
+   floating "window" panel looked like a different, older material than the
+   dashboard cards two tabs over. ID specificity wins over .glass's own
+   background/border/radius/shadow without needing !important. Apple's real
+   Materials have no border at all (see --glass-edge's own note) and no
+   fixed corner radius spec was pulled for a panel this size, so --r-glass
+   (verified in use elsewhere in this file) carries over rather than
+   guessing a second number. */
+#detail-card, #analytics-panel, #markets-panel, #regional-ai-panel {
+  background: var(--glass-sheen), var(--panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: var(--glass-edge);
+  border-radius: var(--r-glass);
+  box-shadow: var(--glass-shadow);
+}
+
 /* ---------- Inspector (right): data terminal ---------- */
 #detail-card {
   overflow-y: auto;
   padding: 16px;
   background: var(--panel-strong);
-  animation: slideIn 0.22s ease;
+  animation: slideIn 0.32s var(--motion-spring);
   scrollbar-width: thin; scrollbar-color: var(--text-faint) transparent;
 }
 @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
 
+/* Mixed-case, not "PROJECT INTELLIGENCE": with --overline's tracking already
+   softened, keeping this specific string shouting in caps just for size
+   compensation would miss the point. Sized up a step past the shared
+   --overline token instead, since this is the panel's actual title, not one
+   of its section labels — hierarchy carried by size, the Apple-real approach
+   the rest of --overline's callers use it for, rather than by capitalization. */
 #detail-content::before {
-  content: "PROJECT INTELLIGENCE";
+  content: "Project Intelligence";
   display: block;
-  font: var(--overline); letter-spacing: var(--overline-tracking);
-  color: var(--text-faint);
+  font: 650 11px/1.3 var(--font); letter-spacing: 0.01em;
+  color: var(--text-muted);
   padding-bottom: 8px;
   margin-bottom: 10px;
   border-bottom: 1px solid var(--line);
@@ -699,8 +756,12 @@ button { font-family: inherit; color: inherit; }
 .badge-atrisk { color: var(--red); border-color: rgba(229, 99, 92, 0.4); background: rgba(229, 99, 92, 0.08); }
 .badge-other { color: var(--text-muted); border-color: var(--line); }
 
-/* ---------- Tour ---------- */
-#tour-card,
+/* ---------- Demo card shell ----------
+   Class names (.tour-progress/.tour-nav/.tour-dot) predate the removal of
+   the separate project-narration "Tour" card that used to share this shell
+   with #demo-card — kept as-is rather than renamed, since renaming here
+   would mean touching every call site in js/22-demo.js for zero visible
+   change. */
 #demo-card {
   left: 50%; bottom: 62px; transform: translateX(-50%);
   width: min(500px, calc(100vw - 32px));
@@ -708,7 +769,7 @@ button { font-family: inherit; color: inherit; }
   border-radius: var(--r-lg);
   background: var(--panel-strong);
   z-index: 30;
-  animation: rise 0.24s ease;
+  animation: rise 0.34s var(--motion-spring);
 }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
@@ -716,13 +777,11 @@ button { font-family: inherit; color: inherit; }
 .tour-dot { height: 2px; flex: 1; border-radius: 1px; background: rgba(120, 160, 200, 0.15); transition: background 0.3s; }
 .tour-dot.done { background: var(--cyan); }
 
-#tour-card h3,
 #demo-card h3 {
   font-family: var(--font-head);
   margin: 0 0 5px; font-size: 13.5px; letter-spacing: 0.02em;
   color: var(--text-hi);
 }
-#tour-card p,
 #demo-card p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.6; color: var(--text); }
 
 .tour-nav { display: flex; align-items: center; gap: 7px; }
@@ -732,9 +791,6 @@ button { font-family: inherit; color: inherit; }
   border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer;
 }
 .tour-nav button:hover { border-color: var(--line-accent); color: var(--text-hi); }
-#tour-next { background: var(--cyan-dim); color: var(--cyan); border-color: var(--line-accent); font-weight: 600; }
-#tour-step-label { font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
-#tour-exit { margin-left: auto; }
 
 /* ---------- Popups / map chrome ---------- */
 .maplibregl-popup-content {
@@ -1026,7 +1082,7 @@ button { font-family: inherit; color: inherit; }
      softer inner glow (0.02 vs .glass's 0.03) tuned for these two larger,
      denser panels specifically. */
   box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.02), 0 8px 32px rgba(0, 0, 0, 0.5);
-  animation: slideInLeft 0.22s ease;
+  animation: slideInLeft 0.32s var(--motion-spring);
   scrollbar-width: thin; scrollbar-color: var(--text-faint) transparent;
 }
 @keyframes slideInLeft { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
@@ -1054,12 +1110,22 @@ button { font-family: inherit; color: inherit; }
   scrollbar-width: thin; scrollbar-color: var(--text-faint) transparent;
 }
 @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.markets-chart { height: 260px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
+/* markets-panel itself is glass now (see the panel-family unification
+   above), so these two wells get a lighter, rounder edge to read as
+   floating content within it — Apple TV app style — rather than the old
+   1px --line box, which was tuned for sitting on the flat older panel fill. */
+.markets-chart {
+  height: 260px; margin-bottom: 8px; overflow: hidden;
+  border: var(--glass-edge); border-radius: var(--r-md);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
 /* Live finance-news video (Bloomberg Television, js/08-analytics.js) -
    16:9 box via padding-bottom hack, iframe absolutely filling it. */
 .markets-video {
   position: relative; width: 100%; padding-bottom: 56.25%; height: 0;
-  border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden;
+  overflow: hidden;
+  border: var(--glass-edge); border-radius: var(--r-md);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   background: #000;
 }
 .markets-video iframe {
@@ -1177,32 +1243,21 @@ button { font-family: inherit; color: inherit; }
    Scoped to per-tab content panels (dashboard-card, kpi-card, svg-viz-wrap,
    sector-tab pills) - NOT the fixed console chrome (.glass, #command-ribbon,
    #tab-nav), which stays on the flatter "tactical console" scanline
-   treatment it was deliberately built with. A diagonal specular sheen
-   (::before) plus a bright inset top edge is what reads as "glass catching
-   light" rather than just a blurred dark panel. */
+   treatment it was deliberately built with.
+
+   Layout only here — background/border/radius/backdrop-filter/box-shadow/
+   hover/transition all now live in the single "one surface recipe" rule
+   shared with .calc-panel and .chart-wrapper further down this file (the
+   one built on the Apple-verified --glass-* tokens). This rule used to
+   duplicate all of that with its own earlier, unverified numbers (22px
+   blur, 18px radius) from before that recipe existed; kept only what it
+   still uniquely owns. */
 .dashboard-card {
-  /* Specular sheen is its own background layer (not a ::before) so it's
-     guaranteed to paint behind every child regardless of stacking-order
-     quirks - a positioned pseudo-element can end up painting above static
-     in-flow children even without z-index, which a plain background layer
-     never can. */
-  background: radial-gradient(140% 90px at 15% -10%, rgba(255, 255, 255, 0.14), transparent 60%), linear-gradient(155deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.025) 40%, rgba(10, 15, 25, 0.32) 100%), var(--panel-strong);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  backdrop-filter: blur(22px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 18px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   position: relative;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 22px rgba(255, 255, 255, 0.02), var(--shadow-soft);
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-.dashboard-card:hover {
-  border-color: rgba(255, 255, 255, 0.24);
-  transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.12);
 }
 .dashboard-card h3 {
   font-family: var(--font-head);
@@ -1571,7 +1626,7 @@ button { font-family: inherit; color: inherit; }
   overflow-y: auto;
   padding: 16px;
   background: var(--panel-strong);
-  animation: slideInRight 0.22s ease;
+  animation: slideInRight 0.32s var(--motion-spring);
   scrollbar-width: thin;
   scrollbar-color: var(--text-faint) transparent;
 }
@@ -1704,10 +1759,9 @@ button { font-family: inherit; color: inherit; }
 }
 
 /* ==========================================================================
-   Feature demo card
-   Shares #tour-card's shell (see above) so the two walkthroughs read as one
-   family. Only the play/pause control and the step counter's alignment differ:
-   the demo self-advances, so it needs a transport control the tour does not.
+   Feature demo card overrides — on top of the shared #demo-card shell above
+   (originally built to also serve a separate project-narration "Tour" card,
+   since removed as redundant with this one).
    ========================================================================= */
 #demo-card .tour-dot.done { background: var(--violet); }
 #demo-play {
@@ -1773,18 +1827,37 @@ button { font-family: inherit; color: inherit; }
    what makes the cards read as sliding over a light source rather than
    carrying their own gradient. Scoped away from #page-map, whose backdrop is
    the globe itself. Deliberately low contrast: this exists to give the glass
-   something to bend, not to compete with the data on top of it. */
+   something to bend, not to compete with the data on top of it.
+
+   The four hues are H2ELIOS's own hydrogen taxonomy (green = renewable,
+   blue = fossil+CCS, violet = manufacturing, teal = general accent) — kept
+   as four colours rather than collapsed to a cyan-dominant wash, since that
+   would erase a meaning specific to this app that a generic "less purple"
+   note can't know about. What moved: violet was tied with green as the
+   two strongest clouds (0.16/0.15) despite carrying no more meaning than
+   the other three — pulled back to actual accent weight, and an edge
+   vignette + the same fine noise as the map now finish the field so a
+   glass card two tabs over reads as the same material, not a different app. */
 .page:not(#page-map) {
   background-image:
-    radial-gradient(58% 45% at 12% 8%, rgba(52, 211, 153, 0.16), transparent 70%),
-    radial-gradient(52% 42% at 88% 12%, rgba(96, 165, 250, 0.15), transparent 70%),
-    radial-gradient(60% 50% at 72% 88%, rgba(167, 139, 250, 0.15), transparent 72%),
-    radial-gradient(45% 38% at 25% 92%, rgba(45, 212, 191, 0.10), transparent 70%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+    radial-gradient(58% 45% at 12% 8%, rgba(52, 211, 153, 0.14), transparent 70%),
+    radial-gradient(52% 42% at 88% 12%, rgba(96, 165, 250, 0.13), transparent 70%),
+    radial-gradient(60% 50% at 72% 88%, rgba(167, 139, 250, 0.08), transparent 72%),
+    radial-gradient(45% 38% at 25% 92%, rgba(45, 212, 191, 0.09), transparent 70%),
+    radial-gradient(ellipse 90% 80% at 50% 45%, transparent 55%, rgba(2, 5, 10, 0.55) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-blend-mode: normal, normal, normal, normal, normal, soft-light;
+  background-size: auto, auto, auto, auto, auto, 128px 128px;
+  background-attachment: fixed, fixed, fixed, fixed, fixed, fixed;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat;
 }
 
-/* One surface recipe for every sub-tab card, panel and chart well. */
+/* One surface recipe for every sub-tab card, panel and chart well. The
+   transition lives here now (was only on .dashboard-card's own older rule
+   below), so .calc-panel and .chart-wrapper — which share this exact same
+   background/border/radius/shadow — get the same smooth hover instead of a
+   snap change; and all three lift together, "a sheet of glass" reacting the
+   same way regardless of which surface it happens to be. */
 .dashboard-card,
 .calc-panel,
 .chart-wrapper {
@@ -1794,14 +1867,17 @@ button { font-family: inherit; color: inherit; }
   border: var(--glass-edge);
   border-radius: var(--r-glass);
   box-shadow: var(--glass-shadow);
+  transition: border-color 0.2s ease, transform 0.35s var(--motion-spring), box-shadow 0.25s ease;
 }
 
 .calc-panel { padding: 22px; }
 .chart-wrapper { padding: 14px; }
 
 .dashboard-card:hover,
-.calc-panel:hover {
+.calc-panel:hover,
+.chart-wrapper:hover {
   border-color: rgba(255, 255, 255, 0.24);
+  transform: translateY(-2px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.26),
     0 14px 36px rgba(0, 0, 0, 0.42),
