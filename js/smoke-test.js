@@ -169,7 +169,7 @@ setTimeout(() => {
 
   // HUD: boot overlay
   ok(!!doc.getElementById("boot"), "JARVIS boot overlay rendered");
-  ok(doc.querySelector(".boot-line").textContent.includes("H₂GRID OS"), "boot shows OS title");
+  ok(doc.querySelector(".boot-line").textContent.includes("H2ELIOS"), "boot shows product title");
 
   // v7: single console theme — no light mode, no toggle
   ok(!doc.getElementById("theme-btn"), "theme toggle removed");

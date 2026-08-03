@@ -14,7 +14,7 @@
         <div class="boot-logo">H<sub>2</sub></div>
       </div>
       <div class="boot-lines">
-        <div class="boot-line">H₂GRID OS <span>v6.0</span></div>
+        <div class="boot-line">H2ELIOS <span>v6.0</span></div>
         <div class="boot-line" id="boot-l1">▸ initializing global network…</div>
         <div class="boot-line" id="boot-l2"></div>
         <div class="boot-line" id="boot-l3"></div>
