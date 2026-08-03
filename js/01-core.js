@@ -255,21 +255,24 @@ function closeOtherRightPanels(exceptId) {
 }
 
 // ---- Minimize-to-tray -----------------------------------------------------
-// A panel's Minimize dot sends it to a small glass pill at the bottom of the
-// screen instead of closing it outright; clicking the pill restores it.
+// A panel's Minimize dot sends it to the bottom of the screen instead of
+// closing it outright.
 //
-// #detail-card is special-cased: it's a SINGLE shared DOM element whose
-// content gets overwritten every time selectFacility() runs, so hiding and
-// re-showing that one element (the original approach) could never support
-// comparing two different projects — minimizing project A, then selecting
-// project B, would silently overwrite A's content before you ever got back
-// to it. Minimizing detail-card now clones its current content into an
-// independent snapshot panel first, then resets the live panel so a new
-// selection is free to use it — each snapshot is its own DOM node with its
-// own chip, so multiple projects can be minimized and restored side by side
-// in #snapshot-row for actual comparison, not just a single restore slot.
-// Other panel types (analytics/markets/AI) are single-instance app state,
-// not per-object records, so they keep the simpler hide/show behaviour.
+// Two different shapes, because two different things are being minimized:
+//
+//   - Simple panels (analytics/markets/AI) are single-instance app state —
+//     there's only ever one, so minimizing is a plain hide/show toggle onto
+//     a text chip (minimizePanel()).
+//
+//   - #detail-card is a per-object record, and the whole point of
+//     minimizing one is to open ANOTHER project and compare them — so it
+//     minimizes to a quarter-size mini-card carrying real content (name,
+//     status, capacity), not a text label, and its own green "enlarge" dot
+//     is real: tap it and the full panel reappears on the right, at which
+//     point ITS Minimize dot sends it right back to a mini-card. Built from
+//     the STORED properties object via buildDetailHTML() (js/05-detail.js),
+//     not by cloning the live panel's DOM — the live panel may already be
+//     showing a different project by the time this fires.
 function ensureMinimizedTray() {
   let tray = document.getElementById("minimized-tray");
   if (!tray) {
@@ -292,49 +295,70 @@ function removeMinimizedChip(panelId) {
   const chip = document.getElementById("min-chip-" + panelId);
   if (chip) chip.remove();
 }
-function addMinimizedChip(chipId, label, onRestore) {
-  if (document.getElementById("min-chip-" + chipId)) return;
+function minimizePanel(panelId, label) {
+  const panel = document.getElementById(panelId);
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  if (document.getElementById("min-chip-" + panelId)) return;
   const chip = document.createElement("button");
-  chip.id = "min-chip-" + chipId;
+  chip.id = "min-chip-" + panelId;
   chip.className = "min-chip";
   chip.type = "button";
   chip.title = "Restore " + label;
   chip.innerHTML = `<span class="wc-dot wc-min" aria-hidden="true"></span><span>${label}</span>`;
-  chip.addEventListener("click", () => { chip.remove(); onRestore(); });
+  chip.addEventListener("click", () => { chip.remove(); panel.hidden = false; });
   ensureMinimizedTray().appendChild(chip);
 }
 
 let snapshotSeq = 0;
-function minimizePanel(panelId, label) {
-  const panel = document.getElementById(panelId);
-  if (!panel || panel.hidden) return;
 
-  if (panelId !== "detail-card") {
-    panel.hidden = true;
-    addMinimizedChip(panelId, label, () => { panel.hidden = false; });
-    return;
+function buildDetailSnapshotPanel(props, snapId) {
+  const panel = document.createElement("div");
+  panel.id = snapId;
+  panel.className = "glass right-panel-slot detail-snapshot";
+  panel.innerHTML = `
+    <div class="window-controls" role="group" aria-label="Panel controls">
+      <button class="wc-dot wc-close" type="button" title="Close" aria-label="Close"></button>
+      <button class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
+      <button class="wc-dot wc-zoom" type="button" title="Zoom (not yet available)" aria-label="Zoom" disabled></button>
+    </div>
+    <div class="detail-content-body">${buildDetailHTML(props)}</div>`;
+  panel.querySelector(".wc-close").addEventListener("click", () => panel.remove());
+  panel.querySelector(".wc-min").addEventListener("click", () => {
+    panel.remove();
+    minimizeDetailPanel(props, snapId);
+  });
+  return panel;
+}
+
+function minimizeDetailPanel(props, reuseId) {
+  const snapId = reuseId || "detail-snapshot-" + (++snapshotSeq);
+  const card = document.getElementById("detail-card");
+  if (!reuseId && !card.hidden) {
+    card.hidden = true;
+    selectedName = null;
+    if (map.getSource("selection")) map.getSource("selection").setData(emptyFC());
   }
+  if (document.getElementById("min-card-" + snapId)) return;
 
-  const snapId = "detail-snapshot-" + (++snapshotSeq);
-  const snap = panel.cloneNode(true);
-  snap.id = snapId;
-  snap.classList.add("detail-snapshot");
-  snap.removeAttribute("hidden");
-  // Re-point the cloned window-controls at this snapshot instead of the
-  // live panel: Close removes the snapshot outright, Minimize re-docks it
-  // to the tray. cloneNode never copies event listeners, so these are the
-  // ONLY handlers this clone has — the ids are cleared so it can't collide
-  // with (or accidentally be driven by) the live panel's own listeners.
-  const closeBtn = snap.querySelector(".wc-close");
-  const minBtn = snap.querySelector(".wc-min");
-  if (closeBtn) { closeBtn.removeAttribute("id"); closeBtn.addEventListener("click", () => { snap.remove(); removeMinimizedChip(snapId); }); }
-  if (minBtn) { minBtn.removeAttribute("id"); minBtn.addEventListener("click", () => { snap.hidden = true; addMinimizedChip(snapId, label, () => { snap.hidden = false; ensureSnapshotRow().appendChild(snap); }); }); }
-  ensureSnapshotRow().appendChild(snap);
-
-  panel.hidden = true;
-  selectedName = null;
-  if (map.getSource("selection")) map.getSource("selection").setData(emptyFC());
-  addMinimizedChip(snapId, label, () => { snap.hidden = false; ensureSnapshotRow().appendChild(snap); });
+  const c = COLORS[props.color] || "#9ca3af";
+  const mini = document.createElement("div");
+  mini.id = "min-card-" + snapId;
+  mini.className = "mini-card";
+  mini.innerHTML = `
+    <div class="mini-card-controls">
+      <button class="wc-dot wc-close" type="button" title="Remove" aria-label="Remove"></button>
+      <button class="wc-dot wc-zoom" type="button" title="Enlarge" aria-label="Enlarge"></button>
+    </div>
+    <div class="mini-card-name">${escapeHtml(props.name)}</div>
+    <div class="mini-card-sub"><span class="mini-card-swatch" style="background:${c}"></span>${escapeHtml(props.status || "—")}</div>
+    <div class="mini-card-cap">${escapeHtml(props.capacity || "—")}</div>`;
+  mini.querySelector(".wc-close").addEventListener("click", () => mini.remove());
+  mini.querySelector(".wc-zoom").addEventListener("click", () => {
+    mini.remove();
+    ensureSnapshotRow().appendChild(buildDetailSnapshotPanel(props, snapId));
+  });
+  ensureMinimizedTray().appendChild(mini);
 }
 
 

@@ -39,13 +39,17 @@ function selectFacility(p, lngLat) {
   }
 }
 
-function showDetail(p) {
-  closeOtherRightPanels("detail-card");
-  const card = document.getElementById("detail-card");
-  const el = document.getElementById("detail-content");
+let lastDetailProps = null;
+
+// Pulled out of showDetail() so the comparison mini-cards/snapshot panels
+// (js/01-core.js, built from a STORED properties object rather than by
+// cloning the live panel's DOM) render from the exact same source as the
+// live panel — one place that knows what a project's detail markup looks
+// like, instead of two copies that could drift.
+function buildDetailHTML(p) {
   const c = COLORS[p.color] || "#9ca3af";
   const src = p.source ? `<a href="${escapeAttr(p.source)}" target="_blank" rel="noopener">${escapeHtml(hostOf(p.source))}</a>` : "—";
-  el.innerHTML = `
+  return `
     <div class="detail-kicker" style="color:${c}">${escapeHtml(p.subtype || p.category || "")}</div>
     <div class="detail-name">${escapeHtml(p.name)}</div>
     <dl class="detail-grid">
@@ -61,6 +65,13 @@ function showDetail(p) {
     ${relationsBlock(p)}
     ${p.note ? `<div class="detail-note">${escapeHtml(p.note)}</div>` : ""}
   `;
+}
+
+function showDetail(p) {
+  closeOtherRightPanels("detail-card");
+  lastDetailProps = p;
+  const card = document.getElementById("detail-card");
+  document.getElementById("detail-content").innerHTML = buildDetailHTML(p);
   card.hidden = false;
 }
 
@@ -88,12 +99,11 @@ function closeDetailPanel() {
   document.getElementById("detail-card").hidden = true;
   selectedName = null;
   map.getSource("selection").setData(emptyFC());
-  removeMinimizedChip("detail-card");
 }
 
 function wireDetailClose() {
   document.getElementById("detail-close").addEventListener("click", closeDetailPanel);
-  document.getElementById("detail-minimize").addEventListener("click", () => minimizePanel("detail-card", selectedName || "Project"));
+  document.getElementById("detail-minimize").addEventListener("click", () => minimizeDetailPanel(lastDetailProps));
 }
 
 
