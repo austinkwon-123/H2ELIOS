@@ -460,6 +460,16 @@ function minimizeDetailPanel(props, reuseId, fromEl) {
     mini.remove();
     const panel = buildDetailSnapshotPanel(props, snapId);
     ensureSnapshotRow().appendChild(panel);
+    // updateSnapshotRowOffset() only re-runs off a `hidden`-attribute change
+    // on detail-card/regional-ai-panel/markets-panel (see the
+    // MutationObserver below) - it never fires just because #snapshot-row
+    // itself gains content. If one of those was ALREADY open before this,
+    // its own hidden-flip happened before #snapshot-row even existed (the
+    // row is created lazily, on first minimize), so the row was never
+    // nudged out from under it. Restoring a snapshot is exactly that
+    // "row now has content" moment, so re-check explicitly here rather than
+    // relying on an attribute change that already happened.
+    updateSnapshotRowOffset();
     openSnapshots.push({ id: snapId, props });
     flipIn(panel, rect);
     enforceSnapshotCap();

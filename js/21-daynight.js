@@ -26,8 +26,19 @@
    3D spikes and arcs without fighting the depth buffer.
    ======================================================================= */
 (function () {
-  const LAT_STEP = 3;   // degrees — 3° is smooth enough that the terminator
-  const LNG_STEP = 4;   // reads as a curve, cheap enough to rebuild never
+  // degrees per mesh cell. The shading itself is smooth per-fragment math
+  // (smoothstep() below), but each cell's corners are still projected as a
+  // FLAT quad — at grazing angles near the globe's limb, and especially
+  // while MapLibre is blending between its flat-mercator and curved-globe
+  // projections mid-zoom, a coarse quad doesn't track the sphere's actual
+  // curvature, which read as visible faceting/stepping in the terminator
+  // band while rotating or zooming rather than while sitting still. Tightened
+  // from an earlier 3deg/4deg pass that only accounted for static cost, not
+  // this. Still a one-time-built static VBO (see buildMesh() below, never
+  // rebuilt per frame) so the extra ~6x triangle count here is free at
+  // runtime — this only costs a slightly larger buffer upload once at load.
+  const LAT_STEP = 1.2;
+  const LNG_STEP = 1.5;
   // Past the 85.05° mercator limit on purpose. Mercator y is still finite up
   // there (y = -0.62 at 89.9°) and the globe projection maps it over the pole
   // correctly. Stopping at the limit left the polar caps with no daylight
