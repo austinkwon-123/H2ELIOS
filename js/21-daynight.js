@@ -28,17 +28,21 @@
 (function () {
   // degrees per mesh cell. The shading itself is smooth per-fragment math
   // (smoothstep() below), but each cell's corners are still projected as a
-  // FLAT quad — at grazing angles near the globe's limb, and especially
-  // while MapLibre is blending between its flat-mercator and curved-globe
-  // projections mid-zoom, a coarse quad doesn't track the sphere's actual
-  // curvature, which read as visible faceting/stepping in the terminator
-  // band while rotating or zooming rather than while sitting still. Tightened
-  // from an earlier 3deg/4deg pass that only accounted for static cost, not
-  // this. Still a one-time-built static VBO (see buildMesh() below, never
-  // rebuilt per frame) so the extra ~6x triangle count here is free at
-  // runtime — this only costs a slightly larger buffer upload once at load.
-  const LAT_STEP = 1.2;
-  const LNG_STEP = 1.5;
+  // FLAT quad — the edge between two vertices is a straight chord, not the
+  // sphere's actual arc, and a linear/perspective interpolation of lng/lat
+  // across that flat chord doesn't match the true value at the
+  // geometrically-correct curved position. That error is largest, relative
+  // to the tiny apparent cell size, right at grazing angles near the
+  // globe's limb — which is exactly where it showed up: a fine but clearly
+  // visible staircase along the terminator band, worst on close inspection
+  // near the horizon rather than face-on. A first pass at 1.2deg/1.5deg cut
+  // the step size roughly 3x from the original 3deg/4deg but was still
+  // plainly visible zoomed in. Tightened further here; still a
+  // one-time-built static VBO (see buildMesh() below, never rebuilt per
+  // frame), so the extra ~9x triangle count from this pass is still free at
+  // runtime - only a larger one-time buffer upload at load.
+  const LAT_STEP = 0.4;
+  const LNG_STEP = 0.5;
   // Past the 85.05° mercator limit on purpose. Mercator y is still finite up
   // there (y = -0.62 at 89.9°) and the globe projection maps it over the pole
   // correctly. Stopping at the limit left the polar caps with no daylight

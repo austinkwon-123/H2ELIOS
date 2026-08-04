@@ -145,7 +145,19 @@ function positionSearchResults() {
   const capsule = document.getElementById("search-capsule");
   const results = document.getElementById("search-results");
   const rect = capsule.getBoundingClientRect();
-  results.style.top = `${rect.bottom + 10}px`;
+  let top = rect.bottom + 10;
+  // On the map page, #map-mode-switch (Explore/Research/Markets) shares
+  // this same top-right corner - clear its bottom edge too, or the
+  // palette's own top rows land underneath it. getBoundingClientRect()
+  // returns a zero rect when #page-map (its ancestor) is hidden, so this
+  // is a no-op on every other route without needing its own visibility
+  // check.
+  const modeSwitch = document.getElementById("map-mode-switch");
+  if (modeSwitch) {
+    const msRect = modeSwitch.getBoundingClientRect();
+    if (msRect.width) top = Math.max(top, msRect.bottom + 10);
+  }
+  results.style.top = `${top}px`;
   results.style.right = `${window.innerWidth - rect.right}px`;
 }
 
