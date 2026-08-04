@@ -37,7 +37,39 @@ function selectFacility(p, lngLat) {
       features: [{ type: "Feature", geometry: { type: "Point", coordinates: lngLat }, properties: {} }]
     });
   }
+  window.H2GSelection = { props: p, lngLat };
+  updateSelectionChip();
 }
+
+// Universal selection context: a persistent chip outside any single
+// workspace, plus window.H2GSelection for any tab's code to read. Cleared
+// only by its own × (or a new selection replacing it) — closing the detail
+// panel on the map does NOT clear it, since the whole point is that the
+// context survives navigating away from where you made the selection.
+function updateSelectionChip() {
+  const chip = document.getElementById("selection-chip");
+  const label = document.getElementById("selection-chip-label");
+  if (!chip || !label) return;
+  if (window.H2GSelection && window.H2GSelection.props) {
+    label.textContent = "Selected: " + window.H2GSelection.props.name;
+    chip.hidden = false;
+  } else {
+    chip.hidden = true;
+  }
+  if (typeof syncCalcPrefillUI === "function") syncCalcPrefillUI();
+}
+
+function clearSelection() {
+  window.H2GSelection = null;
+  updateSelectionChip();
+}
+
+function wireSelectionChip() {
+  const btn = document.getElementById("selection-chip-clear");
+  if (btn) btn.addEventListener("click", clearSelection);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireSelectionChip);
+else wireSelectionChip();
 
 let lastDetailProps = null;
 
@@ -103,7 +135,7 @@ function closeDetailPanel() {
 
 function wireDetailClose() {
   document.getElementById("detail-close").addEventListener("click", closeDetailPanel);
-  document.getElementById("detail-minimize").addEventListener("click", () => minimizeDetailPanel(lastDetailProps));
+  document.getElementById("detail-minimize").addEventListener("click", () => minimizeDetailPanel(lastDetailProps, null, document.getElementById("detail-card")));
 }
 
 

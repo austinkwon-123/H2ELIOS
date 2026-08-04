@@ -134,12 +134,11 @@ function computeCapexOpex() {
 }
 
 function wireCapexOpex() {
-  document.getElementById("co-capex").addEventListener("input", computeCapexOpex);
-  wireSlider("co-capacity", "co-capacity-val", "MW", 1, computeCapexOpex);
-  wireSlider("co-opex", "co-opex-val", "%/yr", 1, computeCapexOpex);
-  wireSlider("co-life", "co-life-val", "yrs", 0, computeCapexOpex);
-  wireSlider("co-rate", "co-rate-val", "%", 1, computeCapexOpex);
-  computeCapexOpex();
+  document.getElementById("co-capex").addEventListener("input", computeEconomics);
+  wireSlider("co-capacity", "co-capacity-val", "MW", 1, computeEconomics);
+  wireSlider("co-opex", "co-opex-val", "%/yr", 1, computeEconomics);
+  wireSlider("co-life", "co-life-val", "yrs", 0, computeEconomics);
+  wireSlider("co-rate", "co-rate-val", "%", 1, computeEconomics);
 }
 
 // Rough, clearly-labeled assumptions: ~1 kg H2 per 100 km, and ~15,000 km/yr of driving, are typical for a
@@ -147,11 +146,21 @@ function wireCapexOpex() {
 const FCEV_KM_PER_KG = 100;
 const FCEV_KM_PER_YEAR = 15000;
 
-function computeLcoh() {
-  const annCost = parseFloat(document.getElementById("lc-annCost").value);
+// LCOH now reads its annualized cost straight from the CAPEX/OPEX section
+// above it in the same panel instead of asking the user to copy a number
+// over from a separate tab — the two were always one calculation split
+// across two places for no reason; merging them into one "Economics" mode
+// (computeEconomics() below) closes that gap rather than just relabeling
+// the tab.
+// Named computeCalcLcoh (not computeLcoh) because js/11-market.js already
+// declares a global computeLcoh() for its own LCOH sensitivity sandbox —
+// classic <script> tags share one global scope, so the same name here
+// would silently overwrite whichever one loads last (11-market.js loads
+// after this file, so it would win and this tool's LCOH would go dark).
+function computeCalcLcoh(annCost) {
   const price = parseFloat(document.getElementById("lc-price").value);
   const sec = parseFloat(document.getElementById("lc-sec").value);
-  const capacity = parseFloat(document.getElementById("lc-capacity").value);
+  const capacity = parseFloat(document.getElementById("co-capacity").value);
   const cf = parseFloat(document.getElementById("lc-cf").value);
 
   const annProd = sec > 0 ? (capacity * 1000 * 8760 * (cf / 100)) / sec : NaN;
@@ -172,15 +181,24 @@ function computeLcoh() {
       callout.textContent = "Enter valid plant parameters to see a real-world comparison.";
     }
   }
+  return lcoh;
+}
+
+// Orchestrates the merged Economics mode: CAPEX/OPEX first (it owns the
+// shared "plant capacity" slider), then LCOH off that result, so moving
+// any single slider anywhere in the panel keeps every number downstream
+// of it in sync.
+function computeEconomics() {
+  computeCapexOpex();
+  const annCost = parseFloat((document.getElementById("co-out-totalAnn").textContent || "0").replace(/,/g, "")) || 0;
+  return computeCalcLcoh(annCost);
 }
 
 function wireLcoh() {
-  document.getElementById("lc-annCost").addEventListener("input", computeLcoh);
-  wireSlider("lc-price", "lc-price-val", "$/kWh", 3, computeLcoh);
-  wireSlider("lc-sec", "lc-sec-val", "kWh/kg H₂", 1, computeLcoh);
-  wireSlider("lc-capacity", "lc-capacity-val", "MW", 1, computeLcoh);
-  wireSlider("lc-cf", "lc-cf-val", "%", 0, computeLcoh);
-  computeLcoh();
+  wireSlider("lc-price", "lc-price-val", "$/kWh", 3, computeEconomics);
+  wireSlider("lc-sec", "lc-sec-val", "kWh/kg H₂", 1, computeEconomics);
+  wireSlider("lc-cf", "lc-cf-val", "%", 0, computeEconomics);
+  computeEconomics();
 }
 
 function computeCurrentDensity() {
@@ -208,6 +226,144 @@ function wireCurrentDensity() {
   computeCurrentDensity();
 }
 
+// Scenario mode: snapshot the Economics tab's live inputs/outputs by value
+// (not by reference to the DOM) so up to three configurations can sit next
+// to each other for comparison — capped at 3, oldest bumped, same pattern
+// as the map's project-comparison cap elsewhere in the app.
+const MAX_SCENARIOS = 3;
+let savedScenarios = [];
+let scenarioSeq = 0;
+let scenarioLcohChart = null;
+
+function snapshotEconomicsInputs() {
+  return {
+    capacity: parseFloat(document.getElementById("co-capacity").value),
+    capex: parseFloat(document.getElementById("co-capex").value),
+    opex: parseFloat(document.getElementById("co-opex").value),
+    life: parseFloat(document.getElementById("co-life").value),
+    rate: parseFloat(document.getElementById("co-rate").value),
+    price: parseFloat(document.getElementById("lc-price").value),
+    sec: parseFloat(document.getElementById("lc-sec").value),
+    cf: parseFloat(document.getElementById("lc-cf").value)
+  };
+}
+
+function saveCurrentAsScenario() {
+  const inputs = snapshotEconomicsInputs();
+  const lcoh = parseFloat(document.getElementById("lc-out-lcoh").textContent);
+  const totalAnn = parseFloat((document.getElementById("co-out-totalAnn").textContent || "0").replace(/,/g, ""));
+  scenarioSeq++;
+  savedScenarios.push({ id: scenarioSeq, name: `Scenario ${scenarioSeq}`, inputs, lcoh, totalAnn });
+  if (savedScenarios.length > MAX_SCENARIOS) savedScenarios.shift();
+  renderScenarioComparison();
+  const scenarioTab = document.querySelector('.calc-tab[data-calc="scenario"]');
+  if (scenarioTab) scenarioTab.click();
+}
+
+function removeScenario(id) {
+  savedScenarios = savedScenarios.filter((s) => s.id !== id);
+  renderScenarioComparison();
+}
+
+const SCENARIO_ROWS = [
+  ["Plant capacity", (s) => `${calcFmt(s.inputs.capacity, 1)} MW`],
+  ["CAPEX", (s) => `$${calcFmt(s.inputs.capex, 0)}/kW`],
+  ["OPEX", (s) => `${calcFmt(s.inputs.opex, 1)}%/yr`],
+  ["Lifetime", (s) => `${calcFmt(s.inputs.life, 0)} yrs`],
+  ["Discount rate", (s) => `${calcFmt(s.inputs.rate, 1)}%`],
+  ["Electricity price", (s) => `$${calcFmt(s.inputs.price, 3)}/kWh`],
+  ["Specific energy consumption", (s) => `${calcFmt(s.inputs.sec, 1)} kWh/kg`],
+  ["Capacity factor", (s) => `${calcFmt(s.inputs.cf, 0)}%`],
+  ["Total annualized cost", (s) => `$${calcFmtInt(s.totalAnn)}/yr`]
+];
+
+function renderScenarioComparison() {
+  const empty = document.getElementById("calc-scenario-empty");
+  const tableWrap = document.getElementById("calc-scenario-table-wrap");
+  const chartWrap = document.getElementById("calc-scenario-chart-wrap");
+  const table = document.getElementById("calc-scenario-table");
+  if (!table) return;
+
+  if (!savedScenarios.length) {
+    if (empty) empty.hidden = false;
+    if (tableWrap) tableWrap.hidden = true;
+    if (chartWrap) chartWrap.hidden = true;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  if (tableWrap) tableWrap.hidden = false;
+  if (chartWrap) chartWrap.hidden = false;
+
+  const head = `<tr><th></th>${savedScenarios.map((s) => `<th>${escapeHtml(s.name)} <button class="calc-scenario-remove" data-id="${s.id}" title="Remove">×</button></th>`).join("")}</tr>`;
+  const rows = SCENARIO_ROWS.map(([label, fn]) =>
+    `<tr><td class="k">${label}</td>${savedScenarios.map((s) => `<td>${fn(s)}</td>`).join("")}</tr>`
+  ).join("");
+  const lcohRow = `<tr class="emphasis"><td class="k">LCOH</td>${savedScenarios.map((s) => `<td>$${calcFmt(s.lcoh, 2)}/kg</td>`).join("")}</tr>`;
+  table.innerHTML = head + rows + lcohRow;
+
+  table.querySelectorAll(".calc-scenario-remove").forEach((btn) => {
+    btn.addEventListener("click", () => removeScenario(Number(btn.dataset.id)));
+  });
+
+  const ctx = document.getElementById("scenario-lcoh-chart");
+  if (ctx && window.Chart) {
+    const data = savedScenarios.map((s) => s.lcoh);
+    const labels = savedScenarios.map((s) => s.name);
+    if (scenarioLcohChart) {
+      scenarioLcohChart.data.labels = labels;
+      scenarioLcohChart.data.datasets[0].data = data;
+      scenarioLcohChart.update();
+    } else {
+      scenarioLcohChart = new Chart(ctx, {
+        type: "bar",
+        data: { labels, datasets: [{ label: "LCOH ($/kg)", data, backgroundColor: "#3fd6e8" }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: "rgba(9, 13, 20, 0.96)" } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#b6c2d4", font: { family: "Space Grotesk", size: 10 } } },
+            y: { grid: { color: "rgba(120,160,200,0.08)" }, ticks: { color: "#67748c", font: { size: 9.5 } } }
+          }
+        }
+      });
+    }
+  }
+}
+
+// Universal-selection-context consumer: reflects window.H2GSelection (set
+// by selectFacility() in js/05-detail.js, from either the map or the
+// Technology constellation) in the Economics tab, and can pull that
+// project's capacity straight into the plant-capacity slider on request.
+// Safe to call even when the Tools page hasn't been built yet (the
+// elements just won't exist) or when 17-visualization.js's getCapacityMw
+// isn't loaded (guarded below) — both real possibilities since this runs
+// from a selectFacility() call that could happen from any tab.
+function syncCalcPrefillUI() {
+  const status = document.getElementById("calc-prefill-status");
+  const btn = document.getElementById("calc-prefill-btn");
+  if (!status || !btn) return;
+  const sel = window.H2GSelection;
+  if (sel && sel.props) {
+    status.textContent = "Selected: " + sel.props.name;
+    btn.disabled = false;
+  } else {
+    status.textContent = "No project selected";
+    btn.disabled = true;
+  }
+}
+
+function prefillFromSelection() {
+  const sel = window.H2GSelection;
+  if (!sel || !sel.props || typeof getCapacityMw !== "function") return;
+  const mw = getCapacityMw(sel.props.capacity);
+  if (!Number.isFinite(mw) || mw <= 0) return;
+  const slider = document.getElementById("co-capacity");
+  if (!slider) return;
+  const clamped = Math.max(parseFloat(slider.min), Math.min(parseFloat(slider.max), mw));
+  slider.value = clamped;
+  slider.dispatchEvent(new Event("input"));
+}
+
 function wireCalcNav() {
   document.querySelectorAll(".calc-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -227,11 +383,11 @@ function initToolsPage() {
         <p>Live engineering and cost models for electrolysis — drag a slider or type a value and every figure recalculates instantly.</p>
       </div>
       <nav class="calc-nav">
-        <button class="calc-tab active" data-calc="unit">Unit Conversion</button>
-        <button class="calc-tab" data-calc="efficiency">Efficiency</button>
-        <button class="calc-tab" data-calc="capex">CAPEX/OPEX</button>
-        <button class="calc-tab" data-calc="lcoh">LCOH</button>
-        <button class="calc-tab" data-calc="density">Current Density</button>
+        <button class="calc-tab active" data-calc="unit">Convert</button>
+        <button class="calc-tab" data-calc="efficiency">Performance</button>
+        <button class="calc-tab" data-calc="economics">Economics</button>
+        <button class="calc-tab" data-calc="density">Electrochemistry</button>
+        <button class="calc-tab" data-calc="scenario">Scenario</button>
       </nav>
 
       <div class="calc-panel" id="calc-unit">
@@ -279,8 +435,13 @@ function initToolsPage() {
         </div>
       </div>
 
-      <div class="calc-panel" id="calc-capex" hidden>
-        <p class="calc-desc">Estimate the annualized cost of owning and running an electrolyzer plant across its lifetime.</p>
+      <div class="calc-panel" id="calc-economics" hidden>
+        <p class="calc-desc">One connected model: plant cost rolls straight into the levelized cost of the hydrogen it produces — no copying numbers between tabs.</p>
+        <div class="calc-prefill-row">
+          <span id="calc-prefill-status" class="calc-prefill-status">No project selected</span>
+          <button class="tab-btn" id="calc-prefill-btn" type="button" disabled>⬇ Prefill capacity</button>
+        </div>
+        <div class="calc-subhead">Plant &amp; financing</div>
         <div class="calc-slider-row">
           <div class="calc-slider-head">
             <label for="co-capacity">Plant capacity <span class="calc-tip" title="Rated electrolyzer input power.">?</span></label>
@@ -320,16 +481,8 @@ function initToolsPage() {
         <div class="calc-output"><span class="k">Annual OPEX ($/yr)</span><span class="v" id="co-out-annOpex">—</span></div>
         <div class="calc-output"><span class="k">Total annualized cost ($/yr)</span><span class="v" id="co-out-totalAnn">—</span></div>
         <div class="calc-donut-wrap"><canvas id="co-split-chart"></canvas></div>
-      </div>
 
-      <div class="calc-panel" id="calc-lcoh" hidden>
-        <p class="calc-desc">Estimate the levelized cost of hydrogen production, and what that annual output could power in the real world.</p>
-        <div class="calc-row">
-          <label for="lc-annCost">Annualized CAPEX + OPEX ($/yr)
-            <span class="calc-tip" title="Pull this from the CAPEX/OPEX tab's 'Total annualized cost' output, or your own project figures.">?</span>
-          </label>
-          <input type="number" id="lc-annCost" value="1200000" step="any" />
-        </div>
+        <div class="calc-subhead">Operation</div>
         <div class="calc-slider-row">
           <div class="calc-slider-head">
             <label for="lc-price">Electricity price <span class="calc-tip" title="Delivered electricity price paid by the plant.">?</span></label>
@@ -346,13 +499,6 @@ function initToolsPage() {
         </div>
         <div class="calc-slider-row">
           <div class="calc-slider-head">
-            <label for="lc-capacity">Plant capacity <span class="calc-tip" title="Rated electrolyzer input power.">?</span></label>
-            <span class="calc-slider-val" id="lc-capacity-val">—</span>
-          </div>
-          <input type="range" id="lc-capacity" min="0.5" max="50" step="0.5" value="10" />
-        </div>
-        <div class="calc-slider-row">
-          <div class="calc-slider-head">
             <label for="lc-cf">Capacity factor <span class="calc-tip" title="Share of the year the plant runs at rated output — availability plus power supply.">?</span></label>
             <span class="calc-slider-val" id="lc-cf-val">—</span>
           </div>
@@ -360,13 +506,14 @@ function initToolsPage() {
         </div>
         <div class="calc-output"><span class="k">Annual H₂ production (kg)</span><span class="v" id="lc-out-prod">—</span></div>
         <div class="calc-output"><span class="k">Annual electricity cost ($)</span><span class="v" id="lc-out-elec">—</span></div>
-        <div class="calc-output"><span class="k">LCOH ($/kg)</span><span class="v" id="lc-out-lcoh">—</span></div>
+        <div class="calc-output emphasis"><span class="k">LCOH ($/kg)</span><span class="v" id="lc-out-lcoh">—</span></div>
         <div class="calc-callout">
           <span class="icon">🚗</span>
           <span class="text" id="lc-callout-text">—
             <span class="note">Assumes ~1 kg H₂ per 100 km and ~15,000 km/yr of driving, typical for a current-generation fuel-cell passenger car.</span>
           </span>
         </div>
+        <button class="tab-btn" id="calc-save-scenario" style="margin-top:10px;">+ Save as scenario</button>
       </div>
 
       <div class="calc-panel" id="calc-density" hidden>
@@ -410,6 +557,15 @@ function initToolsPage() {
         <div class="calc-output"><span class="k">Power density (W/cm²)</span><span class="v" id="cd-out-power">—</span></div>
         <div class="calc-output"><span class="k">Total stack power (kW)</span><span class="v" id="cd-out-stack">—</span></div>
       </div>
+
+      <div class="calc-panel" id="calc-scenario" hidden>
+        <p class="calc-desc">Save up to three Economics configurations and compare them side by side — adjust sliders on the Economics tab, then save the result here.</p>
+        <div id="calc-scenario-empty" class="calc-scenario-empty">No scenarios saved yet. Go to Economics, dial in a configuration, and click "Save as scenario."</div>
+        <div id="calc-scenario-table-wrap" class="calc-scenario-table-wrap" hidden>
+          <table class="calc-scenario-table" id="calc-scenario-table"></table>
+        </div>
+        <div class="calc-donut-wrap" id="calc-scenario-chart-wrap" hidden><canvas id="scenario-lcoh-chart"></canvas></div>
+      </div>
     </div>`;
   wireCalcNav();
   wireUnitConversion();
@@ -417,4 +573,8 @@ function initToolsPage() {
   wireCapexOpex();
   wireLcoh();
   wireCurrentDensity();
+  document.getElementById("calc-save-scenario").addEventListener("click", saveCurrentAsScenario);
+  document.getElementById("calc-prefill-btn").addEventListener("click", prefillFromSelection);
+  syncCalcPrefillUI();
+  renderScenarioComparison();
 }

@@ -82,9 +82,10 @@ function initTimelinePage() {
             <p style="font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
               Drag the controller to target a chronological projection year. The visual globe map filters instantly to show infrastructure active up to the targeted year.
             </p>
+            <div id="temporal-milestones" style="margin-bottom: 2px;"></div>
             <div style="display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.18); padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--line);">
               <button id="sandbox-play-btn" class="tab-btn" style="min-width: 64px; margin: 0; padding: 6px 12px; font-size: 11px;">▶ Play</button>
-              <input type="range" id="sandbox-slider" min="2020" max="2035" value="${window.timelineYear}" style="flex: 1; accent-color: var(--cyan); cursor: pointer; margin: 0;" />
+              <input type="range" class="temporal-slider" id="sandbox-slider" min="2020" max="2035" value="${window.timelineYear}" style="flex: 1; margin: 0;" />
               <span id="sandbox-year-label" style="font-size: 18px; font-weight: 700; color: var(--text-hi); font-family: var(--font-head); min-width: 44px; text-align: center;">${window.timelineYear}</span>
             </div>
           </div>
@@ -168,6 +169,7 @@ function initTimelinePage() {
 
 let yearsArr = [];
 let capacityCurveData = [];
+let incrementalCapByYear = {};
 
 function compileGrowthCurve() {
   yearsArr = Array.from({ length: 16 }, (_, i) => 2020 + i); // 2020 to 2035
@@ -202,6 +204,57 @@ function compileGrowthCurve() {
     acc += (yearlyCap[y] / 1000); // convert to GW
     return parseFloat(acc.toFixed(2));
   });
+  incrementalCapByYear = yearlyCap;
+}
+
+// Milestone strip: one bar per year showing capacity ADDED that year (not
+// cumulative), so the scrubber itself shows where the real build-out
+// happens instead of being a bare handle with no context underneath it —
+// the brief's "long horizontal glass timeline with capacity milestones."
+function renderTemporalMilestones() {
+  const el = document.getElementById("temporal-milestones");
+  if (!el || !yearsArr.length) return;
+  const W = 640, H = 46;
+  const padX = 10;
+  const n = yearsArr.length;
+  const colW = (W - padX * 2) / n;
+  const maxInc = Math.max(1, ...yearsArr.map((y) => incrementalCapByYear[y] || 0));
+
+  const bars = yearsArr.map((y, i) => {
+    const inc = incrementalCapByYear[y] || 0;
+    const h = 4 + (inc / maxInc) * 30;
+    const x = padX + i * colW + colW * 0.2;
+    const w = colW * 0.6;
+    const isCurrent = y === window.timelineYear;
+    const isPast = y < window.timelineYear;
+    const fill = isCurrent ? "#3fd6e8" : isPast ? "rgba(63,214,232,0.45)" : "rgba(120,160,200,0.18)";
+    return `<rect x="${x.toFixed(1)}" y="${(H - 14 - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${fill}"><title>${y}: +${inc.toFixed(0)} MW added</title></rect>`;
+  }).join("");
+
+  const ticks = yearsArr.filter((y) => y % 3 === 0 || y === yearsArr[0] || y === yearsArr[n - 1]).map((y) => {
+    const i = yearsArr.indexOf(y);
+    const x = padX + i * colW + colW / 2;
+    return `<text x="${x.toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="8.5" fill="#67748c" font-family="var(--font-mono)">${y}</text>`;
+  }).join("");
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:${H}px; display:block;" role="img" aria-label="Capacity added per year">${bars}${ticks}</svg>`;
+}
+
+// Small count-up/count-down tween so the KPI numbers settle into place
+// rather than snapping — the brief's "animated number transitions, but
+// avoid rolling odometer effects" (one smooth ease, not per-digit spin).
+function animateNumber(el, from, to, { decimals = 0, suffix = "" } = {}) {
+  if (!el) return;
+  const start = performance.now();
+  const dur = 380;
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / dur);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const val = from + (to - from) * eased;
+    el.textContent = val.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + suffix;
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 function updateSandboxDashboard() {
@@ -241,11 +294,19 @@ function updateSandboxDashboard() {
     window.IEA_DATA.features.forEach(f => addTarget(f, "Announced"));
   }
 
-  // Render KPIs
+  // Render KPIs — animated tween rather than a snap, so moving the year
+  // reads as the totals actually recomputing rather than a static swap.
   const countKpi = document.getElementById("sandbox-kpi-count");
   const capKpi = document.getElementById("sandbox-kpi-cap");
-  if (countKpi) countKpi.textContent = countTotal.toLocaleString();
-  if (capKpi) capKpi.textContent = `${(capacityMwTotal / 1000).toFixed(1)} GW`;
+  if (countKpi) {
+    const from = parseFloat((countKpi.textContent || "0").replace(/,/g, "")) || 0;
+    animateNumber(countKpi, from, countTotal, { decimals: 0 });
+  }
+  if (capKpi) {
+    const from = parseFloat((capKpi.textContent || "0").replace(/[^0-9.]/g, "")) || 0;
+    animateNumber(capKpi, from, capacityMwTotal / 1000, { decimals: 1, suffix: " GW" });
+  }
+  renderTemporalMilestones();
 
   // Render pipeline list for target year
   const listContainer = document.getElementById("sandbox-project-list");

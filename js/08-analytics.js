@@ -340,9 +340,30 @@ function wireMarketsToggle() {
   });
 }
 
+// Keeps the map-mode-switch's "Explore" segment in sync with Research/
+// Markets: active when neither panel is open, and clicking it closes
+// whichever of the two is open (a plain reset to the immersive map).
+function wireMapModeSwitch() {
+  const exploreBtn = document.getElementById("mode-explore-btn");
+  const analyticsBtn = document.getElementById("analytics-btn");
+  const marketsBtn = document.getElementById("markets-btn");
+  if (!exploreBtn || !analyticsBtn || !marketsBtn) return;
+  const sync = () => {
+    const anyOpen = analyticsBtn.classList.contains("active") || marketsBtn.classList.contains("active");
+    exploreBtn.classList.toggle("active", !anyOpen);
+  };
+  exploreBtn.addEventListener("click", () => {
+    if (analyticsBtn.classList.contains("active")) analyticsBtn.click();
+    if (marketsBtn.classList.contains("active")) marketsBtn.click();
+  });
+  [analyticsBtn, marketsBtn].forEach((btn) => btn.addEventListener("click", () => setTimeout(sync, 0)));
+  sync();
+}
+
 function initAnalyticsPanel() {
   wireAnalyticsToggle();
   wireMarketsToggle();
+  wireMapModeSwitch();
   renderNews();
   startNewsPolling();
 }

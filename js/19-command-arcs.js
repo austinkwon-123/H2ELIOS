@@ -115,6 +115,79 @@
 
   // ---- Route builders -----------------------------------------------------
 
+  // Multiple corridors that share (or nearly share) a hub endpoint collapse
+  // to the same screen point near that hub and cross each other on the way
+  // in — a Rotterdam scene with two unrelated corridors ("NEOM -> global
+  // ammonia" and "Egypt Green -> Rotterdam") read as one bent/kinked arc
+  // even though each individual great circle is mathematically smooth. Fix:
+  // cluster flow endpoints that sit within HUB_CLUSTER_KM of each other,
+  // and for any cluster with 2+ members, fan each corridor's approach out
+  // sideways by a small offset that is exactly zero at the true hub point
+  // (so it still terminates at the real location) and zero at its own far
+  // end, peaking partway along the approach. The corridors now read as
+  // separate spokes converging on one point instead of overlapping strands.
+  const HUB_CLUSTER_KM = 8;
+
+  const hubClusters = [];
+  function hubFor(coord) {
+    for (const c of hubClusters) {
+      if (kmDist(coord, c.at) < HUB_CLUSTER_KM) return c;
+    }
+    const c = { at: coord, members: [] };
+    hubClusters.push(c);
+    return c;
+  }
+  D.flows.forEach((flow, idx) => {
+    hubFor(flow.from).members.push({ idx, end: "from" });
+    hubFor(flow.to).members.push({ idx, end: "to" });
+  });
+  const fanIndex = {};
+  hubClusters.forEach((c) => {
+    if (c.members.length < 2) return;
+    c.members.forEach((m, i) => { fanIndex[`${m.idx}:${m.end}`] = { i, n: c.members.length }; });
+  });
+
+  function fanOffsetKm(flowIdx, end, distKm) {
+    const f = fanIndex[`${flowIdx}:${end}`];
+    if (!f) return 0;
+    const spacing = clamp(distKm * 0.03, 20, 220);
+    return (f.i - (f.n - 1) / 2) * spacing;
+  }
+
+  // 0 at the true hub point and at the far end, peaks a third of the way in.
+  function fanBump(end, t) {
+    if (end === "to") return t <= 0.5 ? 0 : Math.sin(((t - 0.5) / 0.5) * Math.PI);
+    return t >= 0.5 ? 0 : Math.sin(((0.5 - t) / 0.5) * Math.PI);
+  }
+
+  function bearingBetween(a, b) {
+    const lat1 = toRad(a[1]), lat2 = toRad(b[1]), dLng = toRad(b[0] - a[0]);
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    return toDeg(Math.atan2(y, x));
+  }
+
+  function destPoint(lngLat, bearingDeg, distKm) {
+    const R = 6371;
+    const lat1 = toRad(lngLat[1]), lng1 = toRad(lngLat[0]), brng = toRad(bearingDeg), dR = distKm / R;
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(dR) + Math.cos(lat1) * Math.sin(dR) * Math.cos(brng));
+    const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(dR) * Math.cos(lat1), Math.cos(dR) - Math.sin(lat1) * Math.sin(lat2));
+    return [toDeg(lng2), toDeg(lat2)];
+  }
+
+  function fanOutPath(flowIdx, distKm, lngLats, t) {
+    const offFrom = fanOffsetKm(flowIdx, "from", distKm);
+    const offTo = fanOffsetKm(flowIdx, "to", distKm);
+    if (!offFrom && !offTo) return lngLats;
+    const last = lngLats.length - 1;
+    return lngLats.map((p, i) => {
+      const amt = offFrom * fanBump("from", t[i]) + offTo * fanBump("to", t[i]);
+      if (!amt) return p;
+      const prev = lngLats[Math.max(0, i - 1)], next = lngLats[Math.min(last, i + 1)];
+      return destPoint(p, bearingBetween(prev, next) + 90, amt);
+    });
+  }
+
   // A contractual corridor: pure great circle, sine elevation profile. Apex
   // height and ribbon width scale with real distance, so a ~5km on-site link
   // reads as a small bump and a ~9,000km intercontinental one as a sweeping
@@ -125,7 +198,7 @@
   // proportional-to-distance formula for everything above it, just raises
   // the floor enough that the shortest corridors read as an actual parabola
   // rather than a near-flat line.
-  function corridorRoute(flow) {
+  function corridorRoute(flow, idx) {
     const distKm = kmDist(flow.from, flow.to);
     const apex = clamp(distKm * 260, 90000, 2400000);
     const lngLats = [];
@@ -133,7 +206,7 @@
     const t = progressAlong(lngLats);
     return {
       kind: "corridor",
-      lngLats,
+      lngLats: fanOutPath(idx, distKm, lngLats, t),
       progress: t,
       elevations: t.map((f) => Math.sin(f * Math.PI) * apex),
       halfWidth: clamp(apex / 1.6e9, 0.00035, 0.0016),
@@ -210,7 +283,7 @@
     return new Float32Array(verts);
   }
 
-  const CORRIDORS = D.flows.map(corridorRoute);
+  const CORRIDORS = D.flows.map((flow, idx) => corridorRoute(flow, idx));
   const PIPELINES = D.pipelines.features
     .filter((f) => f.geometry && f.geometry.type === "LineString" && f.geometry.coordinates.length > 1)
     .map(pipelineRoute);

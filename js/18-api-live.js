@@ -322,13 +322,29 @@
   let networkTotalCapacityMw = null;
   let lastViewportCapacityMw = 0;
 
+  // Arc geometry mirrors the SVG path "M 10 102 A 90 90 0 0 1 190 102": a
+  // 90px-radius semicircle centered at (100, 102), sweeping from 180deg
+  // (t=0, left end) through 90deg (t=0.5, apex) to 0deg (t=1, right end).
+  function pointOnGaugeArc(t) {
+    const theta = ((180 - 180 * t) * Math.PI) / 180;
+    return { x: 100 + 90 * Math.cos(theta), y: 102 - 90 * Math.sin(theta) };
+  }
+
   function updateGauge() {
     const fillPath = document.getElementById("gauge-fill-path");
     const pctEl = document.getElementById("gauge-pct");
+    const dot = document.getElementById("gauge-fill-dot");
+    const totalEl = document.getElementById("gauge-total");
     if (!fillPath || !pctEl || !networkTotalCapacityMw) return;
     const pct = clamp((lastViewportCapacityMw / networkTotalCapacityMw) * 100, 0, 100);
     fillPath.style.strokeDashoffset = String(100 - pct);
     pctEl.textContent = `${pct > 0 && pct < 1 ? pct.toFixed(1) : Math.round(pct)}%`;
+    if (dot) {
+      const p = pointOnGaugeArc(pct / 100);
+      dot.setAttribute("cx", p.x);
+      dot.setAttribute("cy", p.y);
+    }
+    if (totalEl) totalEl.textContent = `of ${capacityText(networkTotalCapacityMw)} total`;
   }
 
   async function fetchNetworkTotal() {
@@ -338,6 +354,8 @@
       const data = await res.json();
       networkTotalCapacityMw = data.totals.total_capacity_mw || null;
       updateGauge();
+      const gauge = document.getElementById("viewport-gauge");
+      if (gauge) gauge.classList.remove("gauge-loading");
     } catch (err) {
       console.error("network total fetch failed", err);
     }

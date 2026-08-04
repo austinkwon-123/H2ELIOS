@@ -14,6 +14,7 @@ const POLICY_SAMPLE_DATA = {
       date: "2026-06-15",
       region: "europe",
       impact: "positive",
+      affects: "Demand mandate",
       title: "EU RED III Renewable H₂ Mandate Enacted",
       desc: "Requires 42% of industrial hydrogen to be renewable RFNBOs (Renewable Fuels of Non-Biological Origin) by 2030, rising to 60% by 2035. Creates a binding demand sink."
     },
@@ -22,6 +23,7 @@ const POLICY_SAMPLE_DATA = {
       date: "2026-05-20",
       region: "americas",
       impact: "neutral",
+      affects: "Production credit",
       title: "US IRS Issues Final 45V Clean H₂ Tax Credit Guidance",
       desc: "Maintains strict hourly matching, additionality, and deliverability rules (the 'three pillars'), prompting developer appeals but resolving industry compliance uncertainty."
     },
@@ -30,6 +32,7 @@ const POLICY_SAMPLE_DATA = {
       date: "2026-04-12",
       region: "apac",
       impact: "positive",
+      affects: "Import rule",
       title: "Japan basic hydrogen strategy updates sub-targets",
       desc: "Allocates ¥3 trillion sub-grants ($20.3B) in contracts-for-difference (CfD) funding over 15 years to bridge the price gap between clean and gray hydrogen imports."
     },
@@ -38,6 +41,7 @@ const POLICY_SAMPLE_DATA = {
       date: "2026-03-28",
       region: "americas",
       impact: "negative",
+      affects: "Production credit",
       title: "Canada Clean Hydrogen Tax Credit Delay",
       desc: "Administrative backlogs delay the processing of the 15-40% investment tax credits (ITCs) for major production projects in Alberta, pushing back targeted FIDs."
     },
@@ -46,6 +50,7 @@ const POLICY_SAMPLE_DATA = {
       date: "2026-02-14",
       region: "mena",
       impact: "positive",
+      affects: "Infrastructure grant",
       title: "Oman Hydro-Fides signs joint-development deals",
       desc: "Ministry of Energy guarantees royalty-free land use and direct port access corridors in Salalah and Duqm for green ammonia export pipelines."
     },
@@ -54,11 +59,26 @@ const POLICY_SAMPLE_DATA = {
       date: "2026-01-18",
       region: "europe",
       impact: "neutral",
+      affects: "Infrastructure grant",
       title: "Germany updates National Hydrogen Strategy (H₂-Kernnetz)",
       desc: "Federal network agency approves a 9,040 km core transport grid blueprint, planning pipeline blending conversions to link inland steel mills."
     }
   ]
 };
+
+// Simpler, editorial status language — "Positive Demand/Subsidy" read like
+// a system code; a real policy briefing would just say what's true. The
+// dimension a policy actually touches (production credit, demand mandate,
+// import rule, infrastructure grant) is shown as its own tag rather than
+// folded into the status word, since a policy can be Supportive of a
+// production credit or Delayed on an infrastructure grant — two separate
+// facts, not one.
+function policyStatusLabel(impact) {
+  return { positive: "Supportive", neutral: "Under review", negative: "Delayed" }[impact] || "Under review";
+}
+function policyStatusColor(impact) {
+  return { positive: "var(--green-ok)", neutral: "var(--amber)", negative: "var(--red)" }[impact] || "var(--amber)";
+}
 
 const REGIONAL_TARGETS = {
   us: {
@@ -92,55 +112,75 @@ const REGIONAL_TARGETS = {
 };
 
 let selectedRegionTargetKey = "us";
+let selectedPolicyId = null;
 
-function renderPolicyList(data, filterRegion = "all") {
-  const container = document.getElementById("policy-list-container");
+// Chronological rail (left) + reading pane (right), replacing the old
+// single scrolling list that put a policy's full description inline no
+// matter how many were on screen — fine for six sample rows, but the rail
+// is the shape that still works once this is a real feed with dozens of
+// entries: scan dates and titles at a glance, read one at a time.
+function filteredPolicies(data, filterRegion) {
   const query = document.getElementById("p-search") ? document.getElementById("p-search").value.toLowerCase() : "";
   const impactFilter = document.getElementById("p-impact-filter") ? document.getElementById("p-impact-filter").value : "all";
-
-  if (!container) return;
-
-  const filtered = data.policies.filter(p => {
-    // Region Filter
-    let matchesRegion = true;
-    if (filterRegion !== "all") {
-      matchesRegion = p.region === filterRegion;
-    }
-    // Search filter
+  return data.policies.filter(p => {
+    const matchesRegion = filterRegion === "all" || p.region === filterRegion;
     const matchesSearch = p.title.toLowerCase().includes(query) || p.desc.toLowerCase().includes(query);
-    // Impact filter
     const matchesImpact = impactFilter === "all" || p.impact === impactFilter;
-
     return matchesRegion && matchesSearch && matchesImpact;
   });
+}
+
+function renderPolicyList(data, filterRegion = "all") {
+  const rail = document.getElementById("policy-rail-container");
+  const pane = document.getElementById("policy-reading-pane");
+  if (!rail || !pane) return;
+
+  const filtered = filteredPolicies(data, filterRegion);
 
   if (!filtered.length) {
-    container.innerHTML = `<div style="text-align:center; color:var(--text-faint); padding:24px 0; font-size:11.5px;">No recent regulatory updates match criteria.</div>`;
+    rail.innerHTML = `<div style="text-align:center; color:var(--text-faint); padding:24px 0; font-size:11.5px;">No matches.</div>`;
+    pane.innerHTML = `<div style="text-align:center; color:var(--text-faint); padding:24px 0; font-size:11.5px;">No recent regulatory updates match criteria.</div>`;
+    selectedPolicyId = null;
     return;
   }
 
-  container.innerHTML = filtered.map(p => {
-    let badgeColor = "var(--green-ok)";
-    let badgeText = "Positive Demand/Subsidy";
-    if (p.impact === "neutral") {
-      badgeColor = "var(--amber)";
-      badgeText = "Pending / Guidance";
-    } else if (p.impact === "negative") {
-      badgeColor = "var(--red)";
-      badgeText = "Delay / Barrier";
-    }
+  if (!filtered.some((p) => p.id === selectedPolicyId)) selectedPolicyId = filtered[0].id;
 
-    return `
-      <div style="border-bottom:1px solid rgba(120, 160, 200, 0.05); padding: 12px 0; display:flex; flex-direction:column; gap:6px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-          <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-faint);">${p.date} · ${p.region.toUpperCase()}</span>
-          <span style="font-size:9.5px; font-weight:600; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.02); border:1px solid ${badgeColor}; color:${badgeColor};">${badgeText}</span>
+  rail.innerHTML = filtered.map((p) => `
+    <button class="policy-rail-item${p.id === selectedPolicyId ? " active" : ""}" data-id="${p.id}" style="--rail-color:${policyStatusColor(p.impact)}">
+      <span class="policy-rail-date">${p.date}</span>
+      <span class="policy-rail-title">${escapeHtml(p.title)}</span>
+    </button>
+  `).join("");
+
+  rail.querySelectorAll(".policy-rail-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedPolicyId = btn.dataset.id;
+      renderPolicyList(data, filterRegion);
+    });
+  });
+
+  renderPolicyReadingPane(filtered.find((p) => p.id === selectedPolicyId));
+}
+
+function renderPolicyReadingPane(p) {
+  const pane = document.getElementById("policy-reading-pane");
+  if (!pane || !p) return;
+  const color = policyStatusColor(p.impact);
+  pane.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+        <span style="font-family:var(--font-mono); font-size:10px; color:var(--text-faint);">${p.date} · ${regionLabel(p.region)}</span>
+        <div style="display:flex; gap:6px;">
+          <span style="font-size:9.5px; font-weight:600; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,0.04); color:var(--text-muted);">${escapeHtml(p.affects || "")}</span>
+          <span style="font-size:9.5px; font-weight:600; padding:2px 8px; border-radius:999px; background:${color}22; color:${color};">${policyStatusLabel(p.impact)}</span>
         </div>
-        <h4 style="font-family:var(--font-head); font-size:12px; color:var(--text-hi); margin:0;">${escapeHtml(p.title)}</h4>
-        <p style="font-size:11px; color:var(--text-muted); line-height:1.4; margin:0;">${escapeHtml(p.desc)}</p>
       </div>
-    `;
-  }).join("");
+      <h4 style="font-family:var(--font-head); font-size:14px; color:var(--text-hi); margin:0;">${escapeHtml(p.title)}</h4>
+      <p style="font-size:12px; color:var(--text-muted); line-height:1.5; margin:0;">${escapeHtml(p.desc)}</p>
+    </div>
+  `;
+  animateDetailIn(pane);
 }
 
 // 1. Sliders Math: Policy Impact Competitiveness Simulator
@@ -271,8 +311,9 @@ function initPolicyPage() {
             </select>
           </div>
 
-          <div id="policy-list-container" style="display:flex; flex-direction:column;">
-            <!-- Rendered dynamically -->
+          <div style="display:grid; grid-template-columns: 190px 1fr; gap:12px; min-height:280px;">
+            <div id="policy-rail-container" class="policy-rail"></div>
+            <div id="policy-reading-pane" class="mat-shelf" style="padding:16px;"></div>
           </div>
         </div>
 

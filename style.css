@@ -60,6 +60,15 @@
      not just a fade — the "cursor lifting a sheet of glass" feel. */
   --motion-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* Standardized timing scale so "how long should this take" has one
+     answer per category of motion instead of a different guessed number
+     at every hover/panel/transition site in the file. */
+  --t-hover: 140ms;
+  --t-selection: 200ms;
+  --t-panel: 300ms;
+  --t-workspace-out: 160ms;
+  --t-workspace-in: 220ms;
+
   /* -- type -------------------------------------------------------------------- */
   /* -apple-system/BlinkMacSystemFont resolve to the real San Francisco on
      macOS/iOS/iPadOS (they're no-op keywords everywhere else) — free,
@@ -282,17 +291,24 @@ button { font-family: inherit; color: inherit; }
    pill surface, sitting on top of (not embedded in) the ribbon, each
    collapsed to a compact idle state that pops open on hover/focus.
    ========================================================================= */
-/* No border-bottom: real Apple toolbars separate themselves from content
-   with blur + shadow alone, not a hard line (same reasoning as --glass-edge
-   elsewhere in this file) - the ribbon reads as glass floating over the
-   globe now instead of a panel with a drawn edge. */
+/* No border-bottom AND no drop-shadow: a shadow under a full-width bar reads
+   as exactly the same hard edge a border would, just soft-drawn — still a
+   bounded rectangle sitting ON the globe rather than glass the globe sits
+   THROUGH. The fill itself is masked to fade out toward the bottom, so the
+   blurred/vibrant region tapers into ordinary clear space instead of ending
+   on a straight line; opacity is dropped to let more of the globe read
+   through at the ribbon's own resting state. Real macOS toolbars get away
+   with a flat blur rect because content scrolls under them — this one sits
+   over a fixed 3D globe with nothing to scroll, so the boundary has to be
+   dissolved instead of just left undrawn. */
 #command-ribbon {
   position: fixed; top: 0; left: 0; width: 100%; height: 60px; z-index: 1000;
   display: flex; align-items: center; justify-content: space-between;
-  background: rgba(10, 15, 25, 0.55);
-  -webkit-backdrop-filter: blur(18px) saturate(130%);
-  backdrop-filter: blur(18px) saturate(130%);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  background: rgba(10, 15, 25, 0.4);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
 }
 
 /* ---------- Zone A: identity ---------- */
@@ -348,20 +364,32 @@ button { font-family: inherit; color: inherit; }
 #tab-nav:hover, #tab-nav:focus-within {
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(63, 214, 232, 0.18);
 }
+/* Slides beneath whichever tab is active (positioned via JS in
+   09-router.js, since each label's expanded width differs) rather than the
+   fill snapping instantly between buttons on click. */
+.tab-active-indicator {
+  position: absolute; top: 6px; left: 6px;
+  border-radius: 999px;
+  background: rgba(63, 214, 232, 0.16);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 0;
+  pointer-events: none;
+}
 .tab-btn {
+  position: relative; z-index: 1;
   display: flex; align-items: center;
   font-size: 10.5px; font-weight: 500; letter-spacing: 0;
   padding: 7px 9px;
   color: var(--label);
   background: transparent;
-  border: none; border-bottom: 2px solid transparent; border-radius: 999px;
+  border: none; border-radius: 999px;
   cursor: pointer;
-  transition: color 0.16s ease, border-color 0.16s ease, text-shadow 0.16s ease;
+  transition: color 0.16s ease, background 0.16s ease;
   white-space: nowrap;
 }
 .tab-btn svg {
   width: 13px; height: 13px; flex-shrink: 0;
-  stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
   transition: stroke 0.16s ease;
 }
 .tab-btn span {
@@ -375,15 +403,23 @@ button { font-family: inherit; color: inherit; }
   max-width: 160px; margin-left: 6px;
   opacity: 1;
 }
-/* No text-shadow glow: white text + the cyan underline already say
-   "selected" on their own — you're on this tab the entire time you're
-   looking at that page, so a permanent glow here was constant, not an
-   accent. */
-.tab-btn.active {
-  color: #ffffff;
-  border-bottom-color: var(--cyan);
+/* Hovering/focusing an inactive icon expands just that one label, the same
+   way the active tab's already does — replaces the old has-tip tooltip
+   bubble, which duplicated this same "what is this icon" signal via a
+   second, disconnected floating element. */
+.tab-btn:hover:not(.active) span, .tab-btn:focus-visible:not(.active) span {
+  max-width: 160px; margin-left: 6px;
+  opacity: 1;
 }
-.tab-btn:hover:not(.active) { color: var(--text); }
+.tab-btn.active { color: #ffffff; }
+/* Drag-over feedback when a Technology-constellation project is dragged
+   onto the Calculator tab (js/09-router.js wireCalculatorDropTarget). */
+.tab-btn.drop-target-active {
+  color: #ffffff;
+  background: rgba(63, 214, 232, 0.28);
+  box-shadow: 0 0 0 1px rgba(63, 214, 232, 0.5) inset;
+}
+.tab-btn:hover:not(.active) { color: var(--text); background: rgba(255, 255, 255, 0.06); }
 .tab-btn:hover:not(.active) svg { stroke: var(--cyan); }
 .tab-btn:focus-visible { outline: 1px solid var(--cyan); }
 
@@ -462,39 +498,68 @@ button { font-family: inherit; color: inherit; }
 .fac-name { font-size: 12px; font-weight: 500; color: var(--text-hi); line-height: 1.35; }
 .fac-meta { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
 
+/* Command-palette rows sharing #search-results with the facility list —
+   same row shape as .fac-item, just no colour rail (nothing to key a
+   colour off for a workspace/action row). */
+.palette-section-label {
+  font: var(--overline); letter-spacing: var(--overline-tracking);
+  color: var(--text-faint);
+  padding: 6px 10px 2px;
+}
+.palette-item {
+  width: 100%; display: block;
+  padding: 7px 10px;
+  background: transparent; border: none; border-radius: 6px;
+  color: var(--text-hi); font-size: 12px; font-weight: 500;
+  text-align: left; cursor: pointer;
+  transition: background 0.12s ease;
+}
+.palette-item:hover { background: rgba(63, 214, 232, 0.08); }
+
 /* Liquid Glass pill, not a flat enterprise button: real backdrop blur (15px,
    verified against Apple's own macOS 26 Materials swatches — see --glass-blur)
    over a fully-round pill rather than --r-sm's rectangular corner. The cyan
    tint is H2ELIOS's own, not Apple's system blue — the glass RECIPE is
    borrowed, the brand color is not. */
-.tour-button {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-  padding: 7px 15px;
-  color: var(--cyan);
-  background: var(--glass-sheen), rgba(63, 214, 232, 0.10);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  border: 1px solid rgba(255, 255, 255, 0.10);
+/* Map mode switch: Explore/Research/Markets + Demo. Lives on the map
+   workspace itself rather than the global ribbon, since these are viewing
+   modes for one workspace, not separate destinations — visually it is the
+   same "Dynamic Island" dark-pill treatment #tab-nav uses, so it reads as
+   a sibling control system rather than a second competing nav pattern. */
+#map-mode-switch {
+  position: fixed; top: 70px; right: 14px; z-index: 25;
+  display: flex; align-items: center; gap: 1px;
+  padding: 4px;
+  background: rgba(4, 6, 10, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 14px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+.mode-btn {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  padding: 7px 14px;
+  color: var(--label);
+  background: transparent;
+  border: none; border-radius: 999px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.3s var(--motion-spring);
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.tour-button svg {
-  width: 13px; height: 13px; flex-shrink: 0;
-  stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+.mode-btn:hover:not(.active) { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.mode-btn.active { background: rgba(63, 214, 232, 0.18); color: #ffffff; }
+.mode-btn-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  color: var(--label);
+  background: transparent;
+  border: none; border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.tour-button:hover {
-  background: var(--glass-sheen), rgba(63, 214, 232, 0.18);
-  border-color: rgba(63, 214, 232, 0.4);
-  transform: translateY(-0.5px);
+.mode-btn-icon svg {
+  width: 14px; height: 14px;
+  stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
 }
-.tour-button.active {
-  color: var(--text-hi);
-  background: var(--glass-sheen), rgba(63, 214, 232, 0.24);
-  border-color: rgba(63, 214, 232, 0.5);
-}
+.mode-btn-icon:hover { background: rgba(255, 255, 255, 0.07); color: var(--cyan); }
 
 .icon-button { display: none; } /* theme toggle retired — single console theme */
 
@@ -618,7 +683,7 @@ button { font-family: inherit; color: inherit; }
   padding: 5px 10px;
   color: var(--label);
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid transparent; border-radius: 6px;
+  border: 1px solid transparent; border-radius: 999px;
   cursor: pointer;
   transition: all 0.16s ease;
   white-space: nowrap;
@@ -692,11 +757,15 @@ button { font-family: inherit; color: inherit; }
    markets-panel are fully mutually exclusive (see
    closeOtherRightPanels() in js/01-core.js) - at most one is ever
    visible, so all three claim the same position/size instead of each
-   having their own smaller rectangle. */
+   having their own smaller rectangle.
+   top starts below #map-mode-switch (top:70px, ~38px tall — both it and
+   this slot anchor right:14px) rather than tucking under the ribbon
+   directly, since the two used to land on the exact same rectangle: the
+   mode switch painted straight over this panel's own title. */
 .right-panel-slot {
-  top: 74px; right: 14px;
+  top: 118px; right: 14px;
   width: 400px;
-  max-height: calc(100vh - 130px);
+  max-height: calc(100vh - 174px);
 }
 
 /* These four were still on the older flat --panel-strong fill + plain
@@ -708,13 +777,30 @@ button { font-family: inherit; color: inherit; }
    fixed corner radius spec was pulled for a panel this size, so --r-glass
    (verified in use elsewhere in this file) carries over rather than
    guessing a second number. */
-#detail-card, #analytics-panel, #markets-panel, #regional-ai-panel, .detail-snapshot {
+#analytics-panel, #markets-panel {
   background: var(--glass-sheen), var(--panel);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   border: var(--glass-edge);
   border-radius: var(--r-glass);
   box-shadow: var(--glass-shadow);
+}
+/* Focus tier (.mat-focus): a selected project, a restored comparison
+   snapshot and the regional AI briefing are all "selected detail" surfaces
+   in the brief's sense, so they share one heavier weight — more opaque
+   (--panel-strong, already used for #detail-card/#regional-ai-panel
+   individually below) and more elevated than a plain .mat-panel card.
+   .detail-snapshot used to sit at the lighter --panel opacity purely
+   because it predated this tier, which made a restored comparison card
+   look like a lesser surface than the live detail panel it was cloned
+   from — no reason for that difference, so it joins the other two here. */
+#detail-card, #regional-ai-panel, .detail-snapshot, .mat-focus {
+  background: var(--glass-sheen), var(--panel-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: var(--glass-edge);
+  border-radius: var(--r-glass);
+  box-shadow: var(--glass-shadow), 0 24px 60px rgba(0, 0, 0, 0.4);
 }
 
 /* ---------- Comparison snapshots ----------
@@ -733,20 +819,35 @@ button { font-family: inherit; color: inherit; }
   max-width: calc(100vw - 28px);
   justify-content: flex-end;
   pointer-events: none;
+  /* `right` is nudged to 428px via inline style (js/01-core.js
+     updateSnapshotRowOffset()) whenever the live right-panel-slot is also
+     showing, so the two don't land on the same corner. Transition so that
+     shift reads as the row making room, not a jump-cut. */
+  transition: right 0.28s var(--motion-spring);
 }
 .detail-snapshot {
   position: static !important; /* overrides the fixed positioning .glass/.right-panel-slot give the original */
   width: 340px;
   max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  padding: 16px;
   pointer-events: auto;
-  animation: rise 0.3s var(--motion-spring);
+  scrollbar-width: thin; scrollbar-color: var(--text-faint) transparent;
+  /* #detail-card gets padding/overflow-y/scrollbar styling from its own ID
+     rule further up — this class never inherited any of it, so a restored
+     snapshot panel rendered with its title and window-controls flush against
+     the raw edge instead of matching the live panel's spacing ("the tab
+     formation is weird" after minimize -> restore). Same three rules here. */
+  /* No keyframe animation here: js/01-core.js's flipIn() drives entrance by
+     transform/opacity transition from the mini-card's own on-screen rect,
+     so the panel visibly grows out of where it was minimized rather than
+     just fading in mid-air. */
 }
 
 /* ---------- Inspector (right): data terminal ---------- */
 #detail-card {
   overflow-y: auto;
   padding: 16px;
-  background: var(--panel-strong);
   animation: slideIn 0.32s var(--motion-spring);
   scrollbar-width: thin; scrollbar-color: var(--text-faint) transparent;
 }
@@ -784,9 +885,12 @@ button { font-family: inherit; color: inherit; }
    the earlier version made all three fire the same close handler, which is
    why the "close/minimize/zoom" cluster only ever closed regardless of
    which dot was clicked. Close and Minimize are wired (js/01-core.js,
-   05-detail.js, 16-ai-features.js); Zoom stays visually present but inert
-   (disabled) rather than faking a third behaviour that doesn't exist yet —
-   a floating panel has no real "fullscreen" state to zoom into. */
+   05-detail.js, 16-ai-features.js). The live panel's third dot stays gone —
+   it never had a real action (a floating panel has no fullscreen state
+   beyond itself). The mini-card keeps its own green dot (.wc-zoom below):
+   restore is a real action there, and a visible dot makes it discoverable
+   the way a real traffic light would, rather than relying on the card body
+   being clickable with no visual cue. */
 .window-controls {
   position: absolute; top: 12px; right: 12px; z-index: 2;
   display: flex; align-items: center; gap: 9px;
@@ -980,7 +1084,9 @@ button { font-family: inherit; color: inherit; }
   border: var(--glass-edge);
   border-radius: var(--r-md);
   box-shadow: var(--glass-shadow);
-  animation: rise 0.3s var(--motion-spring);
+  cursor: pointer; /* the whole card restores the full panel — no separate enlarge control */
+  /* No keyframe animation here: js/01-core.js's flipIn() grows this card out
+     of the panel it was minimized from. */
   transition: border-color 0.15s ease, transform 0.25s var(--motion-spring);
 }
 .mini-card:hover { border-color: rgba(63, 214, 232, 0.35); transform: translateY(-2px); }
@@ -1022,6 +1128,14 @@ button { font-family: inherit; color: inherit; }
    ID specificity) can't override the hidden state (class+attr specificity) —
    a hidden page must always stay hidden regardless of per-page styling. */
 .page[hidden] { display: none !important; }
+/* Workspace crossfade (js/09-router.js navigateTo): outgoing dissolves via
+   .page-fade-out, then the incoming page appears already at opacity:0
+   (.page-fade-in, no transition — an instant starting point, not
+   something to animate TO) and settles to 1 over the base rule below once
+   that class is removed a couple of frames later. */
+.page { transition: opacity var(--t-workspace-in) ease; }
+.page.page-fade-out { opacity: 0; transition: opacity var(--t-workspace-out) ease; }
+.page.page-fade-in { opacity: 0; transition: none; }
 
 /* ---------- Hydrogen calculator (Tools tab) ---------- */
 #page-tools { padding: 90px 20px 40px; min-height: 100vh; display: flex; justify-content: center; }
@@ -1065,8 +1179,43 @@ button { font-family: inherit; color: inherit; }
 }
 .calc-output .k { color: var(--text-faint); font: var(--overline); letter-spacing: var(--overline-tracking); }
 .calc-output .v { color: var(--cyan); font-weight: 600; font-variant-numeric: tabular-nums; }
+.calc-output.emphasis { border-top: 1px solid rgba(63, 214, 232, 0.3); margin-top: 4px; }
+.calc-output.emphasis .v { color: var(--text-hi); font-size: 16px; }
 
 .calc-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin: 0 0 16px; }
+
+/* Groups the merged Economics panel's two halves (plant/financing vs.
+   operation) without a full sub-card — a plain section label reads as
+   "still one connected model," a nested card would read as two again. */
+.calc-subhead {
+  font: var(--overline); letter-spacing: var(--overline-tracking);
+  color: var(--text-faint);
+  margin: 18px 0 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.calc-panel > .calc-subhead:first-of-type { margin-top: 4px; padding-top: 0; border-top: none; }
+
+.calc-scenario-empty {
+  font-size: 12px; color: var(--text-muted); line-height: 1.5;
+  padding: 24px 0; text-align: center;
+}
+.calc-scenario-table-wrap { overflow-x: auto; }
+.calc-scenario-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.calc-scenario-table th, .calc-scenario-table td {
+  padding: 8px 10px; text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.calc-scenario-table th { color: var(--text-hi); font-weight: 600; }
+.calc-scenario-table td.k, .calc-scenario-table th:first-child { color: var(--text-faint); }
+.calc-scenario-table tr.emphasis td { color: var(--cyan); font-weight: 700; font-size: 13px; }
+.calc-scenario-table tr.emphasis td.k { color: var(--text-faint); font-weight: 500; font-size: 11.5px; }
+.calc-scenario-remove {
+  background: none; border: none; color: var(--text-faint);
+  cursor: pointer; font-size: 13px; margin-left: 6px; padding: 0 2px;
+}
+.calc-scenario-remove:hover { color: var(--red); }
 
 /* Small "?" info badge next to a slider/field label — native title attr tooltip */
 .calc-tip {
@@ -1171,11 +1320,34 @@ button { font-family: inherit; color: inherit; }
 .gauge-track, .gauge-fill {
   fill: none; stroke-width: 10; stroke-linecap: round;
 }
-.gauge-track { stroke: rgba(120, 160, 200, 0.12); }
+/* Brighter than before (0.12 -> 0.2 alpha): at 0% fill the track was the
+   ONLY thing visible, and it read as barely-there / broken rather than "an
+   empty gauge waiting for a value". */
+.gauge-track { stroke: rgba(120, 160, 200, 0.2); }
 .gauge-fill {
-  stroke: var(--amber);
-  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+  stroke: url(#gaugeGradient);
+  filter: drop-shadow(0 0 6px rgba(217, 154, 61, 0.6));
   transition: stroke-dashoffset 0.6s ease;
+}
+/* Bright glowing tip at the exact current value, same signature move as an
+   Apple Watch ring's leading edge — gives the fill a precise "you are here"
+   point instead of just trailing off into the track. Position (cx/cy) is
+   computed per-update in js/18-api-live.js from the live percentage. */
+.gauge-fill-dot {
+  fill: #ffe8bf;
+  filter: drop-shadow(0 0 5px rgba(217, 154, 61, 0.9)) drop-shadow(0 0 1px #fff);
+  transition: cx 0.6s ease, cy 0.6s ease;
+  opacity: 0;
+}
+.viewport-gauge:not(.gauge-loading) .gauge-fill-dot { opacity: 1; }
+/* Shown until the first real /api/analytics/summary response lands — a
+   pulsing track instead of a flat empty arc, so "0%" (unstarted) reads as
+   "loading" rather than "broken with no data" (js/18-api-live.js removes
+   this class on first successful fetchNetworkTotal()). */
+.gauge-loading .gauge-track { animation: gaugePulse 1.6s ease-in-out infinite; }
+@keyframes gaugePulse {
+  0%, 100% { stroke: rgba(120, 160, 200, 0.2); }
+  50% { stroke: rgba(217, 154, 61, 0.4); }
 }
 .gauge-readout {
   position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
@@ -1189,6 +1361,13 @@ button { font-family: inherit; color: inherit; }
 .gauge-sub {
   font: var(--overline); letter-spacing: var(--overline-tracking);
   color: var(--label); margin-top: 4px;
+}
+/* The % alone had no context for whether that's a lot or a little without
+   cross-referencing the stat cells below — this spells out the denominator
+   right where the number already is. */
+.gauge-total {
+  font-size: 10px; color: var(--text-faint);
+  margin-top: 2px; font-variant-numeric: tabular-nums;
 }
 .stat-cell {
   padding: 7px 9px;
@@ -1356,8 +1535,11 @@ button { font-family: inherit; color: inherit; }
   flex-direction: column;
   gap: 24px;
 }
+/* Drawn rule dropped for the same reason the ribbon's was: a hard line is a
+   web-panel habit, not something a real Apple section header does — space
+   and typography alone (the size/weight jump to h2, then the dimmer
+   subtitle right under it) already say "this is the section start". */
 .page-header {
-  border-bottom: 1px solid var(--line);
   padding-bottom: 12px;
   margin-bottom: 8px;
 }
@@ -1418,23 +1600,31 @@ button { font-family: inherit; color: inherit; }
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
+/* Was its own separate glass formula (18px blur, 14px radius, 0.12 border) —
+   sitting directly above .dashboard-card's, which uses the unified
+   --glass-* recipe below, that made KPI cards read as a different material
+   from the dashboard card two inches away on the same page. Now shares the
+   exact same recipe as .dashboard-card/.calc-panel/.chart-wrapper. */
 .kpi-card {
-  background: radial-gradient(160% 60px at 12% -10%, rgba(255, 255, 255, 0.12), transparent 60%), linear-gradient(155deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(10, 15, 25, 0.28) 100%), var(--panel);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  backdrop-filter: blur(18px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
+  background: var(--glass-sheen), var(--panel);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: var(--glass-edge);
+  border-radius: var(--r-glass);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), var(--shadow-soft);
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: var(--glass-shadow);
+  transition: border-color 0.2s ease, transform 0.35s var(--motion-spring), box-shadow 0.25s ease;
 }
 .kpi-card:hover {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.24);
   transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 10px 28px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(63, 214, 232, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 14px 36px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(63, 214, 232, 0.12);
 }
 .kpi-card .kpi-label {
   font: var(--overline);
@@ -1570,6 +1760,10 @@ button { font-family: inherit; color: inherit; }
 .svg-viz-wrap svg { width: 100%; height: auto; display: block; }
 .svg-viz-wrap .trl-node { transition: opacity 0.15s ease; }
 .svg-viz-wrap .trl-node:hover { opacity: 0.85; }
+.svg-viz-wrap .tech-dot { transition: r 0.15s ease, fill-opacity 0.15s ease; transform-box: fill-box; transform-origin: center; }
+.svg-viz-wrap .tech-dot:hover { fill-opacity: 1 !important; transform: scale(1.6); }
+.svg-viz-wrap .company-node { transition: fill-opacity 0.15s ease, transform 0.15s ease; transform-box: fill-box; transform-origin: center; }
+.svg-viz-wrap .company-node:hover { fill-opacity: 1 !important; transform: scale(1.35); }
 
 /* ---------- Demand & Transport: Offtaker Parity Race ----------
    A horizontal bar leaderboard, not a scatter/spectrum of circular nodes -
@@ -1620,6 +1814,22 @@ button { font-family: inherit; color: inherit; }
 .race-dots { display: flex; gap: 3px; }
 .race-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(120, 160, 200, 0.18); }
 .race-dot.on { background: var(--dot-color, var(--cyan)); box-shadow: 0 0 4px 0 var(--dot-color, var(--cyan)); }
+
+/* Grey-hydrogen baseline tick — same position on every row's track, so a
+   target sitting left of it (below grey) vs. right of it (above grey)
+   reads at a glance without needing to read the gap label. */
+.race-grey-marker {
+  position: absolute; top: -2px; bottom: -2px; width: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  transform: translateX(-1px);
+}
+.race-gap { font-size: 9.5px; color: var(--text-faint); white-space: nowrap; }
+.race-gap.under { color: var(--green-ok); }
+.race-legend {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 4px; font-size: 9.5px; color: var(--text-faint);
+}
+.race-grey-swatch { display: inline-block; width: 10px; height: 2px; background: rgba(255, 255, 255, 0.55); }
 
 /* ---------- Sample-data marker: distinguishes hand-curated/illustrative
    figures from real sourced data (see .pill.fallback for the "real data,
@@ -1772,7 +1982,6 @@ button { font-family: inherit; color: inherit; }
 #regional-ai-panel {
   overflow-y: auto;
   padding: 16px;
-  background: var(--panel-strong);
   animation: slideInRight 0.32s var(--motion-spring);
   scrollbar-width: thin;
   scrollbar-color: var(--text-faint) transparent;
@@ -1879,17 +2088,6 @@ button { font-family: inherit; color: inherit; }
   overflow: hidden;
 }
 
-/* ==========================================================================
-   Ribbon: collapse the right-zone buttons to icons before they collide.
-   #tab-nav is a fixed pill centred at left:50% with a HIGHER z-index than the
-   ribbon, so as the viewport narrows it slides over #ribbon-zone-c and clips
-   its first button — "Analytics" rendered as "…tics". Dropping the labels
-   keeps the zone narrow enough to stay clear of the island.
-   ========================================================================= */
-@media (max-width: 1240px) {
-  #ribbon-zone-c .tour-button { font-size: 0; gap: 0; padding-left: 9px; padding-right: 9px; }
-  #ribbon-zone-c .tour-button svg { margin: 0; }
-}
 @media (max-width: 1040px) {
   #search-capsule { width: 38px; }
   #search-capsule input { display: none; }
@@ -1976,28 +2174,136 @@ button { font-family: inherit; color: inherit; }
    vignette + the same fine noise as the map now finish the field so a
    glass card two tabs over reads as the same material, not a different app. */
 .page:not(#page-map) {
+  /* Each workspace overrides just these four hues below — the gradient
+     shape/position, vignette and noise texture stay identical everywhere,
+     so pages still read as the same material system, just tinted for what
+     the workspace is about (financial vs. technical vs. temporal etc.)
+     rather than every non-map tab sharing one identical green/blue/violet
+     wash regardless of subject. */
+  --bg-c1: rgba(52, 211, 153, 0.14);
+  --bg-c2: rgba(96, 165, 250, 0.13);
+  --bg-c3: rgba(167, 139, 250, 0.08);
+  --bg-c4: rgba(45, 212, 191, 0.09);
   background-image:
-    radial-gradient(58% 45% at 12% 8%, rgba(52, 211, 153, 0.14), transparent 70%),
-    radial-gradient(52% 42% at 88% 12%, rgba(96, 165, 250, 0.13), transparent 70%),
-    radial-gradient(60% 50% at 72% 88%, rgba(167, 139, 250, 0.08), transparent 72%),
-    radial-gradient(45% 38% at 25% 92%, rgba(45, 212, 191, 0.09), transparent 70%),
+    radial-gradient(58% 45% at 12% 8%, var(--bg-c1), transparent 70%),
+    radial-gradient(52% 42% at 88% 12%, var(--bg-c2), transparent 70%),
+    radial-gradient(60% 50% at 72% 88%, var(--bg-c3), transparent 72%),
+    radial-gradient(45% 38% at 25% 92%, var(--bg-c4), transparent 70%),
     radial-gradient(ellipse 90% 80% at 50% 45%, transparent 55%, rgba(2, 5, 10, 0.55) 100%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-blend-mode: normal, normal, normal, normal, normal, soft-light;
   background-size: auto, auto, auto, auto, auto, 128px 128px;
   background-attachment: fixed, fixed, fixed, fixed, fixed, fixed;
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+  transition: background-image 0.4s ease;
+}
+/* Economics: cool indigo, financial rather than aquatic — least teal of
+   any workspace. */
+#page-market {
+  --bg-c1: rgba(70, 90, 160, 0.13);
+  --bg-c2: rgba(100, 110, 190, 0.10);
+  --bg-c3: rgba(60, 70, 130, 0.09);
+  --bg-c4: rgba(50, 60, 110, 0.07);
+}
+/* Technology: controlled blue-gray, electrochemical rather than organic. */
+#page-technology {
+  --bg-c1: rgba(90, 130, 170, 0.12);
+  --bg-c2: rgba(70, 110, 160, 0.11);
+  --bg-c3: rgba(110, 150, 190, 0.06);
+  --bg-c4: rgba(55, 90, 130, 0.08);
+}
+/* Demand & Transport: warmer, more directional — capacity moving through
+   the system rather than sitting still. */
+#page-demand-transport {
+  --bg-c1: rgba(52, 190, 160, 0.13);
+  --bg-c2: rgba(210, 160, 90, 0.08);
+  --bg-c3: rgba(90, 170, 150, 0.07);
+  --bg-c4: rgba(60, 150, 130, 0.09);
+}
+/* Policy: neutral slate, almost no atmospheric color — status signals and
+   content should carry the page, not the background. */
+#page-policy {
+  --bg-c1: rgba(100, 105, 115, 0.05);
+  --bg-c2: rgba(90, 95, 105, 0.045);
+  --bg-c3: rgba(80, 85, 95, 0.035);
+  --bg-c4: rgba(70, 75, 85, 0.035);
+}
+/* Timeline: deep temporal violet-indigo — the one workspace allowed a
+   stronger, moodier field since a selected year already dominates it. */
+#page-timeline {
+  --bg-c1: rgba(90, 100, 190, 0.15);
+  --bg-c2: rgba(130, 100, 200, 0.11);
+  --bg-c3: rgba(55, 65, 130, 0.09);
+  --bg-c4: rgba(45, 55, 110, 0.10);
+}
+/* Companies: quiet neutral backdrop — the registry itself should be what
+   people look at, not the field behind it. */
+#page-companies {
+  --bg-c1: rgba(65, 100, 115, 0.055);
+  --bg-c2: rgba(75, 105, 120, 0.05);
+  --bg-c3: rgba(85, 95, 115, 0.04);
+  --bg-c4: rgba(55, 80, 95, 0.04);
+}
+/* Calculator: the cleanest, most restrained field of all — an instrument,
+   not a dashboard. */
+#page-tools {
+  --bg-c1: rgba(45, 55, 70, 0.04);
+  --bg-c2: rgba(40, 50, 65, 0.035);
+  --bg-c3: rgba(35, 45, 60, 0.03);
+  --bg-c4: rgba(30, 40, 55, 0.03);
 }
 
-/* One surface recipe for every sub-tab card, panel and chart well. The
-   transition lives here now (was only on .dashboard-card's own older rule
-   below), so .calc-panel and .chart-wrapper — which share this exact same
-   background/border/radius/shadow — get the same smooth hover instead of a
-   snap change; and all three lift together, "a sheet of glass" reacting the
-   same way regardless of which surface it happens to be. */
+/* ==========================================================================
+   Material system: four weights instead of one. Before this, almost every
+   surface used the same recipe below regardless of role, which flattened
+   hierarchy — a page title, a filter row and a detail sheet all read as
+   the same kind of "card." Four tiers, heaviest to lightest in visual
+   weight is actually canvas < shelf < panel < focus:
+     .mat-canvas — no card at all. Titles, hero numbers, primary charts sit
+       directly on the page background.
+     .mat-shelf  — a thin raised strip for filters/modes/contextual
+       controls, lighter and flatter than a full panel.
+     .mat-panel  — the existing "one surface recipe" below (dashboard-card/
+       calc-panel/chart-wrapper already share it); the default card weight.
+     .mat-focus  — more opaque and more elevated, for selected detail and
+       simulation-result surfaces (reuses --panel-strong, already the
+       "inspector" fill, rather than inventing a fifth opacity value).
+   ========================================================================= */
+.mat-canvas {
+  background: none;
+  border: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.mat-shelf, .search-filter-row {
+  background: rgba(255, 255, 255, 0.03);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.6)) saturate(130%);
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.6)) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+}
+.mat-focus {
+  background: var(--glass-sheen), var(--panel-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border: var(--glass-edge);
+  border-radius: var(--r-glass);
+  box-shadow: var(--glass-shadow), 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* One surface recipe for every sub-tab card, panel and chart well — the
+   .mat-panel tier. The transition lives here now (was only on
+   .dashboard-card's own older rule below), so .calc-panel and
+   .chart-wrapper — which share this exact same background/border/radius/
+   shadow — get the same smooth hover instead of a snap change; and all
+   three lift together, "a sheet of glass" reacting the same way regardless
+   of which surface it happens to be. */
 .dashboard-card,
 .calc-panel,
-.chart-wrapper {
+.chart-wrapper,
+.mat-panel {
   background: var(--glass-sheen), var(--panel);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
@@ -2095,6 +2401,121 @@ button { font-family: inherit; color: inherit; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+/* ---------- Demand & Transport: carrier route canvas ---------- */
+.route-canvas { display: flex; flex-direction: column; gap: 14px; }
+.route-row { display: flex; flex-direction: column; gap: 4px; }
+.route-label { font-size: 11px; font-weight: 700; font-family: var(--font-head); }
+.route-track { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.route-stage {
+  font-size: 9.5px; line-height: 1.3; text-align: center;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--text-muted);
+  min-width: 64px;
+}
+.route-stage span { display: block; color: var(--text-faint); margin-top: 2px; }
+.route-stage.route-origin, .route-stage.route-destination { color: var(--text-hi); font-weight: 600; }
+.route-arrow { color: var(--text-faint); font-size: 12px; flex-shrink: 0; }
+.route-vol { font-size: 9.5px; color: var(--text-faint); padding-left: 2px; }
+
+/* ---------- Temporal Sandbox: glass scrubber ---------- */
+.temporal-slider {
+  -webkit-appearance: none; appearance: none;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(63, 214, 232, 0.5), rgba(63, 214, 232, 0.08));
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+}
+.temporal-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #3fd6e8;
+  box-shadow: 0 0 0 4px rgba(63, 214, 232, 0.18), 0 0 14px rgba(63, 214, 232, 0.55);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.temporal-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.temporal-slider::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border: none; border-radius: 50%;
+  background: #3fd6e8;
+  box-shadow: 0 0 0 4px rgba(63, 214, 232, 0.18), 0 0 14px rgba(63, 214, 232, 0.55);
+  cursor: pointer;
+}
+.temporal-slider::-moz-range-track { height: 4px; background: transparent; }
+
+/* ---------- Universal selection context chip ---------- */
+#selection-chip {
+  position: fixed; left: 14px; bottom: 14px; z-index: 900;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px 7px 14px;
+  background: rgba(4, 6, 10, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  font-size: 11.5px; color: var(--text-hi);
+  animation: slideIn var(--t-panel) var(--motion-spring);
+}
+#selection-chip::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cyan); box-shadow: 0 0 6px var(--cyan);
+  flex-shrink: 0;
+}
+#selection-chip-clear {
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  background: rgba(255, 255, 255, 0.06); border: none; border-radius: 50%;
+  color: var(--text-faint); font-size: 13px; line-height: 1;
+  cursor: pointer;
+  transition: background var(--t-hover) ease, color var(--t-hover) ease;
+}
+#selection-chip-clear:hover { background: rgba(229, 99, 92, 0.18); color: var(--red); }
+
+/* ---------- Calculator: selection-context prefill row ---------- */
+.calc-prefill-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: -8px 0 16px;
+  padding: 8px 10px;
+  background: rgba(63, 214, 232, 0.05);
+  border: 1px solid var(--line-accent);
+  border-radius: var(--r-md);
+}
+.calc-prefill-status { font-size: 11px; color: var(--text-muted); }
+#calc-prefill-btn { margin: 0; padding: 5px 10px; font-size: 10.5px; }
+#calc-prefill-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Policy: chronological rail + reading pane ---------- */
+.policy-rail {
+  display: flex; flex-direction: column; gap: 3px;
+  overflow-y: auto;
+  max-height: 420px;
+  padding-right: 4px;
+  scrollbar-width: thin; scrollbar-color: var(--text-faint) transparent;
+}
+.policy-rail-item {
+  display: flex; flex-direction: column; gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  border-left: 2px solid var(--rail-color, var(--line));
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.policy-rail-item:hover { background: rgba(255, 255, 255, 0.04); }
+.policy-rail-item.active { background: rgba(63, 214, 232, 0.08); }
+.policy-rail-date { font-family: var(--font-mono); font-size: 9.5px; color: var(--text-faint); }
+.policy-rail-title {
+  font-size: 11px; line-height: 1.3; color: var(--text-muted);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.policy-rail-item.active .policy-rail-title { color: var(--text-hi); }
+
 /* ==========================================================================
    Narrow viewports — the ribbon becomes two rows
    Last section in the file on purpose: it must win over the 1240px/1040px
@@ -2157,25 +2578,14 @@ button { font-family: inherit; color: inherit; }
   #tab-nav { top: 52px; }
   .page-wrapper, #page-tools { padding-top: 104px; }
 
-  /* The old rule hid the whole .tour-button group, which took the Demo button
-     with it. Demo is the most valuable control for someone arriving cold from
-     a shared link — it is what makes the globe explain itself — so it stays,
-     as an icon-only circle. Analytics/Markets/Tour are reachable from the tab
-     bar and the map itself. */
-  #ribbon-zone-c .tour-button { display: none; }
-  #ribbon-zone-c #demo-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 34px; height: 34px; padding: 0;
-    font-size: 0; gap: 0;
-    border-radius: 999px;
-  }
-  #ribbon-zone-c #demo-btn svg { width: 16px; height: 16px; margin: 0; }
+  /* Map mode switch (Explore/Research/Markets + Demo) now lives on the map
+     itself, not the ribbon. These three have no icon fallback (text only),
+     so shrink the label rather than hiding it — an empty pill would be
+     worse than a slightly tighter one. */
+  .mode-btn { font-size: 10px; padding: 6px 9px; }
 
   #search-capsule { width: 34px; height: 34px; padding: 0 9px; }
   #search-capsule:hover, #search-capsule:focus-within { width: min(64vw, 240px); }
-
-  /* Duplicated by the map legend; at this width it landed on the tab icons. */
-  #api-status { display: none; }
 
   /* Narrower, and anchored to the bottom of the globe instead of vertically
      centred, so it sits clear of the two chrome rows. */

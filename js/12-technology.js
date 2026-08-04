@@ -58,7 +58,6 @@ const TECH_CATALOG = {
 
 let selectedTechKey = "pem";
 let currentTechRegion = "all";
-let techChartInstance = null;
 let metalsChartInstance = null;
 
 // TRL band midpoint per technology, for positioning on the maturity
@@ -68,115 +67,174 @@ let metalsChartInstance = null;
 const TECH_TRL_MID = { alk: 9, pem: 8, soec: 6.5, aem: 4.5 };
 const TECH_COLORS = { alk: "#34d399", pem: "#60a5fa", soec: "#d99a3d", aem: "#f472b6" };
 
+// Shared by the maturity spectrum (aggregate capacity per tech) and the
+// constellation (per-project classification) so the two visualizations
+// never disagree about what counts as PEM/ALK/SOEC/AEM.
+function classifyTechKey(p) {
+  const sub = String(p.subtype || "").toLowerCase();
+  const name = String(p.name || "").toLowerCase();
+  if (sub.includes("pem") || name.includes("pem")) return "PEM";
+  if (sub.includes("alk") || sub.includes("alkaline") || name.includes("alkaline") || name.includes("alk")) return "ALK";
+  if (sub.includes("soec") || sub.includes("solid oxide") || name.includes("solid oxide")) return "SOEC";
+  if (sub.includes("aem") || sub.includes("anion exchange") || name.includes("aem")) return "AEM";
+  return "Other";
+}
+function parseCapacityMw(capacityStr) {
+  const c = String(capacityStr || "");
+  let m = c.match(/([\d.]+)\s*GW/i);
+  if (m) return parseFloat(m[1]) * 1000;
+  m = c.match(/([\d.]+)\s*MW/i);
+  return m ? parseFloat(m[1]) : 0;
+}
+function allTechFeatures() {
+  const feats = [...D.production.features, ...D.manufacturing.features];
+  if (window.IEA_DATA) feats.push(...window.IEA_DATA.features);
+  return feats;
+}
+function techFeatureMatchesFilters(p, regionFilterLocal) {
+  if (statusFilter !== "all" && p.statusClass !== statusFilter) return false;
+  const activeRegion = regionFilterLocal !== "all" ? regionFilterLocal : regionFilter;
+  if (activeRegion !== "all" && !(REGION_GROUPS[activeRegion] || []).includes(p.region)) return false;
+  return true;
+}
+
 function computeTechnologyMix(regionFilterLocal = "all") {
   const counts = { PEM: 0, ALK: 0, SOEC: 0, AEM: 0, Other: 0 };
   const capacities = { PEM: 0, ALK: 0, SOEC: 0, AEM: 0, Other: 0 };
 
-  const feats = [
-    ...D.production.features,
-    ...D.manufacturing.features
-  ];
-  
-  if (window.IEA_DATA) {
-    feats.push(...window.IEA_DATA.features);
-  }
-
-  feats.forEach(f => {
+  allTechFeatures().forEach(f => {
     const p = f.properties;
-    if (statusFilter !== "all" && p.statusClass !== statusFilter) return;
-    
-    // Support local region selection or fall back to main global regionFilter
-    const activeRegion = regionFilterLocal !== "all" ? regionFilterLocal : regionFilter;
-    if (activeRegion !== "all" && !(REGION_GROUPS[activeRegion] || []).includes(p.region)) return;
-
-    let tech = "Other";
-    const sub = String(p.subtype || "").toLowerCase();
-    const name = String(p.name || "").toLowerCase();
-    
-    if (sub.includes("pem") || name.includes("pem")) tech = "PEM";
-    else if (sub.includes("alk") || sub.includes("alkaline") || name.includes("alkaline") || name.includes("alk")) tech = "ALK";
-    else if (sub.includes("soec") || sub.includes("solid oxide") || name.includes("solid oxide")) tech = "SOEC";
-    else if (sub.includes("aem") || sub.includes("anion exchange") || name.includes("aem")) tech = "AEM";
-
+    if (!techFeatureMatchesFilters(p, regionFilterLocal)) return;
+    const tech = classifyTechKey(p);
     counts[tech]++;
-    
-    let cap = 0;
-    const c = String(p.capacity || "");
-    let m = c.match(/([\d.]+)\s*GW/i);
-    if (m) cap = parseFloat(m[1]) * 1000;
-    else {
-      m = c.match(/([\d.]+)\s*MW/i);
-      if (m) cap = parseFloat(m[1]);
-    }
+    const cap = parseCapacityMw(p.capacity);
     if (cap > 0) capacities[tech] += cap;
   });
 
   return { counts, capacities };
 }
 
-function renderTechChart(regionFilterLocal = "all") {
-  const ctx = document.getElementById("tech-mix-chart");
-  if (!ctx) return;
+// Technology constellation: every classified project is its own dot,
+// grouped into one cluster per electrolyzer technology — replaces the old
+// donut, which only ever showed an aggregate share and had no way to
+// connect "PEM" back to any actual project. Dot size = that project's own
+// capacity: dot opacity = source confidence (curated/IEA-exact vs.
+// country-level approximate), so the cluster's overall haze already tells
+// you how much of it is solid data before you click anything. Clicking a
+// dot jumps to the Map with that project selected — the one deliberate
+// cross-workspace link in this pass (real "universal selection context"
+// threading every tab is a larger, separate piece of work).
+const TECH_CLUSTER_ORDER = ["ALK", "PEM", "SOEC", "AEM", "Other"];
+const TECH_CLUSTER_COLOR = { ALK: "#34d399", PEM: "#60a5fa", SOEC: "#d99a3d", AEM: "#f472b6", Other: "#67748c" };
+const TECH_CLUSTER_LABEL = { ALK: "Alkaline", PEM: "PEM", SOEC: "Solid Oxide", AEM: "Anion Exchange", Other: "Unclassified" };
+const MAX_CONSTELLATION_DOTS_PER_CLUSTER = 90;
 
-  const { counts, capacities } = computeTechnologyMix(regionFilterLocal);
-  // Most facility records don't disclose an electrolyzer subtype, so "Unclassified"
-  // capacity routinely dwarfs the four known technologies — charting it as a fifth
-  // slice turns the donut into one giant gray wedge. Chart only the classified share
-  // and call out the undisclosed portion in the caption below instead.
-  const dataValues = [capacities.ALK, capacities.PEM, capacities.SOEC, capacities.AEM];
-  const classifiedTotal = dataValues.reduce((s, v) => s + v, 0);
-  const grandTotal = classifiedTotal + capacities.Other;
+function confidenceOpacity(p) {
+  if (p.tier === "iea") return Number(p.approx) ? 0.28 : 0.85;
+  if (p.tier === "api") return p.confidence != null && p.confidence < 1 ? 0.4 : 0.85;
+  return 0.85; // curated (D.production/D.manufacturing) — highest-trust tier
+}
+
+function jumpToProjectOnMap(p, coords) {
+  location.hash = "map";
+  navigateTo("map");
+  requestAnimationFrame(() => {
+    selectFacility(p, coords);
+    if (coords && map.flyTo) map.flyTo({ center: coords, zoom: 8, pitch: 55, duration: 1600, essential: true });
+  });
+}
+
+function renderTechConstellation(regionFilterLocal = "all") {
+  const el = document.getElementById("tech-constellation");
+  if (!el) return;
+
+  const byCluster = { ALK: [], PEM: [], SOEC: [], AEM: [], Other: [] };
+  let totalClassified = 0, totalAll = 0;
+  allTechFeatures().forEach((f) => {
+    const p = f.properties;
+    if (!techFeatureMatchesFilters(p, regionFilterLocal)) return;
+    totalAll++;
+    const key = classifyTechKey(p);
+    if (key !== "Other") totalClassified++;
+    byCluster[key].push({ p, coords: f.geometry && f.geometry.coordinates, cap: parseCapacityMw(p.capacity) });
+  });
+
+  const maxCap = Math.max(1, ...TECH_CLUSTER_ORDER.flatMap((k) => byCluster[k].map((d) => d.cap)));
+  const W = 640, H = 300;
+  const cols = TECH_CLUSTER_ORDER.length;
+  const clusterW = W / cols;
+  const clusterCy = 140, clusterRadius = clusterW * 0.42;
 
   const caption = document.getElementById("tech-mix-caption");
   if (caption) {
-    const undisclosedPct = grandTotal > 0 ? Math.round((capacities.Other / grandTotal) * 100) : 0;
-    caption.textContent = grandTotal > 0
-      ? `Chart reflects the ${100 - undisclosedPct}% of tracked capacity with a disclosed electrolyzer technology. The remaining ${undisclosedPct}% (${counts.Other} projects) don't specify one.`
+    const pct = totalAll > 0 ? Math.round((totalClassified / totalAll) * 100) : 0;
+    caption.textContent = totalAll > 0
+      ? `${totalClassified.toLocaleString()} of ${totalAll.toLocaleString()} tracked projects (${pct}%) disclose an electrolyzer technology — each dot below is one real project, sized by its capacity and dimmed if only approximately located.`
       : "No electrolyzer technology data available for this filter.";
   }
 
-  const chartConfig = {
-    type: 'doughnut',
-    data: {
-      labels: ['Alkaline (ALK)', 'Proton Membrane (PEM)', 'Solid Oxide (SOEC)', 'Anion Membrane (AEM)'],
-      datasets: [{
-        data: dataValues,
-        backgroundColor: [
-          '#34d399', // green
-          '#60a5fa', // blue
-          '#d99a3d', // amber
-          '#f472b6'  // pink
-        ],
-        borderWidth: 1,
-        borderColor: '#0a0e16'
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'right',
-          labels: { color: '#b6c2d4', font: { family: 'Space Grotesk', size: 9.5 } }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(9, 13, 20, 0.96)',
-          callbacks: {
-            label: function(item) {
-              const val = item.raw;
-              const total = dataValues.reduce((s, v) => s + v, 0);
-              const pct = total > 0 ? ((val / total) * 100).toFixed(1) + "%" : "0%";
-              return ` ${item.label}: ${val.toFixed(0)} MWel (${pct})`;
-            }
-          }
-        }
-      },
-      cutout: '65%'
-    }
-  };
+  const groups = TECH_CLUSTER_ORDER.map((key, ci) => {
+    const cx = clusterW * ci + clusterW / 2;
+    const color = TECH_CLUSTER_COLOR[key];
+    let items = byCluster[key];
+    const shown = items.length > MAX_CONSTELLATION_DOTS_PER_CLUSTER
+      ? items.slice(0, MAX_CONSTELLATION_DOTS_PER_CLUSTER)
+      : items;
+    // Golden-angle phyllotaxis scatter: deterministic (no re-jitter on
+    // re-render) and reads as an organic cluster rather than a grid.
+    const dots = shown.map((d, i) => {
+      const angle = i * 137.508 * (Math.PI / 180);
+      const spread = clusterRadius * Math.sqrt(i / Math.max(1, shown.length));
+      const x = cx + Math.cos(angle) * spread;
+      const y = clusterCy + Math.sin(angle) * spread * 0.72;
+      const r = 2 + Math.sqrt(d.cap / maxCap) * 8;
+      const opacity = confidenceOpacity(d.p);
+      const title = `${escapeHtml(d.p.name)} — ${escapeHtml(d.p.status || "")}${d.cap ? `, ${Math.round(d.cap).toLocaleString()} MW` : ""}`;
+      return `<circle class="tech-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}" fill-opacity="${opacity}" data-idx="${i}"><title>${title}</title></circle>`;
+    }).join("");
+    const overflow = items.length > shown.length
+      ? `<text x="${cx}" y="${clusterCy + clusterRadius * 0.72 + 22}" text-anchor="middle" font-size="9" fill="#67748c" font-family="Inter">+${items.length - shown.length} more</text>`
+      : "";
+    return {
+      key, shown,
+      markup: `<g class="tech-cluster" data-key="${key}">
+        <circle cx="${cx}" cy="${clusterCy}" r="${clusterRadius + 10}" fill="none" stroke="${color}" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="2 4"/>
+        ${dots}
+        ${overflow}
+        <text x="${cx}" y="${H - 14}" text-anchor="middle" font-size="11" font-weight="700" fill="${color}" font-family="Space Grotesk">${TECH_CLUSTER_LABEL[key]}</text>
+        <text x="${cx}" y="${H - 2}" text-anchor="middle" font-size="9" fill="#67748c" font-family="var(--font-mono)">${items.length.toLocaleString()} project${items.length === 1 ? "" : "s"}</text>
+      </g>`
+    };
+  });
 
-  if (techChartInstance) techChartInstance.destroy();
-  techChartInstance = new Chart(ctx, chartConfig);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="tech-constellation-svg" role="img" aria-label="Electrolyzer technology constellation, one dot per project, click a dot to open it on the map">
+    ${groups.map((g) => g.markup).join("")}
+  </svg>`;
+
+  groups.forEach((g) => {
+    el.querySelectorAll(`.tech-cluster[data-key="${g.key}"] .tech-dot`).forEach((circle) => {
+      const idx = Number(circle.dataset.idx);
+      const d = g.shown[idx];
+      if (!d) return;
+      circle.style.cursor = "pointer";
+      circle.addEventListener("click", () => jumpToProjectOnMap(d.p, d.coords));
+      // Drag source for the Calculator drop zone (js/09-router.js
+      // wireCalculatorDropTarget) — only projects (which carry a real
+      // capacity) are draggable; Companies-ecosystem nodes aren't, since
+      // there's no capacity figure to prefill from a company record.
+      // draggable has to be set as a DOM property here, not as a
+      // "draggable=..." attribute in the SVG markup string above — SVG's
+      // parser silently drops unrecognized attributes like HTML's global
+      // draggable when the markup is written via innerHTML, so it has to
+      // be assigned after the fact through the element's own property.
+      circle.setAttribute("draggable", "true");
+      circle.draggable = true;
+      circle.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("application/json", JSON.stringify({ props: d.p, lngLat: d.coords }));
+        e.dataTransfer.effectAllowed = "copy";
+      });
+    });
+  });
 }
 
 // Maturity spectrum: ALK/PEM/SOEC/AEM positioned along a TRL 1-9 axis,
@@ -409,12 +467,10 @@ function initTechnologyPage() {
         <!-- Left Column: derived tech mix & interactive catalog -->
         <div style="display:flex; flex-direction:column; gap:16px;">
           
-          <!-- Technology Shares -->
+          <!-- Technology Constellation -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
             <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Electrolyzer Technology Mix</h3>
-            <div class="chart-wrapper" style="height: 160px; position:relative; background:rgba(0,0,0,0.15); border:1px solid var(--line); border-radius:var(--r-sm);">
-              <canvas id="tech-mix-chart"></canvas>
-            </div>
+            <div id="tech-constellation" class="svg-viz-wrap"></div>
             <p id="tech-mix-caption" style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:0;"></p>
           </div>
 
@@ -503,7 +559,7 @@ function initTechnologyPage() {
   if (regionSelect) {
     regionSelect.onchange = () => {
       currentTechRegion = regionSelect.value;
-      renderTechChart(currentTechRegion);
+      renderTechConstellation(currentTechRegion);
       renderTrlSpectrum(currentTechRegion);
     };
   }
@@ -515,7 +571,7 @@ function initTechnologyPage() {
   runCatalystCostCalc();
 
   // Render Derived Mix & Initial Tab details
-  renderTechChart();
+  renderTechConstellation();
   selectCatalogTech("pem");
   renderMetalsChart(METALS_SAMPLE_DATA);
 

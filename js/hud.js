@@ -9,33 +9,25 @@
     const el = document.createElement("div");
     el.id = "boot";
     el.innerHTML = `
-      <div class="boot-core">
-        <div class="boot-ring"></div>
-        <div class="boot-logo">H<sub>2</sub></div>
-      </div>
-      <div class="boot-lines">
-        <div class="boot-line">H2ELIOS <span>v6.0</span></div>
-        <div class="boot-line" id="boot-l1">▸ initializing global network…</div>
-        <div class="boot-line" id="boot-l2"></div>
-        <div class="boot-line" id="boot-l3"></div>
-      </div>
+      <img class="boot-word" src="assets/h2elios-lockup.svg" alt="H2ELIOS" />
+      <div class="boot-sub" id="boot-sub"></div>
       <div class="boot-bar"><div class="boot-fill"></div></div>`;
     document.body.appendChild(el);
 
-    const t1 = setTimeout(() => {
-      const l2 = document.getElementById("boot-l2");
-      if (l2) l2.textContent = "▸ " + total.toLocaleString() + " nodes online · 5 regions · live AFDC feed";
-    }, 800);
-    const t2 = setTimeout(() => {
-      const l3 = document.getElementById("boot-l3");
-      if (l3) l3.textContent = "▸ all systems nominal — welcome back";
-    }, 1500);
+    const sub = document.getElementById("boot-sub");
+    const setSub = (text) => {
+      if (!sub) return;
+      sub.classList.remove("show");
+      setTimeout(() => { sub.textContent = text; sub.classList.add("show"); }, 220);
+    };
+    const t1 = setTimeout(() => setSub(total.toLocaleString() + " facilities · 5 regions · live"), 900);
+    const t2 = setTimeout(() => setSub("welcome back"), 1900);
     const kill = () => {
       clearTimeout(t1); clearTimeout(t2);
       el.classList.add("boot-out");
       setTimeout(() => el.remove(), 600);
     };
-    setTimeout(kill, 2600);
+    setTimeout(kill, 2900);
     el.addEventListener("click", kill);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

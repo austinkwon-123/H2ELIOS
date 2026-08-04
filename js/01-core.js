@@ -208,7 +208,7 @@ const H2GRID_BASE_STYLE = {
 const map = new maplibregl.Map({
   container: "map",
   style: H2GRID_BASE_STYLE,
-  center: [15, 20],
+  center: [-32, 40],
   zoom: 1.7,
   pitch: 58,
   bearing: 12,
@@ -231,7 +231,7 @@ class ResetViewControl {
     btn.setAttribute("aria-label", "Reset view");
     btn.setAttribute("data-tip", "Reset view");
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>';
-    btn.onclick = () => mapRef.flyTo({ center: [15, 20], zoom: 1.7, pitch: 58, bearing: 12, duration: 1200 });
+    btn.onclick = () => mapRef.flyTo({ center: [-32, 40], zoom: 1.7, pitch: 58, bearing: 12, duration: 1200 });
     this._container.appendChild(btn);
     return this._container;
   }
@@ -241,23 +241,27 @@ map.addControl(new ResetViewControl(), "top-left");
 
 // Switching between right-panel-slot panels (a project's detail, the AI
 // regional overview, Markets) used to fully CLOSE whichever one was open —
-// so opening Markets while a project was selected just discarded it. Now it
-// minimizes the other panel(s) instead, same as clicking their own Minimize
-// dot would: nothing already open is ever lost to switching tabs, only to an
-// explicit Close. detail-card minimizes via the same real snapshot mechanism
-// its own dot uses (needs lastDetailProps, set in js/05-detail.js's
-// showDetail()); the other two use the plain chip minimize since they're
-// single-instance app state, not per-object records.
+// so opening Markets while a project was selected just discarded it.
+// detail-card and regional-ai-panel now minimize instead, same as clicking
+// their own Minimize dot would: nothing already open is lost, only closed
+// explicitly. detail-card minimizes via the same real snapshot mechanism its
+// own dot uses (needs lastDetailProps, set in js/05-detail.js's
+// showDetail()); regional-ai-panel uses the plain chip minimize since it's
+// single-instance app state, not a per-object record. Markets is NOT a
+// minimize candidate — it's a live ticker with its own polling interval
+// (stopMarketsPolling()), not a snapshot of anything worth restoring, so
+// switching away from it just closes it outright via its real close
+// function, same as clicking its own Close would.
 function closeOtherRightPanels(exceptId) {
   const minimizers = {
-    "detail-card": () => { if (typeof lastDetailProps !== "undefined" && lastDetailProps) minimizeDetailPanel(lastDetailProps); else closeDetailPanel(); },
+    "detail-card": (el) => { if (typeof lastDetailProps !== "undefined" && lastDetailProps) minimizeDetailPanel(lastDetailProps, null, el); else closeDetailPanel(); },
     "regional-ai-panel": () => minimizePanel("regional-ai-panel", "AI Regional Overview"),
-    "markets-panel": () => minimizePanel("markets-panel", "Markets")
+    "markets-panel": () => closeMarketsPanel()
   };
   Object.entries(minimizers).forEach(([id, minimize]) => {
     if (id !== exceptId) {
       const el = document.getElementById(id);
-      if (el && !el.hidden) minimize();
+      if (el && !el.hidden) minimize(el);
     }
   });
 }
@@ -303,6 +307,58 @@ function removeMinimizedChip(panelId) {
   const chip = document.getElementById("min-chip-" + panelId);
   if (chip) chip.remove();
 }
+
+// #snapshot-row and the live right-panel-slot (#detail-card /
+// #regional-ai-panel / #markets-panel) both anchor to the same top:74px;
+// right:14px corner — fine when only one is ever visible at a time, but
+// comparison snapshots are explicitly meant to stay open WHILE a new
+// project is selected, so both can now be on screen together and land
+// exactly on top of each other. Nudge the row left, out from under the
+// live panel's 400px width, whenever one is actually showing. A
+// MutationObserver rather than editing every call site that shows/hides
+// these three panels (spread across 01-core.js, 05-detail.js,
+// 16-ai-features.js, 03-filters.js) — it reacts to the `hidden` attribute
+// changing no matter which of those set it.
+function updateSnapshotRowOffset() {
+  const row = document.getElementById("snapshot-row");
+  if (!row) return;
+  const livePanelOpen = ["detail-card", "regional-ai-panel", "markets-panel"]
+    .some((id) => { const el = document.getElementById(id); return el && !el.hidden; });
+  row.style.right = livePanelOpen ? "428px" : "";
+}
+(function watchRightPanelSlots() {
+  const ids = ["detail-card", "regional-ai-panel", "markets-panel"];
+  const observer = new MutationObserver(updateSnapshotRowOffset);
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el, { attributes: true, attributeFilter: ["hidden"] });
+  });
+})();
+
+// FLIP transition: animates `el` (already in its FINAL position in the DOM)
+// growing/shrinking out of `fromRect` instead of just popping into existence
+// mid-screen. This is what makes minimize <-> restore read as one continuous
+// object moving, rather than two unrelated panels swapping — the exact
+// "doesn't integrate well" gap between the mini-card and the full panel.
+function flipIn(el, fromRect) {
+  if (!fromRect || !fromRect.width || !fromRect.height) return;
+  const toRect = el.getBoundingClientRect();
+  const dx = (fromRect.left + fromRect.width / 2) - (toRect.left + toRect.width / 2);
+  const dy = (fromRect.top + fromRect.height / 2) - (toRect.top + toRect.height / 2);
+  const sx = Math.max(0.001, fromRect.width / toRect.width);
+  const sy = Math.max(0.001, fromRect.height / toRect.height);
+  el.style.transition = "none";
+  el.style.opacity = "0";
+  el.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      el.style.transition = "transform 0.38s var(--motion-spring), opacity 0.24s ease";
+      el.style.opacity = "1";
+      el.style.transform = "none";
+    });
+  });
+  el.addEventListener("transitionend", () => { el.style.transition = ""; el.style.transform = ""; el.style.opacity = ""; }, { once: true });
+}
 function minimizePanel(panelId, label) {
   const panel = document.getElementById(panelId);
   if (!panel || panel.hidden) return;
@@ -320,6 +376,27 @@ function minimizePanel(panelId, label) {
 
 let snapshotSeq = 0;
 
+// Comparison cap: at most 3 full snapshot panels open on the right at once —
+// beyond that they'd crowd the screen and stop being a readable comparison.
+// Tracked in insertion order so a 4th arrival bumps the OLDEST one back to a
+// mini-card automatically (nothing is lost, it just steps aside), rather
+// than silently refusing to open or blocking the new one.
+const MAX_SNAPSHOTS = 3;
+const openSnapshots = []; // [{id, props}], oldest first
+const snapshotProps = new Map(); // id -> props, so a bumped panel can rebuild its mini-card
+
+function enforceSnapshotCap() {
+  while (openSnapshots.length > MAX_SNAPSHOTS) {
+    const oldest = openSnapshots.shift();
+    const el = document.getElementById(oldest.id);
+    if (el) {
+      minimizeDetailPanel(oldest.props, oldest.id, el);
+      el.remove();
+    }
+    snapshotProps.delete(oldest.id);
+  }
+}
+
 function buildDetailSnapshotPanel(props, snapId) {
   const panel = document.createElement("div");
   panel.id = snapId;
@@ -328,19 +405,30 @@ function buildDetailSnapshotPanel(props, snapId) {
     <div class="window-controls" role="group" aria-label="Panel controls">
       <button class="wc-dot wc-close" type="button" title="Close" aria-label="Close"></button>
       <button class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
-      <button class="wc-dot wc-zoom" type="button" title="Zoom (not yet available)" aria-label="Zoom" disabled></button>
     </div>
     <div class="detail-content-body">${buildDetailHTML(props)}</div>`;
-  panel.querySelector(".wc-close").addEventListener("click", () => panel.remove());
-  panel.querySelector(".wc-min").addEventListener("click", () => {
+  panel.querySelector(".wc-close").addEventListener("click", () => {
     panel.remove();
-    minimizeDetailPanel(props, snapId);
+    snapshotProps.delete(snapId);
+    const idx = openSnapshots.findIndex((s) => s.id === snapId);
+    if (idx !== -1) openSnapshots.splice(idx, 1);
   });
+  panel.querySelector(".wc-min").addEventListener("click", () => {
+    minimizeDetailPanel(props, snapId, panel);
+    panel.remove();
+    snapshotProps.delete(snapId);
+    const idx = openSnapshots.findIndex((s) => s.id === snapId);
+    if (idx !== -1) openSnapshots.splice(idx, 1);
+  });
+  snapshotProps.set(snapId, props);
   return panel;
 }
 
-function minimizeDetailPanel(props, reuseId) {
+// `fromEl`, when given, is the panel/card about to disappear — its on-screen
+// rect is what the new mini-card visually grows out of (see flipIn()).
+function minimizeDetailPanel(props, reuseId, fromEl) {
   const snapId = reuseId || "detail-snapshot-" + (++snapshotSeq);
+  const fromRect = fromEl ? fromEl.getBoundingClientRect() : null;
   const card = document.getElementById("detail-card");
   if (!reuseId && !card.hidden) {
     card.hidden = true;
@@ -353,20 +441,34 @@ function minimizeDetailPanel(props, reuseId) {
   const mini = document.createElement("div");
   mini.id = "min-card-" + snapId;
   mini.className = "mini-card";
+  mini.title = "Restore full panel";
   mini.innerHTML = `
     <div class="mini-card-controls">
       <button class="wc-dot wc-close" type="button" title="Remove" aria-label="Remove"></button>
-      <button class="wc-dot wc-zoom" type="button" title="Enlarge" aria-label="Enlarge"></button>
+      <button class="wc-dot wc-zoom" type="button" title="Restore full panel" aria-label="Restore full panel"></button>
     </div>
     <div class="mini-card-name">${escapeHtml(props.name)}</div>
     <div class="mini-card-sub"><span class="mini-card-swatch" style="background:${c}"></span><span class="mini-card-status">${escapeHtml(props.status || "—")}</span></div>
     <div class="mini-card-cap">${escapeHtml(props.capacity || "—")}</div>`;
-  mini.querySelector(".wc-close").addEventListener("click", () => mini.remove());
-  mini.querySelector(".wc-zoom").addEventListener("click", () => {
+  // Red = remove, green = restore — no yellow, since there's nothing further
+  // to minimize once already a mini-card. The whole card also restores on
+  // click (bigger, more forgiving target); the dot is there so the action is
+  // discoverable at a glance the way a real traffic light is, not something
+  // you only find by clicking the card body itself.
+  function restore() {
+    const rect = mini.getBoundingClientRect();
     mini.remove();
-    ensureSnapshotRow().appendChild(buildDetailSnapshotPanel(props, snapId));
-  });
+    const panel = buildDetailSnapshotPanel(props, snapId);
+    ensureSnapshotRow().appendChild(panel);
+    openSnapshots.push({ id: snapId, props });
+    flipIn(panel, rect);
+    enforceSnapshotCap();
+  }
+  mini.querySelector(".wc-close").addEventListener("click", (e) => { e.stopPropagation(); mini.remove(); });
+  mini.querySelector(".wc-zoom").addEventListener("click", (e) => { e.stopPropagation(); restore(); });
+  mini.addEventListener("click", restore);
   ensureMinimizedTray().appendChild(mini);
+  flipIn(mini, fromRect);
 }
 
 

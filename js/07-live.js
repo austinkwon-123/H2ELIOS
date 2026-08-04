@@ -54,8 +54,13 @@ async function loadLiveStations() {
   }
 }
 
+// #api-status pill was removed from the ribbon (it only ever showed
+// low-value plumbing text like "Stations: cached") — station counts still
+// flow through setStationCount() elsewhere, this is now a no-op guard so
+// the fetch success/fallback paths that call it don't need their own check.
 function setStatus(kind, text) {
   const el = document.getElementById("api-status");
+  if (!el) return;
   el.textContent = text;
   el.className = "pill " + kind;
 }

@@ -45,30 +45,51 @@
   <div id="ribbon-zone-c">
     <div id="search-capsule">
       <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
-      <input id="network-search" type="search" placeholder="Search the network… (Cmd/Ctrl+K)" autocomplete="off" />
+      <input id="network-search" type="search" placeholder="Search or run a command… (Cmd/Ctrl+K)" autocomplete="off" />
     </div>
-    <button id="analytics-btn" class="tour-button"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="4" height="10"/><rect x="10" y="5" width="4" height="15"/><rect x="17" y="13" width="4" height="7"/></svg>Analytics</button>
-    <button id="markets-btn" class="tour-button"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Markets</button>
-    <button id="demo-btn" class="tour-button" title="Self-playing walkthrough of every globe feature"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3.5 2"/><path d="M17.5 3.5 21 5l-1.5 3.5"/></svg>Demo</button>
-    <span id="api-status" class="pill">Loading…</span>
   </div>
 </header>
 
 <div class="glass" id="search-results" hidden></div>
 
-<nav id="tab-nav" aria-label="Sections">
-  <button class="tab-btn active has-tip tip-bottom" data-route="map" aria-label="Map" data-tip="Map"><svg viewBox="0 0 24 24"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3z"/><path d="M9 3v15M15 5.5v15"/></svg><span>Map</span></button>
-  <button class="tab-btn has-tip tip-bottom" data-route="market" aria-label="Market & Economics" data-tip="Market & Economics"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg><span>Market &amp; Economics</span></button>
-  <button class="tab-btn has-tip tip-bottom" data-route="technology" aria-label="Technology" data-tip="Technology"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Technology</span></button>
-  <button class="tab-btn has-tip tip-bottom" data-route="demand-transport" aria-label="Demand & Transport" data-tip="Demand & Transport"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg><span>Demand &amp; Transport</span></button>
-  <button class="tab-btn has-tip tip-bottom" data-route="policy" aria-label="Policy" data-tip="Policy"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 12h6M9 16h6"/></svg><span>Policy</span></button>
-  <button class="tab-btn has-tip tip-bottom" data-route="timeline" aria-label="Temporal Sandbox" data-tip="Temporal Sandbox"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg><span>Temporal Sandbox</span></button>
-  <button class="tab-btn has-tip tip-bottom" data-route="companies" aria-label="Companies & Partners" data-tip="Companies & Partners"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="7" height="13"/><rect x="14" y="3" width="7" height="18"/><path d="M6 12h1M6 16h1M17 7h1M17 11h1M17 15h1"/></svg><span>Companies &amp; Partners</span></button>
-  <button class="tab-btn has-tip tip-bottom" data-route="tools" aria-label="Tools" data-tip="Tools"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3-3z"/></svg><span>Tools</span></button>
+<nav id="tab-nav" aria-label="Workspaces">
+  <div class="tab-active-indicator" aria-hidden="true"></div>
+  <button class="tab-btn active" data-route="map" aria-label="Explore — the global network" title="Explore"><svg viewBox="0 0 24 24"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3z"/><path d="M9 3v15M15 5.5v15"/></svg><span>Explore</span></button>
+  <button class="tab-btn" data-route="market" aria-label="Economics" title="Economics"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg><span>Economics</span></button>
+  <button class="tab-btn" data-route="technology" aria-label="Technology" title="Technology"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span>Technology</span></button>
+  <button class="tab-btn" data-route="demand-transport" aria-label="Demand" title="Demand"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg><span>Demand</span></button>
+  <button class="tab-btn" data-route="policy" aria-label="Policy" title="Policy"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 12h6M9 16h6"/></svg><span>Policy</span></button>
+  <button class="tab-btn" data-route="timeline" aria-label="Timeline" title="Timeline"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg><span>Timeline</span></button>
+  <button class="tab-btn" data-route="companies" aria-label="Organizations" title="Organizations"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="7" height="13"/><rect x="14" y="3" width="7" height="18"/><path d="M6 12h1M6 16h1M17 7h1M17 11h1M17 15h1"/></svg><span>Organizations</span></button>
+  <button class="tab-btn" data-route="tools" aria-label="Calculator" title="Calculator"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3-3z"/></svg><span>Calculator</span></button>
 </nav>
+
+<!-- Universal selection context: persists across every workspace (lives
+     outside any .page section, like #tab-nav), not just the map. Set by
+     selectFacility() in js/05-detail.js whenever a project is selected
+     anywhere it can be — currently the map and the Technology
+     constellation. Other workspaces can read window.H2GSelection; the
+     Calculator's Economics mode is the one that currently acts on it. -->
+<div id="selection-chip" class="glass" hidden>
+  <span id="selection-chip-label"></span>
+  <button id="selection-chip-clear" type="button" aria-label="Clear selection">×</button>
+</div>
 
 <section id="page-map" class="page">
 <main id="map"></main>
+
+<!-- Map-local mode switch: Explore (immersive, nothing extra) / Research
+     (project intelligence + network analytics) / Markets (ticker overlay),
+     plus the self-playing Demo as a small icon so it doesn't read as a
+     fourth mode. Lives on the map itself rather than the global ribbon —
+     these are viewing modes for this one workspace, not separate
+     destinations, so they shouldn't compete visually with #tab-nav. -->
+<div class="glass" id="map-mode-switch" role="group" aria-label="Map mode">
+  <button id="mode-explore-btn" class="mode-btn active" type="button">Explore</button>
+  <button id="analytics-btn" class="mode-btn" type="button">Research</button>
+  <button id="markets-btn" class="mode-btn" type="button">Markets</button>
+  <button id="demo-btn" class="mode-btn-icon has-tip tip-bottom" type="button" data-tip="Self-playing walkthrough"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3.5 2"/><path d="M17.5 3.5 21 5l-1.5 3.5"/></svg></button>
+</div>
 
 <!-- Left: layer dock -->
 <nav class="glass" id="layer-dock" aria-label="Layers">
@@ -146,7 +167,6 @@
   <div class="window-controls" role="group" aria-label="Panel controls">
     <button id="detail-close" class="wc-dot wc-close" type="button" title="Close" aria-label="Close"></button>
     <button id="detail-minimize" class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
-    <button class="wc-dot wc-zoom" type="button" title="Zoom (not yet available)" aria-label="Zoom" disabled></button>
   </div>
   <div id="detail-content" class="detail-content-body"></div>
 </div>
@@ -154,18 +174,26 @@
 <!-- Left: analytics panel (Network / Intel) -->
 <div class="glass" id="analytics-panel" hidden>
   <div class="stats-head">LIVE VIEWPORT (API)</div>
-  <div class="viewport-gauge">
+  <div class="viewport-gauge gauge-loading" id="viewport-gauge">
     <svg class="gauge-svg" viewBox="0 0 200 112" aria-hidden="true">
+      <defs>
+        <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#d99a3d" stop-opacity="0.5" />
+          <stop offset="100%" stop-color="#d99a3d" stop-opacity="1" />
+        </linearGradient>
+      </defs>
       <path class="gauge-track" d="M 10 102 A 90 90 0 0 1 190 102" />
       <path class="gauge-fill" id="gauge-fill-path" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" d="M 10 102 A 90 90 0 0 1 190 102" />
+      <circle class="gauge-fill-dot" id="gauge-fill-dot" cx="10" cy="102" r="5" />
     </svg>
     <div class="gauge-readout">
       <span class="gauge-pct" id="gauge-pct">0%</span>
       <span class="gauge-sub">of network capacity in view</span>
+      <span class="gauge-total" id="gauge-total"></span>
     </div>
   </div>
   <div class="stats-grid">
-    <div class="stat-cell"><span class="k">Projects in view</span><span class="v holo-readout" id="api-summary-count">0</span></div>
+    <div class="stat-cell"><span class="k">Projects in view</span><span class="v cyan holo-readout" id="api-summary-count">0</span></div>
     <div class="stat-cell"><span class="k">Capacity in view</span><span class="v amber holo-readout" id="api-summary-mw">0 MW</span></div>
   </div>
   <div id="api-summary-by-tech" class="bar-list"></div>
@@ -208,7 +236,6 @@
    <div class="window-controls" role="group" aria-label="Panel controls">
      <button id="regional-ai-close" class="wc-dot wc-close" type="button" title="Close AI Panel" aria-label="Close AI Panel"></button>
      <button id="regional-ai-minimize" class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
-     <button class="wc-dot wc-zoom" type="button" title="Zoom (not yet available)" aria-label="Zoom" disabled></button>
    </div>
    <div class="ai-title">
      <svg viewBox="0 0 24 24" width="14" height="14" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>

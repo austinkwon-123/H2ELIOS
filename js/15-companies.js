@@ -49,6 +49,77 @@ const COMPANIES_SAMPLE_DATA = {
   }
 };
 
+// Ecosystem view: companies as nodes grouped by segment, the same visual
+// language as the Technology constellation (js/12-technology.js) — one
+// system, applied twice. Clicking a node filters the registry table below
+// it rather than opening a separate detail surface, since a company here
+// only has the fields the table already shows (name/country/segment/url);
+// inventing a bigger node-click payload would mean fabricating data that
+// doesn't exist. Node size is uniform on purpose — there is no real
+// "project involvement" metric in this dataset, and faking one to vary dot
+// size would be exactly the kind of unearned specificity worth avoiding.
+const COMPANY_SEGMENT_COLOR = {
+  "Electrolyzer OEM": "#60a5fa",
+  "Industrial Gas Major": "#d99a3d",
+  "Project Developer": "#34d399",
+  "Offtaker": "#f472b6",
+  "EPC/Contractor": "#a78bfa"
+};
+const COMPANY_SEGMENT_ORDER = ["Electrolyzer OEM", "Project Developer", "Industrial Gas Major", "Offtaker", "EPC/Contractor"];
+
+function renderCompanyEcosystem(data) {
+  const el = document.getElementById("company-ecosystem");
+  if (!el) return;
+
+  const bySegment = {};
+  COMPANY_SEGMENT_ORDER.forEach((s) => (bySegment[s] = []));
+  data.companies.forEach((c) => { (bySegment[c.segment] = bySegment[c.segment] || []).push(c); });
+  const segments = COMPANY_SEGMENT_ORDER.filter((s) => bySegment[s] && bySegment[s].length);
+
+  const W = 640, H = 190;
+  const clusterW = W / segments.length;
+  const cy = 90, maxR = clusterW * 0.36;
+
+  const groups = segments.map((seg, ci) => {
+    const cx = clusterW * ci + clusterW / 2;
+    const color = COMPANY_SEGMENT_COLOR[seg] || "#67748c";
+    const companies = bySegment[seg];
+    const nodes = companies.map((c, i) => {
+      const angle = i * 137.508 * (Math.PI / 180);
+      const spread = maxR * Math.sqrt(i / Math.max(1, companies.length));
+      const x = cx + Math.cos(angle) * spread;
+      const y = cy + Math.sin(angle) * spread * 0.7;
+      return `<circle class="company-node" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${color}" fill-opacity="0.85" data-idx="${i}"><title>${escapeHtml(c.name)} — ${escapeHtml(c.country)}</title></circle>`;
+    }).join("");
+    return {
+      seg, companies,
+      markup: `<g class="company-cluster" data-seg="${escapeAttr(seg)}">
+        <circle cx="${cx}" cy="${cy}" r="${maxR + 12}" fill="none" stroke="${color}" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="2 4"/>
+        ${nodes}
+        <text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${color}" font-family="Space Grotesk">${escapeHtml(seg)}</text>
+      </g>`
+    };
+  });
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="company-ecosystem-svg" role="img" aria-label="Hydrogen company ecosystem, grouped by segment, click a node to find it in the registry below">
+    ${groups.map((g) => g.markup).join("")}
+  </svg>`;
+
+  groups.forEach((g) => {
+    el.querySelectorAll(`.company-cluster[data-seg="${CSS.escape(g.seg)}"] .company-node`).forEach((circle) => {
+      const c = g.companies[Number(circle.dataset.idx)];
+      if (!c) return;
+      circle.style.cursor = "pointer";
+      circle.addEventListener("click", () => {
+        const search = document.getElementById("c-search-input");
+        search.value = c.name;
+        renderCompaniesTable(data);
+        document.getElementById("companies-table-body").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+  });
+}
+
 function renderCompaniesTable(data) {
   const tbody = document.getElementById("companies-table-body");
   if (!tbody) return;
@@ -125,7 +196,8 @@ function initCompaniesPage() {
         <!-- Left: Searchable Companies Database -->
         <div class="dashboard-card" style="min-height: 480px;">
           <h3>Hydrogen Companies Registry</h3>
-          
+          <div id="company-ecosystem" class="svg-viz-wrap" style="margin-bottom:12px;"></div>
+
           <div class="search-filter-row" style="margin-bottom:8px;">
             <input type="text" id="c-search-input" class="search-input" placeholder="Search by name or country..." />
             <select id="c-segment-select">
@@ -181,6 +253,7 @@ function initCompaniesPage() {
     </div>
   `;
 
+  renderCompanyEcosystem(COMPANIES_SAMPLE_DATA);
   renderCompaniesTable(COMPANIES_SAMPLE_DATA);
   renderPartnerBDConnector(COMPANIES_SAMPLE_DATA);
 

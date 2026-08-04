@@ -134,6 +134,32 @@
       }
     },
     {
+      title: "Pin projects to compare",
+      text: "Minimize a project instead of closing it and it drops into a small card in the corner. Click that card again and it becomes a pinned comparison panel — up to three at once, side by side, so capacity, status and operator sit next to each other instead of one at a time.",
+      hold: 7500,
+      async run() {
+        closePanels();
+        setFilters({});
+        set3D(false);
+        document.querySelectorAll("#snapshot-row .detail-snapshot, #minimized-tray .mini-card").forEach((el) => el.remove());
+        openSnapshots.length = 0;
+        map.flyTo({ center: [6.9, 51.5], zoom: 5.2, pitch: 30, bearing: 0, duration: 1600, essential: true });
+        const picks = allFacilities()
+          .filter((it) => it.label !== "Announced (IEA)" && it.f.properties && it.f.properties.name)
+          .slice(0, 3);
+        for (const { f } of picks) {
+          selectFacility(f.properties, f.geometry.coordinates);
+          await wait(650);
+          const minBtn = document.getElementById("detail-minimize");
+          if (minBtn) minBtn.click();
+          await wait(500);
+          const zoomBtn = document.querySelector("#minimized-tray .mini-card:last-child .wc-zoom");
+          if (zoomBtn) zoomBtn.click();
+          await wait(500);
+        }
+      }
+    },
+    {
       title: "Live analytics",
       text: "The panel is scoped to whatever is on screen. Pan or zoom and the project count, capacity and technology split recompute against the backend for exactly that viewport.",
       async run() {
@@ -269,6 +295,8 @@
     // the last step happened to stop — including on another tab.
     showTab("Map");
     closePanels();
+    document.querySelectorAll("#snapshot-row .detail-snapshot, #minimized-tray .mini-card").forEach((el) => el.remove());
+    openSnapshots.length = 0;
     setFilters({});
     set3D(true);
     renderCardSafe();

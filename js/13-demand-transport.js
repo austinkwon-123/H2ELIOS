@@ -60,7 +60,6 @@ const SECTOR_PARITY_CATALOG = {
 };
 
 let selectedSectorKey = "steel";
-let enduseChartInstance = null;
 let transportChartInstance = null;
 
 // Positioning for the offtaker opportunity matrix below: x from the
@@ -96,17 +95,16 @@ function parseCapacityToMw(c) {
   return 0;
 }
 
+const END_USE_CATEGORIES = ["Refining", "Ammonia", "Methanol", "Iron & Steel", "Mobility", "Power", "Grid & Blending", "Bio / Synfuels"];
+// Reuses the same eight hex values 17-visualization.js already assigns to
+// the hydrogen-colour taxonomy, so a category here and its swatch
+// elsewhere in the app are drawn from one shared palette, not a second
+// invented one.
+const END_USE_COLOR = ["#34d399", "#4ade80", "#60a5fa", "#94a3b8", "#f472b6", "#a78bfa", "#2dd4bf", "#b45309"];
+
 function aggregateEndUseCapacity() {
-  const categories = {
-    "Refining": 0,
-    "Ammonia": 0,
-    "Methanol": 0,
-    "Iron & Steel": 0,
-    "Mobility": 0,
-    "Power": 0,
-    "Grid & Blending": 0,
-    "Bio / Synfuels": 0
-  };
+  const categories = {}; const counts = {};
+  END_USE_CATEGORIES.forEach((c) => { categories[c] = 0; counts[c] = 0; });
 
   const feats = [];
   if (window.IEA_DATA) {
@@ -121,61 +119,55 @@ function aggregateEndUseCapacity() {
     const mw = parseCapacityToMw(p.capacity);
     if (mw <= 0) return;
 
-    if (p.end_refining) categories["Refining"] += mw;
-    if (p.end_ammonia) categories["Ammonia"] += mw;
-    if (p.end_methanol) categories["Methanol"] += mw;
-    if (p.end_iron_steel) categories["Iron & Steel"] += mw;
-    if (p.end_mobility) categories["Mobility"] += mw;
-    if (p.end_power) categories["Power"] += mw;
-    if (p.end_grid_inj || p.end_chp || p.end_domestic_heat) categories["Grid & Blending"] += mw;
-    if (p.end_biofuels || p.end_synfuels) categories["Bio / Synfuels"] += mw;
+    const bump = (key) => { categories[key] += mw; counts[key]++; };
+    if (p.end_refining) bump("Refining");
+    if (p.end_ammonia) bump("Ammonia");
+    if (p.end_methanol) bump("Methanol");
+    if (p.end_iron_steel) bump("Iron & Steel");
+    if (p.end_mobility) bump("Mobility");
+    if (p.end_power) bump("Power");
+    if (p.end_grid_inj || p.end_chp || p.end_domestic_heat) bump("Grid & Blending");
+    if (p.end_biofuels || p.end_synfuels) bump("Bio / Synfuels");
   });
 
-  return categories;
+  return { categories, counts };
 }
 
-function renderEndUseChart() {
-  const ctx = document.getElementById("enduse-chart");
-  if (!ctx) return;
+// Demand landscape: each end-use sector is a territory rather than a bar —
+// height still encodes capacity (the one thing the old bar chart showed),
+// but width now also encodes how many projects make up that capacity, so
+// "a lot of capacity from a few huge plants" and "the same capacity from
+// many small ones" stop looking identical. No growth/glow channel: there is
+// no real year-over-year figure for these categories to drive one honestly.
+function renderDemandLandscape() {
+  const el = document.getElementById("enduse-landscape");
+  if (!el) return;
 
-  const categories = aggregateEndUseCapacity();
-  const labels = Object.keys(categories);
-  const dataValues = labels.map(l => categories[l]);
+  const { categories, counts } = aggregateEndUseCapacity();
+  const maxCap = Math.max(1, ...END_USE_CATEGORIES.map((c) => categories[c]));
+  const maxCount = Math.max(1, ...END_USE_CATEGORIES.map((c) => counts[c]));
 
-  const chartConfig = {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Capacity (MWel)',
-        data: dataValues,
-        backgroundColor: '#3fd6e8',
-        borderColor: '#0a0e16',
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: {
-          grid: { color: 'rgba(120, 160, 200, 0.05)' },
-          ticks: { color: '#67748c', font: { family: 'Space Grotesk', size: 9.5 } }
-        },
-        y: {
-          title: { display: true, text: 'Capacity (MWel)', color: '#67748c', font: { size: 9.5 } },
-          grid: { color: 'rgba(120, 160, 200, 0.05)' },
-          ticks: { color: '#67748c', font: { family: 'Inter', size: 9.5 } }
-        }
-      },
-      plugins: {
-        legend: { display: false }
-      }
-    }
-  };
+  const W = 640, H = 190, padX = 8, baseY = H - 24, maxBarH = 130;
+  const colW = (W - padX * 2) / END_USE_CATEGORIES.length;
 
-  if (enduseChartInstance) enduseChartInstance.destroy();
-  enduseChartInstance = new Chart(ctx, chartConfig);
+  const bars = END_USE_CATEGORIES.map((cat, i) => {
+    const cap = categories[cat], count = counts[cat];
+    const h = cap > 0 ? 6 + (cap / maxCap) * maxBarH : 2;
+    const w = count > 0 ? colW * 0.32 + (count / maxCount) * colW * 0.5 : colW * 0.18;
+    const cx = padX + i * colW + colW / 2;
+    const x = cx - w / 2;
+    const y = baseY - h;
+    const color = END_USE_COLOR[i % END_USE_COLOR.length];
+    return `<g class="landscape-territory">
+      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color}" fill-opacity="0.78"><title>${cat}: ${Math.round(cap).toLocaleString()} MWel across ${count} project${count === 1 ? "" : "s"}</title></rect>
+      <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${color}" font-family="Space Grotesk">${cat}</text>
+    </g>`;
+  }).join("");
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="demand-landscape-svg" role="img" aria-label="Hydrogen end-use capacity by sector, bar width shows project count, height shows capacity">
+    <line x1="0" y1="${baseY}" x2="${W}" y2="${baseY}" stroke="rgba(120,160,200,0.15)" stroke-width="1"/>
+    ${bars}
+  </svg>`;
 }
 
 function renderTransportChart(data) {
@@ -269,18 +261,45 @@ function runTransportSim() {
   document.getElementById("trans-dist-lbl").textContent = `${dist.toLocaleString()} km`;
   document.getElementById("trans-payload-lbl").textContent = `${payload.toLocaleString()} t H₂`;
 
-  // Update Volumetric comparisons
-  document.getElementById("sim-lh2-vol").textContent = `${Math.round(lh2Vol).toLocaleString()} m³`;
-  document.getElementById("sim-nh3-vol").textContent = `${Math.round(nh3Vol).toLocaleString()} m³`;
-  document.getElementById("sim-lohc-vol").textContent = `${Math.round(lohcVol).toLocaleString()} m³`;
+  renderCarrierRouteCanvas({
+    payload,
+    volumes: { lh2: lh2Vol, nh3: nh3Vol, lohc: lohcVol },
+    lh2BoilOff, lh2LossPct, nh3LossPct, lohcLossPct
+  });
+}
 
-  // Update energy loss metrics
-  document.getElementById("sim-lh2-loss").textContent = `${lh2LossPct}%`;
-  document.getElementById("sim-nh3-loss").textContent = `${nh3LossPct}%`;
-  document.getElementById("sim-lohc-loss").textContent = `${lohcLossPct}%`;
+// Route canvas: each carrier's journey drawn as dispatch -> conversion loss
+// -> (boil-off, LH2 only) -> delivered, replacing the old three-row table.
+// Mass and energy loss are kept as two separate, honestly-labelled numbers
+// rather than merged into one "system loss" figure — liquefaction/synthesis
+// loss is energy consumed by the process, not hydrogen physically lost,
+// and only LH2's boil-off actually reduces the delivered mass in this model.
+const ROUTE_CARRIERS = [
+  { key: "lh2", label: "Liquid H₂ (LH₂)", color: "#3fd6e8", processLabel: "Liquefaction", hasBoiloff: true },
+  { key: "nh3", label: "Ammonia (NH₃)", color: "#a78bfa", processLabel: "Synthesis", hasBoiloff: false },
+  { key: "lohc", label: "LOHC System", color: "#4ade80", processLabel: "Dehydrogenation", hasBoiloff: false }
+];
 
-  // Update boil-off loss note
-  document.getElementById("sim-boiloff-val").textContent = `${lh2BoilOff.toFixed(1)} tons H₂ (${((lh2BoilOff / payload) * 100).toFixed(2)}%)`;
+function renderCarrierRouteCanvas({ payload, volumes, lh2BoilOff, lh2LossPct, nh3LossPct, lohcLossPct }) {
+  const el = document.getElementById("carrier-route-canvas");
+  if (!el) return;
+  const lossPct = { lh2: lh2LossPct, nh3: nh3LossPct, lohc: lohcLossPct };
+
+  el.innerHTML = ROUTE_CARRIERS.map((c) => {
+    const delivered = c.hasBoiloff ? Math.max(0, payload - lh2BoilOff) : payload;
+    return `<div class="route-row">
+      <div class="route-label" style="color:${c.color}">${c.label}</div>
+      <div class="route-track">
+        <div class="route-stage route-origin">${payload.toLocaleString()} t<br><span>dispatched</span></div>
+        <div class="route-arrow">→</div>
+        <div class="route-stage route-process" style="border-color:${c.color}66; color:${c.color}">${c.processLabel}<br><span>−${lossPct[c.key]}% energy</span></div>
+        ${c.hasBoiloff ? `<div class="route-arrow">→</div><div class="route-stage route-transit">Transit<br><span>−${lh2BoilOff.toFixed(1)} t boil-off</span></div>` : ""}
+        <div class="route-arrow">→</div>
+        <div class="route-stage route-destination" style="background:${c.color}1a; border-color:${c.color};">${delivered.toFixed(1)} t<br><span>delivered</span></div>
+      </div>
+      <div class="route-vol">${Math.round(volumes[c.key]).toLocaleString()} m³ needed</div>
+    </div>`;
+  }).join("");
 }
 
 // Offtaker parity leaderboard: sectors ranked as horizontal "race" bars
@@ -292,14 +311,20 @@ function runTransportSim() {
 // catalog (a relative "race to affordability", not an absolute physical
 // unit), dot strength = demand volume rank. Sorted cheapest-first so the
 // nearest-term opportunity naturally reads as "in the lead".
+// Same $1.80/kg grey-hydrogen baseline the Policy tab's parity simulator
+// uses, so "distance to grey" means the same dollar figure in both places
+// instead of two tabs quietly disagreeing about what grey costs.
+const GREY_BASELINE_LCOH = 1.80;
+
 function renderOfftakerMatrix() {
   const el = document.getElementById("offtaker-matrix");
   if (!el) return;
 
   const keys = Object.keys(SECTOR_PARITY_CATALOG);
   const parities = keys.map((k) => parseParity(SECTOR_PARITY_CATALOG[k].parity));
-  const pMin = Math.min(...parities), pMax = Math.max(...parities);
+  const pMin = Math.min(GREY_BASELINE_LCOH, ...parities), pMax = Math.max(GREY_BASELINE_LCOH, ...parities);
   const span = (pMax - pMin) || 1;
+  const greyPct = Math.round((1 - (GREY_BASELINE_LCOH - pMin) / span) * 88) + 12;
 
   const ranked = [...keys].sort((a, b) => parseParity(SECTOR_PARITY_CATALOG[a].parity) - parseParity(SECTOR_PARITY_CATALOG[b].parity));
 
@@ -312,6 +337,9 @@ function renderOfftakerMatrix() {
     const vol = parseVolumeRank(d.volume);
     const dots = [1, 2, 3].map((n) => `<span class="race-dot${n <= vol ? ' on' : ''}" style="--dot-color:${color}"></span>`).join("");
     const shortLabel = SECTOR_SHORT_LABELS[key] || key.toUpperCase();
+    const gapLabel = p <= GREY_BASELINE_LCOH
+      ? `$${(GREY_BASELINE_LCOH - p).toFixed(2)} below grey`
+      : `$${(p - GREY_BASELINE_LCOH).toFixed(2)} above grey`;
 
     return `<div class="offtaker-race-row${isActive ? ' active' : ''}" data-sector="${key}" style="--race-color:${color}">
       <div class="race-rank">${i + 1}</div>
@@ -321,15 +349,18 @@ function renderOfftakerMatrix() {
       </div>
       <div class="race-track">
         <div class="race-fill" style="width:${pct}%;"></div>
+        <div class="race-grey-marker" style="left:${greyPct}%" title="Grey hydrogen baseline: $${GREY_BASELINE_LCOH.toFixed(2)}/kg"></div>
       </div>
       <div class="race-meta">
         <span class="race-parity">${escapeHtml(d.parity)}</span>
+        <span class="race-gap${p <= GREY_BASELINE_LCOH ? " under" : ""}">${gapLabel}</span>
         <span class="race-dots" title="Demand volume potential: ${escapeHtml(d.volume)}">${dots}</span>
       </div>
     </div>`;
   }).join("");
 
-  el.innerHTML = `<div class="offtaker-race" role="list" aria-label="Offtaker sectors ranked by price parity target, dots show demand volume potential">${rowMarkup}</div>`;
+  el.innerHTML = `<div class="offtaker-race" role="list" aria-label="Offtaker sectors ranked by price parity target vs the grey-hydrogen baseline, dots show demand volume potential">${rowMarkup}</div>
+    <div class="race-legend"><span class="race-grey-swatch"></span> Grey hydrogen baseline ($${GREY_BASELINE_LCOH.toFixed(2)}/kg)</div>`;
 
   el.querySelectorAll(".offtaker-race-row").forEach((row) => {
     row.addEventListener("click", () => selectSectorParity(row.dataset.sector));
@@ -393,12 +424,11 @@ function initDemandTransportPage() {
         <!-- Left: End-use chart & Sector detail selection -->
         <div style="display:flex; flex-direction:column; gap:16px;">
           
-          <!-- Bar Chart -->
+          <!-- Demand landscape -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
             <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Hydrogen End-Use Capacity Distribution</h3>
-            <div class="chart-wrapper" style="height: 180px; position:relative; background:rgba(0,0,0,0.15); border:1px solid var(--line); border-radius:var(--r-sm);">
-              <canvas id="enduse-chart"></canvas>
-            </div>
+            <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Each territory's height is that sector's tracked capacity; its width is how many projects make it up.</p>
+            <div id="enduse-landscape" class="svg-viz-wrap"></div>
           </div>
 
           <!-- Sector catalog -->
@@ -460,39 +490,8 @@ function initDemandTransportPage() {
               </div>
             </div>
 
-            <!-- Comparison Table -->
-            <table style="width:100%; border-collapse:collapse; font-size:11px; text-align:left; border:1px solid var(--line); border-radius:4px; overflow:hidden;">
-              <thead>
-                <tr style="background:rgba(120,160,200,0.03); border-bottom:1px solid var(--line); font-size:9.5px; font-weight:600; color:var(--text-faint); text-transform:uppercase;">
-                  <th style="padding:6px 8px;">Carrier Mode</th>
-                  <th style="padding:6px 8px;">Vol. Needed</th>
-                  <th style="padding:6px 8px;">Process Loss</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="border-bottom:1px solid rgba(120,160,200,0.03);">
-                  <td style="padding:6px 8px; font-weight:600; color:var(--text-hi);">Liquid H₂ (LH₂)</td>
-                  <td id="sim-lh2-vol" style="padding:6px 8px; color:var(--cyan); font-variant-numeric:tabular-nums;">—</td>
-                  <td id="sim-lh2-loss" style="padding:6px 8px; color:var(--text-muted); font-variant-numeric:tabular-nums;">—</td>
-                </tr>
-                <tr style="border-bottom:1px solid rgba(120,160,200,0.03);">
-                  <td style="padding:6px 8px; font-weight:600; color:var(--text-hi);">Ammonia (NH₃)</td>
-                  <td id="sim-nh3-vol" style="padding:6px 8px; color:var(--cyan); font-variant-numeric:tabular-nums;">—</td>
-                  <td id="sim-nh3-loss" style="padding:6px 8px; color:var(--text-muted); font-variant-numeric:tabular-nums;">—</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 8px; font-weight:600; color:var(--text-hi);">LOHC System</td>
-                  <td id="sim-lohc-vol" style="padding:6px 8px; color:var(--cyan); font-variant-numeric:tabular-nums;">—</td>
-                  <td id="sim-lohc-loss" style="padding:6px 8px; color:var(--text-muted); font-variant-numeric:tabular-nums;">—</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Boil off advisory -->
-            <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:var(--r-md); padding:8px 10px; font-size:10.5px; line-height:1.4; color:var(--text-muted);">
-              ⚠️ <strong style="color:var(--text-hi); font-size:10px;">LH₂ Transit Boil-off Loss:</strong> 
-              <span id="sim-boiloff-val" style="color:var(--cyan); font-weight:600;">—</span>
-            </div>
+            <!-- Route canvas -->
+            <div id="carrier-route-canvas" class="route-canvas"></div>
 
           </div>
 
@@ -512,10 +511,20 @@ function initDemandTransportPage() {
   selectSectorParity("steel");
 
   // Render static derived end-use capacity bars
-  renderEndUseChart();
+  renderDemandLandscape();
 
   renderTransportChart(TRANSPORT_SAMPLE_DATA);
-  document.getElementById("t-mode-select").onchange = () => renderTransportChart(TRANSPORT_SAMPLE_DATA);
+  // Linked selection: picking a fleet mode with a clear offtaker-sector
+  // counterpart also selects that sector below, so the two panels move
+  // together instead of sitting as two unrelated controls on the same
+  // page. Road has no clean single-sector match in the parity catalog, so
+  // it's left alone rather than guessing one.
+  const FLEET_TO_SECTOR = { maritime: "shipping", aviation: "aviation" };
+  document.getElementById("t-mode-select").onchange = (e) => {
+    renderTransportChart(TRANSPORT_SAMPLE_DATA);
+    const sector = FLEET_TO_SECTOR[e.target.value];
+    if (sector) selectSectorParity(sector);
+  };
 
   animateCardsIn(el);
 }
