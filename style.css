@@ -388,13 +388,23 @@ button { font-family: inherit; color: inherit; }
 #tab-nav:hover {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 14px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(63, 214, 232, 0.18);
 }
-/* Slides beneath whichever tab is active (positioned via JS in
+/* Slides beneath whichever tab is active (width/position set via JS in
    09-router.js, since each label's expanded width differs) rather than the
-   fill snapping instantly between buttons on click. */
+   fill snapping instantly between buttons on click.
+   A slim glowing underline, not a filled capsule: the earlier version was
+   a solid rgba(63,214,232,0.16) rounded rectangle sitting inside the
+   pill's own rounded rectangle - a shape nested inside a same-family
+   shape with a hard edge between them, which read as a separate chip
+   bolted onto the pill rather than a highlight belonging to it. An
+   underline (the same language Safari/iOS tab bars use for "which one is
+   current") carries the same "active" signal without competing with the
+   pill's own outline. */
 .tab-active-indicator {
-  position: absolute; top: 6px; left: 6px;
-  border-radius: 999px;
-  background: rgba(63, 214, 232, 0.16);
+  position: absolute; left: 6px; bottom: 5px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--cyan);
+  box-shadow: 0 0 7px rgba(63, 214, 232, 0.75), 0 0 2px rgba(63, 214, 232, 0.9);
   transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 0;
   pointer-events: none;

@@ -108,8 +108,9 @@ function positionActiveIndicator() {
   const indicator = nav && nav.querySelector(".tab-active-indicator");
   const active = nav && nav.querySelector(".tab-btn.active");
   if (!indicator || !active) return;
+  // Height is fixed in CSS now (a thin underline, not a filled capsule the
+  // size of the button) - only width/position track the active button.
   indicator.style.width = active.offsetWidth + "px";
-  indicator.style.height = active.offsetHeight + "px";
   indicator.style.transform = `translateX(${active.offsetLeft}px)`;
 }
 let indicatorSettleTimer = null;
