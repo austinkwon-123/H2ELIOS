@@ -9,6 +9,38 @@
    TOGGLE_MAP) — see index.html.
    ======================================================================= */
 
+// map.on("load") is a one-shot: if the style finished before this module
+// parsed, the handler never runs and every layer registered inside it is
+// silently never created. That is exactly what happened here — the whole
+// API tier (layers, click handlers, the LIVE VIEWPORT gauge) never
+// initialised, so the panel read 0% / 0 projects even with the backend up
+// and returning rows. isStyleLoaded() is the condition that actually holds.
+// "load" alone is not enough: by the time this module parses, the style is
+// often neither loaded yet NOR still pending its load event, so both the
+// immediate path and the listener miss. "styledata" fires repeatedly as the
+// style settles, so it is the reliable net; the guard keeps fn to one run.
+//
+// Top-level, not inside the first IIFE below: this file has three separate
+// IIFEs (API tier / satellites / a third below), and two of the others also
+// call this — a plain `function` declaration inside just the first one left
+// them throwing "onMapReady is not defined" on every load, silently killing
+// the satellites layer entirely. Classic scripts share one global lexical
+// scope anyway (see every other file's own header comment), so this is the
+// same sharing convention the rest of the codebase already relies on.
+function onMapReady(fn) {
+  let done = false;
+  const run = () => {
+    if (done || !map.isStyleLoaded()) return;
+    done = true;
+    fn();
+  };
+  run();
+  if (!done) {
+    map.on("load", run);
+    map.on("styledata", run);
+  }
+}
+
 (function () {
   const API_HOLO = "#facc15"; // distinct from IEA's cyan, so the two tiers read as separate layers
 
@@ -34,29 +66,8 @@
 
   function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
 
-  // map.on("load") is a one-shot: if the style finished before this module
-  // parsed, the handler never runs and every layer registered inside it is
-  // silently never created. That is exactly what happened here — the whole
-  // API tier (layers, click handlers, the LIVE VIEWPORT gauge) never
-  // initialised, so the panel read 0% / 0 projects even with the backend up
-  // and returning rows. isStyleLoaded() is the condition that actually holds.
-  // "load" alone is not enough: by the time this module parses, the style is
-  // often neither loaded yet NOR still pending its load event, so both the
-  // immediate path and the listener miss. "styledata" fires repeatedly as the
-  // style settles, so it is the reliable net; the guard keeps fn to one run.
-  function onMapReady(fn) {
-    let done = false;
-    const run = () => {
-      if (done || !map.isStyleLoaded()) return;
-      done = true;
-      fn();
-    };
-    run();
-    if (!done) {
-      map.on("load", run);
-      map.on("styledata", run);
-    }
-  }
+  // onMapReady() is now module-top-level, above this IIFE - see its own
+  // comment there.
 
   // Fixed light source, anchor:"viewport" - the light comes from one set
   // direction in SCREEN space and never moves as you pan/rotate. An earlier
