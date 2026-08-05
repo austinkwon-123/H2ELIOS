@@ -375,10 +375,17 @@ button { font-family: inherit; color: inherit; }
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 999px;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 10px 28px rgba(0, 0, 0, 0.5);
-  transition: box-shadow 0.25s ease, background 0.25s ease;
+  transition: box-shadow 0.25s ease;
 }
-#tab-nav:hover, #tab-nav:focus-within {
-  background: rgba(10, 15, 25, 0.74);
+/* :hover only, not :focus-within - a child <button> gets focus on every
+   single click, so :focus-within fired this on every tab switch, making
+   the whole pill's background visibly jump each time you navigated. That
+   read as the island "popping out" rather than staying put - each
+   .tab-btn already carries its own hover/active feedback (background,
+   color, the sliding indicator), so the outer pill doesn't need to
+   escalate too; a mouse-hover-only shadow lift is enough to feel alive
+   without the per-click flash. */
+#tab-nav:hover {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 14px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(63, 214, 232, 0.18);
 }
 /* Slides beneath whichever tab is active (positioned via JS in
