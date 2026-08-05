@@ -2494,6 +2494,13 @@ button { font-family: inherit; color: inherit; }
   font-size: 11.5px; color: var(--text-hi);
   animation: slideIn var(--t-panel) var(--motion-spring);
 }
+/* The `display: flex` above is an ID-selector rule, which by specificity
+   overrides the browser's own `[hidden] { display: none }` default — so
+   the chip was rendering even while its `hidden` attribute was set (just
+   an empty label, collapsing down to what looked like a bare dot + close
+   button). js/05-detail.js's updateSelectionChip() was already correctly
+   toggling `hidden` the whole time; only the CSS ever ignored it. */
+#selection-chip[hidden] { display: none; }
 #selection-chip::before {
   content: ""; width: 6px; height: 6px; border-radius: 50%;
   background: var(--cyan); box-shadow: 0 0 6px var(--cyan);
