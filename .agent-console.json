@@ -1,0 +1,10 @@
+{
+  "houseRules": [
+    "Repo: H2ELIOS, a hydrogen-infrastructure globe app. Vanilla JS + CSS, classic scripts sharing one global scope. No framework, no build step.",
+    "NEVER touch: globe/geospatial rendering, hydrogen taxonomy colours (--h-green/blue/pink/turquoise/gray/brown), or js/smoke-test.js expectations.",
+    "js/smoke-test.js has 2 pre-existing failures on master ('layer dock has 13 buttons' and 'Reset view flies back to [15,20]'). Do not add a third.",
+    "js/18-api-live.js logs HTTP 404s on a background poll. Known, unrelated, ignore it.",
+    "style.css is ~4,200 lines and hud.css loads AFTER it — check both before concluding a style is unset.",
+    "This repo lives in a OneDrive-synced folder; file contents can change under you. Re-read before asserting what a file contains."
+  ]
+}

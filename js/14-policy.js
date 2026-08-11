@@ -176,7 +176,7 @@ function renderPolicyReadingPane(p) {
           <span style="font-size:9.5px; font-weight:600; padding:2px 8px; border-radius:999px; background:${color}22; color:${color};">${policyStatusLabel(p.impact)}</span>
         </div>
       </div>
-      <h4 style="font-family:var(--font-head); font-size:14px; color:var(--text-hi); margin:0;">${escapeHtml(p.title)}</h4>
+      <h4 style="font-family:var(--font); font-size:14px; color:var(--text-hi); margin:0;">${escapeHtml(p.title)}</h4>
       <p style="font-size:12px; color:var(--text-muted); line-height:1.5; margin:0;">${escapeHtml(p.desc)}</p>
     </div>
   `;
@@ -217,7 +217,7 @@ function runPolicyCompetitivenessCalc() {
     if (netGreenCost <= finalGreyCost) {
       verdictEl.innerHTML = `
         <div style="background:rgba(76,195,138,0.1); border:1px solid rgba(76,195,138,0.3); border-radius:4px; padding:10px; text-align:center; color:var(--green-ok);">
-          <strong style="font-size:11px; text-transform:uppercase;">✅ Green H₂ is Cost-Competitive</strong>
+          <strong style="font-size:11px;">Green H₂ is cost-competitive</strong>
           <p style="font-size:10px; margin:4px 0 0 0; color:var(--text-muted);">Green net cost ($${netGreenCost.toFixed(2)}) is equal to or below taxed Grey hydrogen ($${finalGreyCost.toFixed(2)}).</p>
         </div>
       `;
@@ -225,7 +225,7 @@ function runPolicyCompetitivenessCalc() {
       const spread = netGreenCost - finalGreyCost;
       verdictEl.innerHTML = `
         <div style="background:rgba(217,154,61,0.1); border:1px solid rgba(217,154,61,0.3); border-radius:4px; padding:10px; text-align:center; color:var(--amber);">
-          <strong style="font-size:11px; text-transform:uppercase;">⚠️ Green H₂ Requires Support</strong>
+          <strong style="font-size:11px;">Green H₂ requires support</strong>
           <p style="font-size:10px; margin:4px 0 0 0; color:var(--text-muted);">Cost gap of $${spread.toFixed(2)}/kg exists. Increase carbon tax or production subsidies to close the gap.</p>
         </div>
       `;
@@ -247,18 +247,18 @@ function selectRegionalTarget(key) {
   if (detailsContainer) {
     detailsContainer.innerHTML = `
       <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; display:flex; flex-direction:column; gap:10px;">
-        <h4 style="font-size:12px; font-family:var(--font-head); color:var(--text-hi); margin:0;">${escapeHtml(d.country)}</h4>
+        <h4 style="font-size:12px; font-family:var(--font); color:var(--text-hi); margin:0;">${escapeHtml(d.country)}</h4>
         <dl style="display:grid; grid-template-columns:110px 1fr; gap:6px; font-size:11px; margin:0; line-height:1.4;">
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">2030 Target</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">2030 target</dt>
           <dd style="color:var(--text-hi); font-weight:500; margin:0;">${escapeHtml(d.goal)}</dd>
           
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Allocated Budget</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Allocated budget</dt>
           <dd style="color:var(--cyan); font-weight:600; margin:0;">${escapeHtml(d.budget)}</dd>
           
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Compliance rules</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Compliance rules</dt>
           <dd style="color:var(--text-muted); margin:0;">${escapeHtml(d.standard)}</dd>
           
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Subsidy tool</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Subsidy tool</dt>
           <dd style="color:var(--green-ok); font-weight:600; margin:0;">${escapeHtml(d.mechanism)}</dd>
         </dl>
       </div>
@@ -297,7 +297,7 @@ function initPolicyPage() {
 
         <!-- Left: Searchable Policy timeline Feed -->
         <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
-          <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Policy Timeline &amp; Impacts <span class="badge badge-sample">SAMPLE</span></h3>
+          <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Policy Timeline &amp; Impacts <span class="badge badge-sample">Sample</span></h3>
           <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Illustrative examples of the kind of updates tracked here, not a live regulatory feed.</p>
 
           <div style="display:flex; gap:8px; align-items:center;">
@@ -322,7 +322,7 @@ function initPolicyPage() {
           
           <!-- Competitiveness Simulator -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Policy Impact &amp; Parity Simulator</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Policy Impact &amp; Parity Simulator</h3>
             <p style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin:0;">
               Analyze how carbon taxes and PTC production credits close the cost gap between green and grey hydrogen (grey baseline cost: $1.80/kg; SMR release: 9kg CO₂/kg).
             </p>
@@ -359,14 +359,14 @@ function initPolicyPage() {
             <!-- Comparison Table -->
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:11px; margin-top:4px;">
               <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:4px; padding:8px;">
-                <div style="color:var(--text-faint); font-weight:600; font-size:9px; text-transform:uppercase;">Taxed Grey H₂ Cost</div>
+                <div style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Taxed grey H₂ cost</div>
                 <div style="font-size:14px; font-weight:700; color:var(--text-hi); margin-top:2px;">
                   <span id="sim-grey-total">$2.52</span> 
                   <span id="sim-grey-penalty" style="font-size:10px; color:var(--red); font-weight:500;">(+$0.72)</span>
                 </div>
               </div>
               <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:4px; padding:8px;">
-                <div style="color:var(--text-faint); font-weight:600; font-size:9px; text-transform:uppercase;">Net Green H₂ Cost</div>
+                <div style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Net green H₂ cost</div>
                 <div id="sim-green-net" style="font-size:14px; font-weight:700; color:var(--cyan); margin-top:2px;">$2.00/kg</div>
               </div>
             </div>
@@ -379,7 +379,7 @@ function initPolicyPage() {
 
           <!-- Regional Mandates summary tabs -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Global Mandates &amp; Targets</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Global Mandates &amp; Targets</h3>
             
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
               <button class="mandate-btn tab-btn" data-target="us" style="text-align:left; font-size:11px; padding:8px 10px; margin:0;" onclick="selectRegionalTarget('us')">

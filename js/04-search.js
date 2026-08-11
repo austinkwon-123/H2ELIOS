@@ -57,13 +57,18 @@ const PALETTE_WORKSPACES = [
   { label: "Go to Calculator", route: "tools" }
 ];
 
-function applyCommandFilter({ status = null, region = null, color = null } = {}) {
+// Sentinel contract: an omitted (undefined) color preserves the current colorFilter;
+// an explicit null clears it — "Clear all map filters" relies on that.
+function applyCommandFilter({ status = null, region = null, color = undefined } = {}) {
   if (status !== null) statusFilter = status;
   if (region !== null) regionFilter = region;
   if (color !== undefined) colorFilter = color;
   document.querySelectorAll("#status-seg .seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.status === statusFilter));
   document.querySelectorAll("#region-seg .seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.region === regionFilter));
-  document.querySelectorAll("#color-seg .legend-dot").forEach((b) => b.classList.toggle("active", b.dataset.color === colorFilter));
+  document.querySelectorAll("#color-seg .legend-dot").forEach((b) => {
+    b.classList.toggle("active", colorFilter === b.dataset.color);
+    b.classList.toggle("dimmed", !!colorFilter && colorFilter !== b.dataset.color);
+  });
   if (location.hash.slice(1) !== "map") { location.hash = "map"; navigateTo("map"); }
   applyFilters();
 }

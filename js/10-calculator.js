@@ -123,7 +123,7 @@ function computeCapexOpex() {
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
-            legend: { position: "right", labels: { color: "#b6c2d4", font: { family: "Space Grotesk", size: 9.5 } } },
+            legend: { position: "right", labels: { color: "#b6c2d4", font: { family: "system-ui", size: 9.5 } } },
             tooltip: { backgroundColor: "rgba(9, 13, 20, 0.96)" }
           },
           cutout: "65%"
@@ -321,7 +321,7 @@ function renderScenarioComparison() {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { backgroundColor: "rgba(9, 13, 20, 0.96)" } },
           scales: {
-            x: { grid: { display: false }, ticks: { color: "#b6c2d4", font: { family: "Space Grotesk", size: 10 } } },
+            x: { grid: { display: false }, ticks: { color: "#b6c2d4", font: { family: "system-ui", size: 10 } } },
             y: { grid: { color: "rgba(120,160,200,0.08)" }, ticks: { color: "#67748c", font: { size: 9.5 } } }
           }
         }

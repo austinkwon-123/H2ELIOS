@@ -94,6 +94,7 @@ function buildDetailHTML(p) {
       <dt>Updated</dt><dd>${escapeHtml(p.updated || "—")}</dd>
     </dl>
     ${statsBlock(p)}
+    ${typeof geologyDetailBlock === "function" ? geologyDetailBlock(p) : ""}
     ${relationsBlock(p)}
     ${p.note ? `<div class="detail-note">${escapeHtml(p.note)}</div>` : ""}
   `;
@@ -146,6 +147,7 @@ function statNum(str, re, mult) {
 }
 
 function statOutput(p) {
+  if (p.category === "storage" || p.category === "terminal") return null;
   const c = p.capacity || "";
   let kt = statNum(c, /([\d.]+)\s*kt/i);
   if (kt == null) {
@@ -153,8 +155,8 @@ function statOutput(p) {
     if (tpd != null) kt = (tpd * 365) / 1000;
   }
   if (kt == null) {
-    let mw = statNum(c, /([\d.]+)\s*GW/i, 1000);
-    if (mw == null) mw = statNum(c, /([\d.]+)\s*MW/i);
+    let mw = statNum(c, /([\d.]+)\s*GW(?!h)/i, 1000);
+    if (mw == null) mw = statNum(c, /([\d.]+)\s*MW(?!h)/i);
     if (mw != null) kt = (mw * 160) / 1000; // ~160 t H2/yr per MWel, est.
   }
   if (kt == null) return null;
@@ -168,7 +170,7 @@ function statInvest(p) {
 }
 
 function statYear(p) {
-  const m = String((p.updated || "") + " " + (p.status || "")).match(/20[2-4]\d/);
+  const m = String((p.status || "") + " " + (p.note || "")).match(/20[2-4]\d/);
   return m ? m[0] : null;
 }
 
@@ -183,11 +185,16 @@ function statConfidence(p) {
 }
 
 function statsBlock(p) {
+  const storageAsset = p.category === "storage" || p.category === "terminal";
+  const output = statOutput(p);
+  const projectYear = statYear(p);
   const cells = [
     ["Capacity", escapeHtml(p.capacity || "Not disclosed"), "amber"],
-    ["Annual H₂ output", escapeHtml(statOutput(p) || "Not disclosed"), statOutput(p) ? "" : "dim"],
+    storageAsset
+      ? ["Storage format", escapeHtml(p.subtype || "Not classified"), ""]
+      : ["Annual H₂ output", escapeHtml(output || "Not disclosed"), output ? "" : "dim"],
     ["Investment", escapeHtml(statInvest(p) || "Not disclosed"), statInvest(p) ? "" : "dim"],
-    ["Target online", escapeHtml(statYear(p) || "—"), statYear(p) ? "cyan" : "dim"],
+    [p.statusClass === "operating" ? "Commissioned" : "Target online", escapeHtml(projectYear || "—"), projectYear ? "cyan" : "dim"],
     ["Project stage", escapeHtml(statStage(p.statusClass)), p.statusClass === "atrisk" ? "" : ""],
     ["Data confidence", escapeHtml(statConfidence(p)), ""]
   ];

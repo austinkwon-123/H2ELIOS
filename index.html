@@ -11,18 +11,23 @@
 <meta property="og:title" content="H2ELIOS — The Global Hydrogen Network" />
 <meta property="og:description" content="3,338 announced hydrogen projects on a live 3D globe, where beam height is production capacity." />
 <meta property="og:type" content="website" />
-<meta name="description" content="A living 3D globe of the global hydrogen economy: energy sources, production, gigafactories, storage, pipelines, hubs and end use across the Americas, Europe, MEA and Asia-Pacific." />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script>
+  (() => {
+    const preference = localStorage.getItem("h2elios-theme") || "system";
+    const light = preference === "light" || (preference === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+    document.documentElement.dataset.theme = light ? "light" : "dark";
+    document.documentElement.dataset.themePreference = preference;
+  })();
+</script>
 <!-- Pinned exactly: 20-spikes.js / 19-command-arcs.js depend on the v5 custom-layer
      shader plumbing (projectTileFor3D via vertexShaderPrelude), and a floating
      "@5" range lets a published site change renderer behavior on its own. -->
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=spatial-3" />
 <link rel="stylesheet" href="hud.css" />
 </head>
-<body>
+<body data-route="map">
+<a class="skip-link" href="#workspace-content">Skip to workspace</a>
 
 <!-- Persistent across all pages: unified top command ribbon + two detached
      "Dynamic Island" style floating pills that are NOT part of the ribbon's
@@ -37,21 +42,44 @@
          actual input field.
      Zone A (far left) = identity mark. Zone C (far right) = Analytics/
      Markets/Tour/status (search moved out to its own island below). -->
-<header id="command-ribbon">
+<header id="command-ribbon" aria-label="Application toolbar">
   <div id="ribbon-zone-a">
-    <img src="assets/h2elios-lockup.svg" alt="H2ELIOS" class="brand-lockup" decoding="async" />
+    <button id="sidebar-toggle" class="toolbar-icon" type="button" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="app-sidebar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+    </button>
+    <div class="workspace-identity">
+      <strong id="workspace-title">Explore</strong>
+      <span id="workspace-context">Spatial Observatory</span>
+    </div>
   </div>
+
+  <div id="ribbon-zone-b" aria-label="Workspace tools"></div>
 
   <div id="ribbon-zone-c">
     <div id="search-capsule">
       <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
-      <input id="network-search" type="search" placeholder="Search or run a command… (Cmd/Ctrl+K)" autocomplete="off" />
+      <input id="network-search" type="search" placeholder="Search H2ELIOS" autocomplete="off" aria-label="Search projects, workspaces, and commands" />
+      <kbd>⌘K</kbd>
     </div>
+    <div class="freshness-indicator" title="Project data synchronized"><span aria-hidden="true"></span><span class="freshness-copy">Live data</span></div>
+    <button id="toolbar-more" class="toolbar-icon" type="button" aria-label="More options" aria-haspopup="menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+    </button>
   </div>
 </header>
 
 <div class="glass" id="search-results" hidden></div>
 
+<aside id="app-sidebar" aria-label="H2ELIOS navigation">
+  <div class="sidebar-brand">
+    <img src="assets/h2elios-lockup.svg" alt="H2ELIOS" class="sidebar-lockup" decoding="async" />
+  </div>
+  <div class="sidebar-scroll">
+    <label class="sidebar-filter-wrap" for="sidebar-filter">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+      <input id="sidebar-filter" type="search" placeholder="Filter navigation" autocomplete="off" />
+    </label>
+    <div class="sidebar-section-title">Workspaces</div>
 <nav id="tab-nav" aria-label="Workspaces">
   <div class="tab-active-indicator" aria-hidden="true"></div>
   <button class="tab-btn active" data-route="map" aria-label="Explore — the global network" title="Explore"><svg viewBox="0 0 24 24"><path d="M9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 5.5 9 3z"/><path d="M9 3v15M15 5.5v15"/></svg><span>Explore</span></button>
@@ -63,6 +91,13 @@
   <button class="tab-btn" data-route="companies" aria-label="Organizations" title="Organizations"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="7" height="13"/><rect x="14" y="3" width="7" height="18"/><path d="M6 12h1M6 16h1M17 7h1M17 11h1M17 15h1"/></svg><span>Organizations</span></button>
   <button class="tab-btn" data-route="tools" aria-label="Calculator" title="Calculator"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3-3z"/></svg><span>Calculator</span></button>
 </nav>
+    <div id="sidebar-map-tools" aria-label="Explore tools"></div>
+  </div>
+  <div class="sidebar-footer">
+    <span class="sidebar-status-dot" aria-hidden="true"></span>
+    <span class="sidebar-footer-copy"><strong>Network online</strong><small>3,338 announced projects</small></span>
+  </div>
+</aside>
 
 <!-- Universal selection context: persists across every workspace (lives
      outside any .page section, like #tab-nav), not just the map. Set by
@@ -75,8 +110,9 @@
   <button id="selection-chip-clear" type="button" aria-label="Clear selection">×</button>
 </div>
 
+<div id="workspace-content">
 <section id="page-map" class="page">
-<main id="map"></main>
+<main id="map" aria-label="Global hydrogen network map"></main>
 
 <!-- Map-local mode switch: Explore (immersive, nothing extra) / Research
      (project intelligence + network analytics) / Markets (ticker overlay),
@@ -85,9 +121,11 @@
      these are viewing modes for this one workspace, not separate
      destinations, so they shouldn't compete visually with #tab-nav. -->
 <div class="glass" id="map-mode-switch" role="group" aria-label="Map mode">
+  <div class="mode-active-indicator" aria-hidden="true"></div>
   <button id="mode-explore-btn" class="mode-btn active" type="button">Explore</button>
   <button id="analytics-btn" class="mode-btn" type="button">Research</button>
   <button id="markets-btn" class="mode-btn" type="button">Markets</button>
+  <div class="mode-switch-sep" aria-hidden="true"></div>
   <button id="demo-btn" class="mode-btn-icon has-tip tip-bottom" type="button" data-tip="Self-playing walkthrough"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3.5 2"/><path d="M17.5 3.5 21 5l-1.5 3.5"/></svg></button>
 </div>
 
@@ -172,8 +210,8 @@
 </div>
 
 <!-- Left: analytics panel (Network / Intel) -->
-<div class="glass" id="analytics-panel" hidden>
-  <div class="stats-head">LIVE VIEWPORT (API)</div>
+<div class="glass right-panel-slot" id="analytics-panel" hidden>
+  <div class="stats-head">Live viewport</div>
   <div class="viewport-gauge gauge-loading" id="viewport-gauge">
     <svg class="gauge-svg" viewBox="0 0 200 112" aria-hidden="true">
       <defs>
@@ -197,15 +235,15 @@
     <div class="stat-cell"><span class="k">Capacity in view</span><span class="v amber holo-readout" id="api-summary-mw">0 MW</span></div>
   </div>
   <div id="api-summary-by-tech" class="bar-list"></div>
-  <div class="stats-head"><span class="pulse-dot" aria-hidden="true"></span>INTEL</div>
+  <div class="stats-head"><span class="pulse-dot" aria-hidden="true"></span>Intelligence</div>
   <div id="analytics-news" class="news-list"></div>
 </div>
 
 <!-- Bottom-center (above filter dock): markets panel, wider for the chart -->
 <div class="glass right-panel-slot" id="markets-panel" hidden>
-  <div class="stats-head">LIVE FEED</div>
+  <div class="stats-head">Live feed</div>
   <div id="analytics-markets-video" class="markets-video"></div>
-  <div class="stats-head">MARKETS</div>
+  <div class="stats-head">Markets</div>
   <div id="analytics-markets-chart" class="markets-chart"></div>
   <div id="analytics-markets" class="stock-list"></div>
 </div>
@@ -243,7 +281,7 @@
    </div>
    <details style="margin: 8px 0; border: 1px solid var(--line); border-radius: var(--r-sm); padding: 5px 8px; background: rgba(0,0,0,0.15);">
      <summary style="cursor:pointer; color:var(--text-muted); font-size:10px; font-weight:600; outline:none; list-style:none; display:flex; align-items:center; gap:4px;">View AI Prompt Context</summary>
-     <div style="font-family:var(--font-mono); margin-top:6px; color:var(--text-faint); font-size:8.5px; word-break:break-all; max-height:80px; overflow-y:auto; white-space:pre-wrap;" id="regional-ai-prompt">—</div>
+     <div style="font-family:var(--font-mono); margin-top:6px; color:var(--text-faint); font-size:10px; word-break:break-all; max-height:80px; overflow-y:auto; white-space:pre-wrap;" id="regional-ai-prompt">—</div>
    </details>
    <div class="ai-prompt-header" style="margin-top:12px; margin-bottom:8px;">AI Regional Analysis</div>
    <div class="ai-content" id="regional-ai-content">Selecting a region on the filter bar triggers custom AI analysis...</div>
@@ -257,13 +295,24 @@
  <section id="page-companies" class="page-wrapper page" hidden></section>
  <section id="page-tools" class="page" hidden></section>
  <section id="page-timeline" class="page" hidden></section>
+</div>
+
+<!-- Research-grade geology reference. This is deliberately contextual rather
+     than a coloured prospectivity overlay: the mapped project points do not
+     contain formation boundaries, reservoir models or site-investigation data. -->
+<div class="glass right-panel-slot" id="geology-panel" hidden aria-labelledby="geology-panel-title">
+  <div class="window-controls" role="group" aria-label="Panel controls">
+    <button id="geology-close" class="wc-dot wc-close" type="button" title="Close" aria-label="Close"></button>
+  </div>
+  <div id="geology-content" class="detail-content-body"></div>
+</div>
  
  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
  <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
  
  <!-- data -->
- <script src="js/data.js"></script>
+ <script src="js/data.js?v=geo-1"></script>
  <script src="js/iea-data.js"></script>
  <script src="js/eu-stations-data.js"></script>
  <script src="js/breakeven-data.js"></script>
@@ -272,30 +321,32 @@
  <!-- app modules (load order = dependency order; see README) -->
  <!-- Local API keys. Gitignored; copy js/config.example.js to js/config.js. -->
  <script src="js/config.js"></script>
- <script src="js/01-core.js"></script>
+ <script src="js/01-core.js?v=spatial-2"></script>
  <script src="js/02-layers.js"></script>
  <script src="js/03-filters.js"></script>
  <script src="js/04-search.js"></script>
- <script src="js/05-detail.js"></script>
+ <script src="js/05-detail.js?v=geo-1"></script>
  <script src="js/07-live.js"></script>
  
  <!-- feature overlays (depend on app modules above) -->
  <script src="js/iea-layer.js"></script>
  <script src="js/18-api-live.js"></script>
  <script src="js/hud.js"></script>
- <script src="js/08-analytics.js"></script>
+ <script src="js/08-analytics.js?v=spatial-1"></script>
  <script src="js/09-router.js"></script>
- <script src="js/10-calculator.js"></script>
+ <script src="js/10-calculator.js?v=spatial-1"></script>
  <script src="js/11-market.js"></script>
- <script src="js/12-technology.js"></script>
- <script src="js/13-demand-transport.js"></script>
- <script src="js/14-policy.js"></script>
- <script src="js/15-companies.js"></script>
- <script src="js/16-ai-features.js"></script>
- <script src="js/17-visualization.js"></script>
+ <script src="js/12-technology.js?v=spatial-1"></script>
+ <script src="js/13-demand-transport.js?v=spatial-1"></script>
+ <script src="js/14-policy.js?v=spatial-1"></script>
+ <script src="js/15-companies.js?v=spatial-1"></script>
+ <script src="js/16-ai-features.js?v=spatial-1"></script>
+ <script src="js/17-visualization.js?v=spatial-1"></script>
  <script src="js/19-command-arcs.js"></script>
  <script src="js/20-spikes.js"></script>
  <script src="js/21-daynight.js"></script>
- <script src="js/22-demo.js"></script>
+<script src="js/22-demo.js"></script>
+<script src="js/23-spatial-shell.js?v=spatial-2"></script>
+<script src="js/24-geology-intelligence.js?v=geo-1"></script>
  </body>
  </html>

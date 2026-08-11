@@ -96,7 +96,7 @@ function renderCompanyEcosystem(data) {
       markup: `<g class="company-cluster" data-seg="${escapeAttr(seg)}">
         <circle cx="${cx}" cy="${cy}" r="${maxR + 12}" fill="none" stroke="${color}" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="2 4"/>
         ${nodes}
-        <text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${color}" font-family="Space Grotesk">${escapeHtml(seg)}</text>
+        <text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${color}" font-family="system-ui">${escapeHtml(seg)}</text>
       </g>`
     };
   });
@@ -141,7 +141,7 @@ function renderCompaniesTable(data) {
   tbody.innerHTML = filtered.map(c => `
     <tr>
       <td style="font-weight:600; color:var(--text-hi);">${escapeHtml(c.name)}</td>
-      <td><span class="pill" style="font-family:var(--font-mono); font-size:10px;">${escapeHtml(c.country)}</span></td>
+      <td><span class="pill" style="font-family:var(--font); font-size:10.5px;">${escapeHtml(c.country)}</span></td>
       <td><span style="color:var(--cyan); font-size:11.5px;">${escapeHtml(c.segment)}</span></td>
       <td><a href="${escapeAttr(c.url)}" target="_blank" rel="noopener">Visit Site ↗</a></td>
     </tr>
@@ -158,7 +158,7 @@ function renderPartnerBDConnector(data) {
   container.innerHTML = list.map(p => `
     <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; display:flex; flex-direction:column; gap:8px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-        <h4 style="font-family:var(--font-head); font-size:12.5px; color:var(--text-hi); margin:0;">${p.name}</h4>
+        <h4 style="font-family:var(--font); font-size:12.5px; color:var(--text-hi); margin:0;">${p.name}</h4>
         <span style="font-size:9.5px; font-weight:600; padding:1px 5px; border-radius:4px; background:rgba(63,214,232,0.1); color:var(--cyan);">${p.type}</span>
       </div>
       <p style="font-size:11.5px; color:var(--text); line-height:1.4; margin:0;">${p.desc}</p>

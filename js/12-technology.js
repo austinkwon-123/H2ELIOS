@@ -201,7 +201,7 @@ function renderTechConstellation(regionFilterLocal = "all") {
         <circle cx="${cx}" cy="${clusterCy}" r="${clusterRadius + 10}" fill="none" stroke="${color}" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="2 4"/>
         ${dots}
         ${overflow}
-        <text x="${cx}" y="${H - 14}" text-anchor="middle" font-size="11" font-weight="700" fill="${color}" font-family="Space Grotesk">${TECH_CLUSTER_LABEL[key]}</text>
+        <text x="${cx}" y="${H - 14}" text-anchor="middle" font-size="11" font-weight="700" fill="${color}" font-family="system-ui">${TECH_CLUSTER_LABEL[key]}</text>
         <text x="${cx}" y="${H - 2}" text-anchor="middle" font-size="9" fill="#67748c" font-family="var(--font-mono)">${items.length.toLocaleString()} project${items.length === 1 ? "" : "s"}</text>
       </g>`
     };
@@ -289,7 +289,7 @@ function renderTrlSpectrum(regionFilterLocal = "all") {
       <circle cx="${x}" cy="${trackY}" r="${r}" fill="${color}" fill-opacity="0.85" stroke="${isActive ? '#ffffff' : color}" stroke-width="${isActive ? 2 : 1}">
         <title>${escapeHtml(TECH_CATALOG[key].name)} — ${escapeHtml(TECH_CATALOG[key].trl)}${cap > 0 ? `, ${Math.round(cap).toLocaleString()} MW tracked` : ", no tracked capacity in view"}</title>
       </circle>
-      <text x="${x}" y="${trackY + r + 15}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${isActive ? '#ffffff' : color}" font-family="Space Grotesk">${key.toUpperCase()}</text>
+      <text x="${x}" y="${trackY + r + 15}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${isActive ? '#ffffff' : color}" font-family="system-ui">${key}</text>
     </g>`;
   }).join("");
 
@@ -360,7 +360,7 @@ function renderMetalsChart(data) {
       },
       plugins: {
         legend: {
-          labels: { color: '#b6c2d4', font: { family: 'Space Grotesk', size: 9.5 } },
+          labels: { color: '#b6c2d4', font: { family: 'system-ui', size: 9.5 } },
           position: 'top'
         }
       }
@@ -384,24 +384,24 @@ function selectCatalogTech(key) {
     detailsContainer.innerHTML = `
       <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; display:flex; flex-direction:column; gap:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="font-size:12.5px; font-family:var(--font-head); color:var(--text-hi); margin:0;">${escapeHtml(d.name)}</h4>
+          <h4 style="font-size:12.5px; font-family:var(--font); color:var(--text-hi); margin:0;">${escapeHtml(d.name)}</h4>
           <span style="font-size:10px; font-weight:700; color:var(--cyan); background:rgba(63,214,232,0.1); border:1px solid rgba(63,214,232,0.3); padding:2px 8px; border-radius:12px;">${escapeHtml(d.trl)}</span>
         </div>
         <dl style="display:grid; grid-template-columns:100px 1fr; gap:6px; font-size:11px; margin:0; line-height:1.4;">
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Operating Temp</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Operating temperature</dt>
           <dd style="color:var(--text-hi); font-weight:500; margin:0;">${escapeHtml(d.temp)}</dd>
           
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Energy Need</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Energy need</dt>
           <dd style="color:var(--green-ok); font-weight:600; margin:0;">${escapeHtml(d.sec)}</dd>
           
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">System CAPEX</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">System CAPEX</dt>
           <dd style="color:var(--cyan); font-weight:600; margin:0;">${escapeHtml(d.capex)}</dd>
           
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Active Catalysts</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Active catalysts</dt>
           <dd style="color:var(--text-muted); margin:0;">${escapeHtml(d.catalysts)}</dd>
         </dl>
         <div style="border-top:1px solid var(--line); padding-top:8px; font-size:10.5px; line-height:1.4; color:var(--text-muted);">
-          <strong style="color:var(--text-hi); font-size:10px; text-transform:uppercase;">Critical Engineering Bottleneck:</strong>
+          <strong style="color:var(--text-hi); font-size:10.5px;">Critical engineering bottleneck:</strong>
           <div style="margin-top:2px;">${escapeHtml(d.bottlenecks)}</div>
         </div>
       </div>
@@ -469,14 +469,14 @@ function initTechnologyPage() {
           
           <!-- Technology Constellation -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Electrolyzer Technology Mix</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Electrolyzer Technology Mix</h3>
             <div id="tech-constellation" class="svg-viz-wrap"></div>
             <p id="tech-mix-caption" style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:0;"></p>
           </div>
 
           <!-- Interactive Tech Catalog -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Electrolyzer Maturity Spectrum</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Electrolyzer Maturity Spectrum</h3>
             <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Positioned by technology readiness level; node size scales with real tracked deployed capacity. Click a technology for detail.</p>
 
             <div id="trl-spectrum" class="svg-viz-wrap"></div>
@@ -494,7 +494,7 @@ function initTechnologyPage() {
           
           <!-- Commodity Price Chart -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Critical Materials Market Index <span class="badge badge-sample">SAMPLE</span></h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Critical Materials Market Index <span class="badge badge-sample">Sample</span></h3>
             <div class="chart-wrapper" style="height: 180px; position:relative; background:rgba(0,0,0,0.15); border:1px solid var(--line); border-radius:var(--r-sm);">
               <canvas id="metals-chart"></canvas>
             </div>
@@ -503,7 +503,7 @@ function initTechnologyPage() {
 
           <!-- Catalyst Cost Shock Simulator -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">PEM Catalyst Cost Shock Simulator</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">PEM Catalyst Cost Shock Simulator</h3>
             <p style="font-size:11px; color:var(--text-muted); line-height:1.4; margin:0;">
               Simulate stack supply-chain exposure. Standard target cell area 600cm²; stack size 1 MW.
             </p>
@@ -543,7 +543,7 @@ function initTechnologyPage() {
                 <div style="font-size:10.5px; color:var(--text-muted); font-weight:500;">METAL COMPONENT COST</div>
                 <div style="font-size:9px; color:var(--text-faint); margin-top:2px;">Simulated PEM stack precious metal cost</div>
               </div>
-              <span id="sandbox-catalyst-val" style="font-size:24px; font-weight:700; color:var(--cyan); font-family:var(--font-head); font-variant-numeric:tabular-nums;">$30/kW</span>
+              <span id="sandbox-catalyst-val" style="font-size:24px; font-weight:700; color:var(--text-hi); font-family:var(--font); font-variant-numeric:tabular-nums;">$30/kW</span>
             </div>
           </div>
 

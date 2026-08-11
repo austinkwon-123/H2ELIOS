@@ -86,7 +86,7 @@ function initTimelinePage() {
             <div style="display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.18); padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--line);">
               <button id="sandbox-play-btn" class="tab-btn" style="min-width: 64px; margin: 0; padding: 6px 12px; font-size: 11px;">▶ Play</button>
               <input type="range" class="temporal-slider" id="sandbox-slider" min="2020" max="2035" value="${window.timelineYear}" style="flex: 1; margin: 0;" />
-              <span id="sandbox-year-label" style="font-size: 18px; font-weight: 700; color: var(--text-hi); font-family: var(--font-head); min-width: 44px; text-align: center;">${window.timelineYear}</span>
+              <span id="sandbox-year-label" style="font-size: 18px; font-weight: 700; color: var(--text-hi); font-family: var(--font); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums;">${window.timelineYear}</span>
             </div>
           </div>
 
@@ -462,28 +462,16 @@ function inject3DControls() {
   if (!dock || document.getElementById("dock-3d-btn")) return;
 
   const btn = document.createElement("button");
-  btn.className = "dock-btn-3d";
+  btn.className = "dock-btn dock-btn-3d has-tip tip-right";
   btn.id = "dock-3d-btn";
-  btn.title = "Toggle 3D Volumetric Extrusions";
-  btn.style.cssText = "width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: var(--r-sm); cursor: pointer; color: var(--text-faint); position: relative; transition: color 0.15s ease, background 0.15s ease;";
+  btn.type = "button";
+  btn.setAttribute("aria-label", "3D capacity extrusions");
+  btn.setAttribute("data-tip", "3D capacity extrusions");
   btn.innerHTML = `
-    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;">
+    <svg viewBox="0 0 24 24">
       <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
     </svg>
   `;
-  
-  const style = document.createElement("style");
-  style.textContent = `
-    .dock-btn-3d:hover { color: var(--text) !important; background: rgba(120, 160, 200, 0.06) !important; }
-    .dock-btn-3d.active { color: var(--cyan) !important; }
-    .dock-btn-3d.active::before {
-      content: "";
-      position: absolute; left: -3px; top: 9px; bottom: 9px;
-      width: 2px; border-radius: 1px;
-      background: var(--cyan);
-    }
-  `;
-  document.head.appendChild(style);
   dock.appendChild(btn);
 
   btn.onclick = () => {

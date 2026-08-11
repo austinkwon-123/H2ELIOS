@@ -218,26 +218,37 @@ const map = new maplibregl.Map({
   attributionControl: false
 });
 
-map.addControl(new maplibregl.NavigationControl({ visualizePitch: true, showCompass: false }), "top-left");
-
-class ResetViewControl {
+// Zoom in/out + reset view, one custom control instead of MapLibre's stock
+// NavigationControl (plain white 29px squares) — built the same way as the
+// old ResetViewControl below, just with two more buttons and a divider, so
+// all three share the app's own floating round-pill look (see .map-zoom-btn
+// in style.css) rather than the library's unstyled default chrome.
+class MapControlCluster {
   onAdd(mapRef) {
     this._map = mapRef;
     this._container = document.createElement("div");
-    this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
-    const btn = document.createElement("button");
-    btn.className = "has-tip tip-right";
-    btn.type = "button";
-    btn.setAttribute("aria-label", "Reset view");
-    btn.setAttribute("data-tip", "Reset view");
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>';
-    btn.onclick = () => mapRef.flyTo({ center: [-32, 40], zoom: 1.7, pitch: 58, bearing: 12, duration: 1200 });
-    this._container.appendChild(btn);
+    this._container.className = "maplibregl-ctrl maplibregl-ctrl-group map-zoom-cluster";
+    const mkBtn = (label, svg, onClick) => {
+      const btn = document.createElement("button");
+      btn.className = "map-zoom-btn has-tip tip-right";
+      btn.type = "button";
+      btn.setAttribute("aria-label", label);
+      btn.setAttribute("data-tip", label);
+      btn.innerHTML = svg;
+      btn.onclick = onClick;
+      return btn;
+    };
+    const zoomIn = mkBtn("Zoom in", '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>', () => mapRef.zoomIn());
+    const zoomOut = mkBtn("Zoom out", '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>', () => mapRef.zoomOut());
+    const sep = document.createElement("div");
+    sep.className = "dock-sep";
+    const reset = mkBtn("Reset view", '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>', () => mapRef.flyTo({ center: [-32, 40], zoom: 1.7, pitch: 58, bearing: 12, duration: 1200 }));
+    this._container.append(zoomIn, zoomOut, sep, reset);
     return this._container;
   }
   onRemove() { this._container.remove(); this._map = undefined; }
 }
-map.addControl(new ResetViewControl(), "top-left");
+map.addControl(new MapControlCluster(), "top-left");
 
 // Switching between right-panel-slot panels (a project's detail, the AI
 // regional overview, Markets) used to fully CLOSE whichever one was open —
@@ -256,7 +267,9 @@ function closeOtherRightPanels(exceptId) {
   const minimizers = {
     "detail-card": (el) => { if (typeof lastDetailProps !== "undefined" && lastDetailProps) minimizeDetailPanel(lastDetailProps, null, el); else closeDetailPanel(); },
     "regional-ai-panel": () => minimizePanel("regional-ai-panel", "AI Regional Overview"),
-    "markets-panel": () => closeMarketsPanel()
+    "analytics-panel": () => { if (typeof closeAnalyticsPanel === "function") closeAnalyticsPanel(); },
+    "markets-panel": () => closeMarketsPanel(),
+    "geology-panel": () => { const panel = document.getElementById("geology-panel"); if (panel) panel.hidden = true; }
   };
   Object.entries(minimizers).forEach(([id, minimize]) => {
     if (id !== exceptId) {

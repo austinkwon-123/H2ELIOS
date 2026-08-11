@@ -284,12 +284,28 @@ function initMarketsVideo() {
   el.appendChild(iframe);
 }
 
+function closeAnalyticsPanel() {
+  const btn = document.getElementById("analytics-btn");
+  const panel = document.getElementById("analytics-panel");
+  if (!panel.hidden) {
+    panel.hidden = true;
+    btn.classList.remove("active");
+  }
+}
+
 function wireAnalyticsToggle() {
   const btn = document.getElementById("analytics-btn");
   const panel = document.getElementById("analytics-panel");
   if (!btn || !panel) return;
   btn.addEventListener("click", () => {
     const opening = panel.hidden;
+    // Research and Markets are the two segments of the same mode switch
+    // (see .mode-active-indicator) — only one can be the active segment,
+    // so opening one closes the other rather than letting both sit open.
+    if (opening) {
+      closeMarketsPanel();
+      closeOtherRightPanels("analytics-panel");
+    }
     panel.hidden = !opening;
     btn.classList.toggle("active", opening);
     if (opening) {
@@ -322,6 +338,7 @@ function wireMarketsToggle() {
   if (!btn || !panel) return;
   btn.addEventListener("click", () => {
     if (panel.hidden) {
+      closeAnalyticsPanel();
       closeOtherRightPanels("markets-panel");
       panel.hidden = false;
       btn.classList.add("active");
@@ -340,6 +357,22 @@ function wireMarketsToggle() {
   });
 }
 
+// Slides .mode-active-indicator beneath whichever segment is active, same
+// underline treatment #tab-nav uses (see positionActiveIndicator in
+// js/09-router.js) — unlike the tab-nav buttons, .mode-btn labels don't
+// animate their own width, so a single positioning pass per state change
+// is enough; no "settle after the label finishes expanding" follow-up call
+// is needed here.
+function positionModeIndicator() {
+  const switchEl = document.getElementById("map-mode-switch");
+  const indicator = switchEl && switchEl.querySelector(".mode-active-indicator");
+  const active = switchEl && switchEl.querySelector(".mode-btn.active");
+  if (!indicator || !active) return;
+  indicator.style.width = active.offsetWidth + "px";
+  indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+}
+window.addEventListener("resize", () => requestAnimationFrame(positionModeIndicator));
+
 // Keeps the map-mode-switch's "Explore" segment in sync with Research/
 // Markets: active when neither panel is open, and clicking it closes
 // whichever of the two is open (a plain reset to the immersive map).
@@ -351,6 +384,7 @@ function wireMapModeSwitch() {
   const sync = () => {
     const anyOpen = analyticsBtn.classList.contains("active") || marketsBtn.classList.contains("active");
     exploreBtn.classList.toggle("active", !anyOpen);
+    positionModeIndicator();
   };
   exploreBtn.addEventListener("click", () => {
     if (analyticsBtn.classList.contains("active")) analyticsBtn.click();

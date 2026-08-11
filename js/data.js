@@ -257,22 +257,26 @@ window.HYDROGEN_DATA = {
     features: [
       feat([-112.58, 39.50], {
         name: "ACES Delta Salt Caverns", category: "storage", subtype: "Salt Cavern",
-        color: "green", capacity: "300 GWh (11,000 MT across 2 caverns)", status: "Operating", scale: 6,
-        operator: "Mitsubishi Power / Chevron", source: "https://aces-delta.com/sites/", updated: "Feb 2026"
+        color: "green", capacity: "2 × 4.5 million bbl caverns; 300 GWh design", status: "Operating", scale: 6,
+        storageClass: "geologic", geology: "Solution-mined salt caverns", evidence: "Project-specific geometry verified by U.S. DOE",
+        operator: "Mitsubishi Power / Chevron", source: "https://www.energy.gov/edf/advanced-clean-energy-storage", updated: "Aug 2026"
       }),
       feat([-94.1955, 30.0728], {
         name: "Spindletop Cavern", category: "storage", subtype: "Salt Cavern",
-        color: "gray_blue", capacity: "274 TWh (converted from natural gas)", status: "Operating", scale: 7,
-        operator: "Air Liquide", source: "https://www.lyellcollection.org/doi/full/10.3389/esss.2024.10125", updated: "2024"
+        color: "gray_blue", capacity: "274 GWh / ~8,230 t H₂ (published estimate)", status: "Operating", scale: 7,
+        storageClass: "geologic", geology: "Spindletop salt dome · ~906,000 m³ · ~1,340 m mean depth", evidence: "DOE workshop estimate; operator confirms active cavern",
+        operator: "Air Liquide", source: "https://usa.airliquide.com/sustainability/hydrogen/h2-industry", updated: "Aug 2026"
       }),
       feat([-94.4508, 30.1113], {
         name: "Moss Bluff Cavern", category: "storage", subtype: "Salt Cavern",
-        color: "gray_blue", capacity: "566,000 m³ volume", status: "Operating", scale: 5,
-        operator: "Linde", source: "https://royalsocietypublishing.org/rsta/article/382/2276/20230187/41360/Effects-of-reservoir-mechanical-properties-on", updated: "2023"
+        color: "gray_blue", capacity: "123 GWh / ~3,690 t H₂ (published estimate)", status: "Operating", scale: 5,
+        storageClass: "geologic", geology: "Moss Bluff salt dome · ~566,000 m³ · ~1,200 m mean depth", evidence: "Published DOE workshop estimate",
+        operator: "Linde", source: "https://www.energy.gov/documents/fcto-fcs-h2-scale-2019-workshop-19-meekspdf", updated: "Aug 2026"
       }),
       feat([-94.4450, 30.1200], {
         name: "TRU Hub (Moss Bluff)", category: "storage", subtype: "Salt Cavern (future H2)",
         color: "gray_blue", capacity: "Phase 1: 26 Bcf (natural gas, future H2)", status: "Planned", scale: 4,
+        storageClass: "geologic", geology: "Salt-cavern conversion concept; hydrogen service not yet demonstrated", evidence: "Developer claim",
         operator: "Neuventus", source: "https://www.neuventus.com/tru-hub", updated: "2025"
       }),
       feat([-90.0715, 29.9511], {

@@ -163,9 +163,9 @@ function updateRegionalAIPanel() {
   if (cached) {
     promptBox.textContent = cached.prompt;
     contentBox.innerHTML = `
-      <div style="font-size:9.5px; color:var(--text-faint); margin-bottom:10px; font-family:var(--font-mono); display:flex; align-items:center; gap:6px;">
+      <div style="font-size:10.5px; color:var(--text-faint); margin-bottom:10px; font-family:var(--font); display:flex; align-items:center; gap:6px;">
         <span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--green-ok);"></span>
-        <span>MODEL: Claude 3.5 Sonnet (Cached)</span>
+        <span>Claude 3.5 Sonnet · Cached</span>
       </div>
       ${formatAIOverview(cached.analysis)}
     `;
@@ -181,9 +181,9 @@ function updateRegionalAIPanel() {
 
     promptBox.textContent = fresh.prompt;
     contentBox.innerHTML = `
-      <div style="font-size:9.5px; color:var(--text-faint); margin-bottom:10px; font-family:var(--font-mono); display:flex; align-items:center; gap:6px;">
+      <div style="font-size:10.5px; color:var(--text-faint); margin-bottom:10px; font-family:var(--font); display:flex; align-items:center; gap:6px;">
         <span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--green-ok);"></span>
-        <span>MODEL: Claude 3.5 Sonnet (Generated Live)</span>
+        <span>Claude 3.5 Sonnet · Generated live</span>
       </div>
       ${formatAIOverview(fresh.analysis)}
     `;
@@ -366,7 +366,7 @@ showDetail = function (p) {
   aiBlock.className = "detail-ai-block";
   aiBlock.innerHTML = `
     <div class="detail-ai-title">🤖 AI Project Engagement Analysis</div>
-    <div style="font-size:8px; color:var(--text-faint); margin-bottom:4px; font-family:var(--font-mono);">MODEL: Gemini 1.5 Pro</div>
+    <div style="font-size:10px; color:var(--text-faint); margin-bottom:4px; font-family:var(--font);">Gemini 1.5 Pro</div>
     <div class="detail-ai-text">${formattedAnalysis}</div>
   `;
   el.appendChild(aiBlock);

@@ -160,7 +160,7 @@ function renderDemandLandscape() {
     const color = END_USE_COLOR[i % END_USE_COLOR.length];
     return `<g class="landscape-territory">
       <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color}" fill-opacity="0.78"><title>${cat}: ${Math.round(cap).toLocaleString()} MWel across ${count} project${count === 1 ? "" : "s"}</title></rect>
-      <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${color}" font-family="Space Grotesk">${cat}</text>
+      <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${color}" font-family="system-ui">${cat}</text>
     </g>`;
   }).join("");
 
@@ -219,7 +219,7 @@ function renderTransportChart(data) {
       },
       plugins: {
         legend: {
-          labels: { color: '#b6c2d4', font: { family: 'Space Grotesk', size: 10 } }
+          labels: { color: '#b6c2d4', font: { family: 'system-ui', size: 10 } }
         }
       }
     }
@@ -380,18 +380,18 @@ function selectSectorParity(key) {
     details.innerHTML = `
       <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; display:flex; flex-direction:column; gap:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h4 style="font-size:12.5px; font-family:var(--font-head); color:var(--text-hi); margin:0;">${escapeHtml(d.name)}</h4>
+          <h4 style="font-size:12.5px; font-family:var(--font); color:var(--text-hi); margin:0;">${escapeHtml(d.name)}</h4>
           <span style="font-size:10.5px; font-weight:700; color:var(--cyan); background:rgba(63,214,232,0.1); border:1px solid rgba(63,214,232,0.3); padding:2px 8px; border-radius:12px;">Parity Target: ${escapeHtml(d.parity)}</span>
         </div>
         <dl style="display:grid; grid-template-columns:100px 1fr; gap:6px; font-size:11px; margin:0; line-height:1.4;">
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Intensity</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Intensity</dt>
           <dd style="color:var(--text-hi); font-weight:500; margin:0;">${escapeHtml(d.volume)}</dd>
           
-          <dt style="color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:9.5px;">Key Offtakers</dt>
+          <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Key offtakers</dt>
           <dd style="color:var(--cyan); font-weight:600; margin:0;">${escapeHtml(d.offtakers)}</dd>
         </dl>
         <div style="border-top:1px solid var(--line); padding-top:8px; font-size:10.5px; line-height:1.4; color:var(--text-muted);">
-          <strong style="color:var(--text-hi); font-size:10px; text-transform:uppercase;">Offtaker Chemistry Process:</strong>
+          <strong style="color:var(--text-hi); font-size:10.5px;">Offtaker chemistry process:</strong>
           <div style="margin-top:2px;">${escapeHtml(d.desc)}</div>
         </div>
       </div>
@@ -426,14 +426,14 @@ function initDemandTransportPage() {
           
           <!-- Demand landscape -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Hydrogen End-Use Capacity Distribution</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Hydrogen End-Use Capacity Distribution</h3>
             <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Each territory's height is that sector's tracked capacity; its width is how many projects make it up.</p>
             <div id="enduse-landscape" class="svg-viz-wrap"></div>
           </div>
 
           <!-- Sector catalog -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Offtaker Parity Race</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Offtaker Parity Race</h3>
             <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Illustrative reference figures, ranked cheapest-to-unlock first. Bar length = proximity to the catalog's lowest price parity target; dots = demand volume potential. Click a sector for detail.</p>
 
             <div id="offtaker-matrix"></div>
@@ -451,7 +451,7 @@ function initDemandTransportPage() {
           <!-- Line Chart -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Fleet Rollout Orderbooks <span class="badge badge-sample">SAMPLE</span></h3>
+              <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Fleet Rollout Orderbooks <span class="badge badge-sample">Sample</span></h3>
               <select id="t-mode-select" style="background:var(--bg-1); color:var(--text-hi); border:1px solid var(--line); padding:2px 6px; border-radius:4px; font-size:11px; height:auto; margin:0;">
                 <option value="road">🚛 Heavy Road Fleet</option>
                 <option value="maritime">🚢 Cargo Vessels</option>
@@ -465,7 +465,7 @@ function initDemandTransportPage() {
 
           <!-- Carrier Logistics Simulator -->
           <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
-            <h3 style="font-size:14px; font-family:var(--font-head); color:var(--text-hi);">Hydrogen Carrier Transport Simulator</h3>
+            <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Hydrogen Carrier Transport Simulator</h3>
             <p style="font-size:11px; color:var(--text-muted); line-height:1.4; margin:0;">
               Compare liquefaction volumes, transshipment boil-off, and roundtrip energy conversion losses across major ocean carriers.
             </p>
