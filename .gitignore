@@ -5,3 +5,5 @@ node_modules/
 js/config.js
 pgdata/
 .superpowers/
+playwright-report/
+test-results/
