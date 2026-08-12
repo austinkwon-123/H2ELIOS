@@ -13,14 +13,39 @@ const ROUTES = {
   technology: { page: "page-technology", init: "initTechnologyPage" },
   "demand-transport": { page: "page-demand-transport", init: "initDemandTransportPage" },
   policy: { page: "page-policy", init: "initPolicyPage" },
-  companies: { page: "page-companies", init: "initCompaniesPage" },
   tools: { page: "page-tools", init: "initToolsPage" },
   timeline: { page: "page-timeline", init: "initTimelinePage" }
 };
+if (window.H2G_CONFIG?.ENABLE_PROTOTYPE_WORKSPACES) {
+  ROUTES.companies = { page: "page-companies", init: "initCompaniesPage" };
+}
 const loadedRoutes = {};
+const routeCleanupCallbacks = new Map();
+
+function registerRouteCleanup(route, callback) {
+  if (!ROUTES[route] || typeof callback !== "function") return function noop() {};
+  if (!routeCleanupCallbacks.has(route)) routeCleanupCallbacks.set(route, new Set());
+  routeCleanupCallbacks.get(route).add(callback);
+  return () => routeCleanupCallbacks.get(route)?.delete(callback);
+}
+window.registerRouteCleanup = registerRouteCleanup;
+
+function runRouteCleanup(route) {
+  const callbacks = routeCleanupCallbacks.get(route);
+  if (!callbacks) return;
+  callbacks.forEach((callback) => {
+    try { callback(); } catch (error) { console.error(`Router cleanup failed for ${route}`, error); }
+  });
+}
 
 function currentRouteFromHash() {
-  const h = location.hash.slice(1);
+  // Routes are written into the hash as "#/policy". slice(1) left "/policy",
+  // which matched no ROUTES key, so every deep link and every hashchange fell
+  // through to the map — while the shell, which strips the slash in
+  // currentWorkspaceRoute(), simultaneously showed the correct workspace
+  // title. That split is why the bug read as "the chrome is right but the
+  // page is wrong" rather than as a routing failure.
+  const h = location.hash.replace(/^#?\/?/, "");
   return ROUTES.hasOwnProperty(h) ? h : "map";
 }
 
@@ -39,6 +64,9 @@ function swapPagesInstant(route) {
 
 function navigateTo(route) {
   if (!ROUTES.hasOwnProperty(route)) route = "map";
+  if (window.H2Store?.getState().route !== route) {
+    window.H2Store?.dispatch({ type: "ROUTE_CHANGE", payload: { route } });
+  }
   const entry = ROUTES[route];
   const incomingEl = document.getElementById(entry.page);
   const outgoingRoute = Object.keys(ROUTES).find((r) => {
@@ -46,6 +74,7 @@ function navigateTo(route) {
     return el && !el.hidden && r !== route;
   });
   const outgoingEl = outgoingRoute ? document.getElementById(ROUTES[outgoingRoute].page) : null;
+  if (outgoingRoute) runRouteCleanup(outgoingRoute);
 
   const finishNav = () => {
     document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -60,6 +89,12 @@ function navigateTo(route) {
         console.warn(`Router: ${entry.init}() not defined yet for route "${route}"`);
       }
     }
+    if (typeof applyAnalyticalProvenance === "function") applyAnalyticalProvenance(incomingEl);
+    // Handoff state is dispatched while the originating route is still in
+    // the hash, so its store subscriber initially keeps the Return control
+    // hidden. Re-evaluate visibility after every route swap, once the hash
+    // and visible page agree.
+    renderHandoffReturn(window.H2Store?.getState().handoff);
     if (route === "map" && typeof map !== "undefined" && map.resize) {
       requestAnimationFrame(() => map.resize());
     }
@@ -89,6 +124,94 @@ function navigateTo(route) {
       if (incomingEl) incomingEl.classList.remove("page-fade-in");
     }));
   }, WORKSPACE_FADE_OUT_MS);
+}
+
+function currentMapCamera() {
+  if (typeof map === "undefined" || !map?.getCenter) return window.H2Store?.getState().map.camera;
+  const center = map.getCenter();
+  return {
+    center: [center.lng, center.lat],
+    zoom: map.getZoom(),
+    pitch: map.getPitch(),
+    bearing: map.getBearing()
+  };
+}
+
+function beginMapHandoff(options) {
+  const source = options || {};
+  const fromRoute = source.fromRoute || currentRouteFromHash();
+  const props = source.props || source.selection?.props || source.project || null;
+  const lngLat = source.lngLat || source.selection?.lngLat || source.coordinates || null;
+  const originFilters = { ...(window.H2Store?.getState().filters || {}) };
+  window.H2Store?.dispatch({
+    type: "HANDOFF_BEGIN",
+    payload: {
+      fromRoute,
+      label: source.label || (ROUTES[fromRoute] ? document.querySelector(`.tab-btn[data-route="${fromRoute}"] span`)?.textContent : "Previous workspace"),
+      selectionId: source.selectionId || props?.id || props?.name || null,
+      filters: originFilters,
+      camera: currentMapCamera()
+    }
+  });
+  if (props) window.H2Store?.dispatch({ type: "PROJECT_SELECT", payload: { props, lngLat } });
+  if (source.year != null) window.H2Store?.dispatch({ type: "TIMELINE_YEAR_UPDATE", payload: { year: source.year } });
+  if (source.filters) window.H2Store?.dispatch({ type: "FILTER_UPDATE", payload: { filters: source.filters } });
+
+  location.hash = "map";
+  navigateTo("map");
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (source.year != null && typeof applyTimelineFilter === "function") applyTimelineFilter();
+    if (typeof applyFilters === "function") applyFilters();
+    if (props && Array.isArray(lngLat)) {
+      if (typeof map !== "undefined" && map?.flyTo) {
+        map.flyTo({ center: lngLat, zoom: Math.max(map.getZoom?.() || 0, 5.4), duration: 900, essential: true });
+      }
+      if (typeof selectFacility === "function") selectFacility(props, lngLat);
+    }
+  }));
+}
+window.beginMapHandoff = beginMapHandoff;
+
+function returnFromMapHandoff() {
+  const handoff = window.H2Store?.getState().handoff;
+  if (!handoff) return;
+  window.H2Store.dispatch({ type: "HANDOFF_RETURN" });
+  location.hash = handoff.fromRoute;
+  navigateTo(handoff.fromRoute);
+}
+window.returnFromMapHandoff = returnFromMapHandoff;
+
+function renderHandoffReturn(handoff) {
+  const button = document.getElementById("handoff-return");
+  if (!button) return;
+  button.hidden = !handoff || currentRouteFromHash() !== "map";
+  if (handoff) button.textContent = `← Return to ${handoff.label}`;
+}
+
+function renderComparisonTray(comparisons) {
+  const tray = document.getElementById("comparison-tray");
+  const list = document.getElementById("comparison-tray-items");
+  if (!tray || !list) return;
+  tray.hidden = comparisons.length === 0;
+  list.innerHTML = comparisons.map((snapshot) => `
+    <article class="comparison-item" data-snapshot-id="${escapeAttr(String(snapshot.id))}">
+      <span class="provenance-badge ${snapshot.type === "economics" ? "modeled" : "observed"}">${snapshot.type === "economics" ? "Modeled" : "Observed"}</span>
+      <strong>${escapeHtml(snapshot.label)}</strong>
+      <button type="button" class="comparison-remove" data-comparison-remove="${escapeAttr(String(snapshot.id))}" aria-label="Remove ${escapeAttr(snapshot.label)} from comparison">×</button>
+    </article>`).join("");
+}
+
+function wireSharedStateUI() {
+  document.getElementById("handoff-return")?.addEventListener("click", returnFromMapHandoff);
+  document.getElementById("comparison-tray-items")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-comparison-remove]");
+    if (!button) return;
+    window.H2Store?.dispatch({ type: "COMPARISON_REMOVE", payload: { id: button.dataset.comparisonRemove } });
+  });
+  window.H2Store?.subscribe((s) => s.handoff, renderHandoffReturn);
+  window.H2Store?.subscribe((s) => s.comparisons, renderComparisonTray);
+  renderHandoffReturn(window.H2Store?.getState().handoff);
+  renderComparisonTray(window.H2Store?.getState().comparisons || []);
 }
 
 // Slides the pill behind the active tab to its new position/width rather
@@ -154,8 +277,7 @@ function wireCalculatorDropTarget() {
     let data;
     try { data = JSON.parse(e.dataTransfer.getData("application/json")); } catch (err) { return; }
     if (!data || !data.props) return;
-    window.H2GSelection = data;
-    if (typeof updateSelectionChip === "function") updateSelectionChip();
+    window.H2Store?.dispatch({ type: "PROJECT_SELECT", payload: data });
     location.hash = "tools";
     navigateTo("tools");
     setTimeout(() => {
@@ -169,8 +291,12 @@ function wireCalculatorDropTarget() {
 window.addEventListener("hashchange", () => navigateTo(currentRouteFromHash()));
 
 function initRouter() {
+  document.querySelectorAll("[data-prototype-workspace]").forEach((element) => {
+    element.hidden = !window.H2G_CONFIG?.ENABLE_PROTOTYPE_WORKSPACES;
+  });
   wireTabNav();
   wireCalculatorDropTarget();
+  wireSharedStateUI();
   navigateTo(currentRouteFromHash());
 }
 

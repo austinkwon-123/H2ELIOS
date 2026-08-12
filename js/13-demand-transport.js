@@ -150,6 +150,13 @@ function renderDemandLandscape() {
   const W = 640, H = 190, padX = 8, baseY = H - 24, maxBarH = 130;
   const colW = (W - padX * 2) / END_USE_CATEGORIES.length;
 
+  const exactFeatureCount = (cat) => {
+    const property = { Refining: "end_refining", Ammonia: "end_ammonia", Methanol: "end_methanol", "Iron & Steel": "end_iron_steel", Mobility: "end_mobility", Power: "end_power", "Grid & Blending": "end_grid_inj", "Bio / Synfuels": "end_synfuels" }[cat];
+    return (window.IEA_DATA?.features || []).filter((feature) => {
+      const p = feature.properties || {};
+      return !Number(p.approx) && (Number(p[property]) || (cat === "Grid & Blending" && (Number(p.end_chp) || Number(p.end_domestic_heat))) || (cat === "Bio / Synfuels" && Number(p.end_biofuels)));
+    }).length;
+  };
   const bars = END_USE_CATEGORIES.map((cat, i) => {
     const cap = categories[cat], count = counts[cat];
     const h = cap > 0 ? 6 + (cap / maxCap) * maxBarH : 2;
@@ -158,7 +165,8 @@ function renderDemandLandscape() {
     const x = cx - w / 2;
     const y = baseY - h;
     const color = END_USE_COLOR[i % END_USE_COLOR.length];
-    return `<g class="landscape-territory">
+    const mappedCount = exactFeatureCount(cat);
+    return `<g class="landscape-territory${mappedCount ? " has-map-action" : ""}" data-demand-category="${escapeAttr(cat)}" ${mappedCount ? `tabindex="0" role="button" aria-label="Apply ${escapeAttr(cat)} cohort to map"` : ""}>
       <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color}" fill-opacity="0.78"><title>${cat}: ${Math.round(cap).toLocaleString()} MWel across ${count} project${count === 1 ? "" : "s"}</title></rect>
       <text x="${cx.toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${color}" font-family="system-ui">${cat}</text>
     </g>`;
@@ -168,6 +176,18 @@ function renderDemandLandscape() {
     <line x1="0" y1="${baseY}" x2="${W}" y2="${baseY}" stroke="rgba(120,160,200,0.15)" stroke-width="1"/>
     ${bars}
   </svg>`;
+  el.querySelectorAll(".landscape-territory.has-map-action").forEach((territory) => {
+    const open = () => window.beginMapHandoff?.({
+      fromRoute: "demand-transport",
+      label: "Demand",
+      filters: { cohort: { type: "endUse", value: territory.dataset.demandCategory } },
+      selectionId: null
+    });
+    territory.addEventListener("click", open);
+    territory.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
+    });
+  });
 }
 
 function renderTransportChart(data) {
@@ -419,7 +439,7 @@ function initDemandTransportPage() {
       </div>
 
       <!-- Main Visual Grid -->
-      <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:16px;">
+      <div class="demand-main-grid" style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:16px;">
         
         <!-- Left: End-use chart & Sector detail selection -->
         <div style="display:flex; flex-direction:column; gap:16px;">
@@ -469,6 +489,7 @@ function initDemandTransportPage() {
             <p style="font-size:11px; color:var(--text-muted); line-height:1.4; margin:0;">
               Compare liquefaction volumes, transshipment boil-off, and roundtrip energy conversion losses across major ocean carriers.
             </p>
+            <details class="model-assumptions"><summary>Model assumptions and inputs</summary><p>15-knot voyage speed; LH₂ density 71 kg/m³ and 0.15% daily boil-off; ammonia at 17.7 wt% hydrogen; route-process energy-loss assumptions of 30% LH₂, 38% NH₃ and 42% LOHC. Outputs are comparative modeled estimates.</p></details>
 
             <div style="display:flex; flex-direction:column; gap:10px; background:rgba(0,0,0,0.15); padding:10px 12px; border-radius:var(--r-md); border:1px solid var(--line);">
               <!-- Input 1 -->

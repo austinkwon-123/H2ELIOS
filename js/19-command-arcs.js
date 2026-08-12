@@ -336,6 +336,7 @@ in vec3 v_color;
 in float v_wave;
 
 uniform float u_time;
+uniform float u_lightMode;
 
 out vec4 fragColor;
 
@@ -356,7 +357,10 @@ void main() {
   float pulse = 0.5 + 0.5 * sin(v_progress * v_wave - u_time * 2.2);
 
   float alpha = (cross * 0.55 + core * 0.45) * endFade * (0.65 + 0.35 * pulse);
-  fragColor = vec4(v_color * (0.8 + 0.6 * pulse), alpha);
+  vec3 color = v_color * (0.8 + 0.6 * pulse);
+  color = mix(color, color * 0.38, u_lightMode);
+  alpha *= mix(1.0, 0.76, u_lightMode);
+  fragColor = vec4(color, alpha);
 }`;
 
       const vs = gl.createShader(gl.VERTEX_SHADER);
@@ -403,10 +407,12 @@ void main() {
       gl.uniform4f(gl.getUniformLocation(program, "u_projection_clipping_plane"), pd.clippingPlane[0], pd.clippingPlane[1], pd.clippingPlane[2], pd.clippingPlane[3]);
       gl.uniform1f(gl.getUniformLocation(program, "u_projection_transition"), pd.projectionTransition);
 
+      const lightTheme = h2eliosLightMode;
       gl.uniform1f(gl.getUniformLocation(program, "u_time"), performance.now() / 1000);
+      gl.uniform1f(gl.getUniformLocation(program, "u_lightMode"), lightTheme ? 1 : 0);
 
       gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // additive — reads as glow, not a flat translucent ribbon
+      gl.blendFunc(gl.SRC_ALPHA, lightTheme ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE);
       gl.depthFunc(gl.LEQUAL);
 
       const aPos = gl.getAttribLocation(program, "a_pos");

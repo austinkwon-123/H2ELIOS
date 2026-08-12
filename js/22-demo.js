@@ -263,6 +263,7 @@
       `<div class="tour-dot ${i <= idx ? "done" : ""}"></div>`).join("");
     el("demo-play").textContent = playing ? "❚❚" : "▶";
     el("demo-play").title = playing ? "Pause" : "Play";
+    el("demo-play").setAttribute("aria-label", playing ? "Pause walkthrough" : "Resume walkthrough");
   }
 
   async function go(i) {

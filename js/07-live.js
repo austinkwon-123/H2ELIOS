@@ -45,11 +45,13 @@ async function loadLiveStations() {
     const merged = mergeFeatureCollections(geojson, window.EU_STATIONS_DATA);
     addPointLayer("fuelingStations", merged, { small: true });
     setStatus("live", `${merged.features.length} live stations`);
+    if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("stations", "live");
     setStationCount(merged.features.length);
     applyFilters();
   } catch (err) {
     console.warn("Live AFDC fetch failed, keeping cached snapshot:", err);
     setStatus("fallback", "Stations: cached");
+    if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("stations", "cached");
     setStationCount(D.fuelingStationsFallback.features.length + ((window.EU_STATIONS_DATA && window.EU_STATIONS_DATA.features.length) || 0));
   }
 }

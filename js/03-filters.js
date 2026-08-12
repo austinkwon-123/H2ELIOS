@@ -13,6 +13,29 @@ const REGION_GROUPS = {
   apac: ["apac"]
 };
 
+function syncFiltersFromStore() {
+  const filters = window.H2Store?.getState().filters;
+  if (!filters) return;
+  statusFilter = filters.status || "all";
+  regionFilter = filters.region || "all";
+  colorFilter = filters.color || null;
+  document.querySelectorAll("#status-seg .seg-btn").forEach((button) => {
+    const active = button.dataset.status === statusFilter;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  document.querySelectorAll("#region-seg .seg-btn").forEach((button) => {
+    const active = button.dataset.region === regionFilter;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  document.querySelectorAll(".legend-dot").forEach((button) => {
+    button.classList.toggle("active", colorFilter === button.dataset.color);
+    button.classList.toggle("dimmed", Boolean(colorFilter) && colorFilter !== button.dataset.color);
+    button.setAttribute("aria-pressed", String(colorFilter === button.dataset.color));
+  });
+}
+
 function regionExpr() {
   return ["in", ["get", "region"], ["literal", REGION_GROUPS[regionFilter] || []]];
 }
@@ -47,19 +70,32 @@ function applyFilters() {
 }
 
 function wireSegments() {
+  document.querySelectorAll("#status-seg .seg-btn, #region-seg .seg-btn").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.classList.contains("active")));
+  });
   document.querySelectorAll("#status-seg .seg-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll("#status-seg .seg-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll("#status-seg .seg-btn").forEach((b) => {
+        b.classList.remove("active");
+        b.setAttribute("aria-pressed", "false");
+      });
       btn.classList.add("active");
-      statusFilter = btn.dataset.status;
+      btn.setAttribute("aria-pressed", "true");
+      window.H2Store?.dispatch({ type: "FILTER_UPDATE", payload: { key: "status", value: btn.dataset.status } });
+      syncFiltersFromStore();
       applyFilters();
     });
   });
   document.querySelectorAll("#region-seg .seg-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll("#region-seg .seg-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll("#region-seg .seg-btn").forEach((b) => {
+        b.classList.remove("active");
+        b.setAttribute("aria-pressed", "false");
+      });
       btn.classList.add("active");
-      regionFilter = btn.dataset.region;
+      btn.setAttribute("aria-pressed", "true");
+      window.H2Store?.dispatch({ type: "FILTER_UPDATE", payload: { key: "region", value: btn.dataset.region } });
+      syncFiltersFromStore();
       stopSpin();
       applyFilters();
       const views = {
@@ -76,12 +112,15 @@ function wireSegments() {
 
 function wireLegend() {
   document.querySelectorAll(".legend-dot").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.classList.contains("active")));
     btn.addEventListener("click", () => {
       const c = btn.dataset.color;
-      colorFilter = colorFilter === c ? null : c;
+      window.H2Store?.dispatch({ type: "FILTER_UPDATE", payload: { key: "color", value: colorFilter === c ? null : c } });
+      syncFiltersFromStore();
       document.querySelectorAll(".legend-dot").forEach((b) => {
         b.classList.toggle("active", colorFilter === b.dataset.color);
         b.classList.toggle("dimmed", !!colorFilter && colorFilter !== b.dataset.color);
+        b.setAttribute("aria-pressed", String(colorFilter === b.dataset.color));
       });
       applyFilters();
     });
@@ -123,35 +162,77 @@ function wireFlyouts() {
       }
     });
   });
+
+  const qualityButton = document.getElementById("data-quality-btn");
+  const qualityPanel = document.getElementById("data-quality-panel");
+  const qualityClose = document.getElementById("data-quality-close");
+  const setQualityOpen = (open) => {
+    if (!qualityButton || !qualityPanel) return;
+    qualityPanel.hidden = !open;
+    qualityButton.classList.toggle("active", open);
+    qualityButton.setAttribute("aria-expanded", String(open));
+  };
+  qualityButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const opening = qualityPanel.hidden;
+    if (opening && typeof closeAnalyticsPanel === "function") closeAnalyticsPanel();
+    if (opening && typeof closeMarketsPanel === "function") closeMarketsPanel();
+    setQualityOpen(opening);
+  });
+  document.getElementById("analytics-btn")?.addEventListener("click", () => setQualityOpen(false));
+  document.getElementById("markets-btn")?.addEventListener("click", () => setQualityOpen(false));
+  qualityClose?.addEventListener("click", () => {
+    setQualityOpen(false);
+    qualityButton?.focus();
+  });
+  document.addEventListener("click", (event) => {
+    if (!qualityPanel?.hidden && !qualityPanel.contains(event.target) && !qualityButton?.contains(event.target)) setQualityOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !qualityPanel?.hidden) {
+      setQualityOpen(false);
+      qualityButton?.focus();
+    }
+  });
 }
 
 
 // ---- Layer dock -------------------------------------------------------------------------------
 const TOGGLE_MAP = {
-  upstream: ["upstream", "upstream-glow"],
-  production: ["production", "production-glow"],
-  manufacturing: ["manufacturing", "manufacturing-glow"],
-  storage: ["storage", "storage-glow"],
+  facilities: ["upstream", "upstream-glow", "production", "production-glow", "manufacturing", "manufacturing-glow", "storage", "storage-glow", "endUse", "endUse-glow"],
   pipelines: ["pipelines", "pipelines-glow", "pipelines-dash"],
-  endUse: ["endUse", "endUse-glow"],
-  fuelingStations: ["fuelingStations", "fuelingStations-glow"],
-  hubs: ["hubs", "hubs-outline", "hub-labels"],
-  flows: ["flows-base", "flows-dash", "flow-particles"],
-  web: ["web", "web-glow"]
+  fueling: ["fuelingStations", "fuelingStations-glow"],
+  hubs: ["hubs", "hubs-outline", "hub-labels"]
 };
 
 function wireDock() {
   document.querySelectorAll(".dock-btn").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.classList.contains("active")));
     btn.addEventListener("click", () => {
       btn.classList.toggle("active");
       const on = btn.classList.contains("active");
+      btn.setAttribute("aria-pressed", String(on));
+      window.H2Store?.dispatch({ type: "MAP_LAYER_UPDATE", payload: { key: btn.dataset.layer, value: on } });
       (TOGGLE_MAP[btn.dataset.layer] || []).forEach((id) => {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
       });
       renderSearchResults();
     });
   });
+  syncDockLayers();
 }
+
+function syncDockLayers() {
+  document.querySelectorAll(".dock-btn[data-layer]").forEach((btn) => {
+    const on = btn.classList.contains("active");
+    (TOGGLE_MAP[btn.dataset.layer] || []).forEach((id) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+    });
+  });
+}
+map.on("load", syncDockLayers);
+
+syncFiltersFromStore();
 
 function layerVisible(key) {
   const btn = document.querySelector(`.dock-btn[data-layer="${key}"]`);

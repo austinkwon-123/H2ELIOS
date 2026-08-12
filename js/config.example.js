@@ -9,6 +9,7 @@
    provider through a server-side environment variable instead (see README).
    ======================================================================= */
 window.H2G_CONFIG = {
+  ENABLE_PROTOTYPE_WORKSPACES: false,
   // https://finnhub.io/register — powers the per-ticker live quotes and the
   // up/down change indicators in the Markets panel. Empty = the panel renders
   // its "configure a key" fallback instead.

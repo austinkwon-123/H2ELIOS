@@ -1,6 +1,7 @@
 {
   "scripts": {
     "start": "node server.js",
+    "test:store": "node --test tests/store.test.js",
     "test:ui": "playwright test",
     "test:ui:headed": "playwright test --headed"
   },

@@ -231,9 +231,16 @@ function wireCurrentDensity() {
 // to each other for comparison — capped at 3, oldest bumped, same pattern
 // as the map's project-comparison cap elsewhere in the app.
 const MAX_SCENARIOS = 3;
-let savedScenarios = [];
-let scenarioSeq = 0;
 let scenarioLcohChart = null;
+
+function savedEconomicsScenarios() {
+  return (window.H2Store?.getState().comparisons || [])
+    // The comparison tray also accepts aggregate Market A/B snapshots. Keep
+    // those visible in the tray, but only calculator-shaped snapshots belong
+    // in the calculator's column comparison table.
+    .filter((snapshot) => snapshot.type === "economics" && Number.isFinite(snapshot.payload?.inputs?.capacity))
+    .map((snapshot) => ({ id: snapshot.id, name: snapshot.label, ...snapshot.payload }));
+}
 
 function snapshotEconomicsInputs() {
   return {
@@ -252,16 +259,19 @@ function saveCurrentAsScenario() {
   const inputs = snapshotEconomicsInputs();
   const lcoh = parseFloat(document.getElementById("lc-out-lcoh").textContent);
   const totalAnn = parseFloat((document.getElementById("co-out-totalAnn").textContent || "0").replace(/,/g, ""));
-  scenarioSeq++;
-  savedScenarios.push({ id: scenarioSeq, name: `Scenario ${scenarioSeq}`, inputs, lcoh, totalAnn });
-  if (savedScenarios.length > MAX_SCENARIOS) savedScenarios.shift();
+  const existing = savedEconomicsScenarios();
+  const snapshot = window.H2Store.createSnapshot("economics", {
+    label: `Scenario ${existing.length + 1}`,
+    payload: { inputs, lcoh, totalAnn }
+  });
+  window.H2Store.dispatch({ type: "COMPARISON_ADD", payload: { snapshot } });
   renderScenarioComparison();
   const scenarioTab = document.querySelector('.calc-tab[data-calc="scenario"]');
   if (scenarioTab) scenarioTab.click();
 }
 
 function removeScenario(id) {
-  savedScenarios = savedScenarios.filter((s) => s.id !== id);
+  window.H2Store?.dispatch({ type: "COMPARISON_REMOVE", payload: { id } });
   renderScenarioComparison();
 }
 
@@ -284,6 +294,7 @@ function renderScenarioComparison() {
   const table = document.getElementById("calc-scenario-table");
   if (!table) return;
 
+  const savedScenarios = savedEconomicsScenarios();
   if (!savedScenarios.length) {
     if (empty) empty.hidden = false;
     if (tableWrap) tableWrap.hidden = true;
@@ -342,7 +353,7 @@ function syncCalcPrefillUI() {
   const status = document.getElementById("calc-prefill-status");
   const btn = document.getElementById("calc-prefill-btn");
   if (!status || !btn) return;
-  const sel = window.H2GSelection;
+  const sel = window.H2Store?.getState().selection;
   if (sel && sel.props) {
     status.textContent = "Selected: " + sel.props.name;
     btn.disabled = false;
@@ -353,7 +364,7 @@ function syncCalcPrefillUI() {
 }
 
 function prefillFromSelection() {
-  const sel = window.H2GSelection;
+  const sel = window.H2Store?.getState().selection;
   if (!sel || !sel.props || typeof getCapacityMw !== "function") return;
   const mw = getCapacityMw(sel.props.capacity);
   if (!Number.isFinite(mw) || mw <= 0) return;
@@ -437,6 +448,7 @@ function initToolsPage() {
 
       <div class="calc-panel" id="calc-economics" hidden>
         <p class="calc-desc">One connected model: plant cost rolls straight into the levelized cost of the hydrogen it produces — no copying numbers between tabs.</p>
+        <details class="model-assumptions"><summary>Model assumptions and inputs</summary><p>Annualized CAPEX uses the selected discount rate and lifetime. Production uses rated capacity × capacity factor ÷ specific energy consumption. Electricity, CAPEX and OPEX inputs are user-defined and no market forecast is implied.</p></details>
         <div class="calc-prefill-row">
           <span id="calc-prefill-status" class="calc-prefill-status">No project selected</span>
           <button class="tab-btn" id="calc-prefill-btn" type="button" disabled>⬇ Prefill capacity</button>

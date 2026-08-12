@@ -112,7 +112,9 @@ function renderBreakevenChart() {
     .map((key) => series.find((s) => s.key === key))
     .filter(Boolean);
 
-  const W = 620, H = 260, padL = 42, padR = 16, padT = 16, padB = 28;
+  // Reserve a real label gutter. The former 16px right pad clipped every
+  // series name at the SVG edge, making the line colors do all the work.
+  const W = 620, H = 260, padL = 42, padR = 86, padT = 16, padB = 28;
   const plotW = W - padL - padR, plotH = H - padT - padB;
 
   const allVals = lines.flatMap((s) => s.values).filter((v) => v != null);
@@ -266,6 +268,7 @@ function runSandboxLcohCalc() {
   const isBaseline = scenario.key === "baseline";
   const stressedLcoh = isBaseline ? baselineLcoh : computeLcoh(scenario.apply(baseline));
   const shownLcoh = isBaseline ? baselineLcoh : stressedLcoh;
+  window.H2EconomicsAB = { baseline, baselineLcoh, scenario, scenarioInputs: scenario.apply(baseline), scenarioLcoh: stressedLcoh };
 
   const outputVal = document.getElementById("sandbox-lcoh-val");
   if (outputVal) outputVal.textContent = `$${shownLcoh.toFixed(2)}`;
@@ -286,6 +289,47 @@ function runSandboxLcohCalc() {
     verdictEl.textContent = pass ? "PASS" : "FAIL";
     verdictEl.className = `sandbox-verdict ${pass ? "pass" : "fail"}`;
   }
+  const aValue = document.getElementById("economics-a-value");
+  const bValue = document.getElementById("economics-b-value");
+  const bLabel = document.getElementById("economics-b-label");
+  if (aValue) aValue.textContent = `$${baselineLcoh.toFixed(2)}/kg`;
+  if (bValue) bValue.textContent = `$${stressedLcoh.toFixed(2)}/kg`;
+  if (bLabel) bLabel.textContent = scenario.label;
+  renderLcohSensitivityMatrix();
+}
+
+function renderLcohSensitivityMatrix() {
+  const root = document.getElementById("economics-sensitivity");
+  if (!root) return;
+  const baseline = currentBaselineInputs();
+  const prices = [20, 40, 60, 80, 100, 120];
+  const factors = [30, 40, 50, 60, 70, 80, 90];
+  const values = factors.flatMap((capFactor) => prices.map((powerPrice) => computeLcoh({ ...baseline, powerPrice, capFactor })));
+  const min = Math.min(...values), max = Math.max(...values);
+  const cells = factors.map((capFactor) => prices.map((powerPrice) => {
+    const value = computeLcoh({ ...baseline, powerPrice, capFactor });
+    const level = Math.round(((value - min) / Math.max(0.01, max - min)) * 5);
+    return `<span class="sensitivity-cell level-${level}" title="$${powerPrice}/MWh · ${capFactor}% CF">$${value.toFixed(2)}</span>`;
+  }).join("")).join("");
+  root.innerHTML = `<div class="sensitivity-axis sensitivity-price">Electricity price → ${prices.map((p) => `<span>$${p}</span>`).join("")}</div>
+    <div class="sensitivity-body"><div class="sensitivity-cf-labels">${factors.map((f) => `<span>${f}%</span>`).join("")}</div><div class="sensitivity-grid">${cells}</div></div>
+    <p>Rows: capacity factor · columns: electricity price ($/MWh). Values are modeled LCOH ($/kg).</p>`;
+}
+
+function saveEconomicsComparison(side) {
+  const state = window.H2EconomicsAB;
+  if (!state || !window.H2Store) return;
+  const isB = side === "B";
+  const scenario = {
+    inputs: isB ? state.scenarioInputs : state.baseline,
+    lcoh: isB ? state.scenarioLcoh : state.baselineLcoh,
+    totalAnn: 0
+  };
+  const snapshot = window.H2Store.createSnapshot("economics", {
+    label: isB ? `B · ${state.scenario.label}` : "A · Baseline",
+    payload: scenario
+  });
+  window.H2Store.dispatch({ type: "COMPARISON_ADD", payload: { snapshot } });
 }
 
 function wireLcohScenarios() {
@@ -383,9 +427,10 @@ function initMarketPage() {
           <div class="bar-list" id="breakeven-ranking"></div>
         </div>
 
-        <div class="dashboard-card">
+        <div class="dashboard-card" data-provenance="modeled">
           <h3>LCOH Sensitivity Sandbox</h3>
           <p class="chart-note">Slide values to recalculate levelized cost ($/kg H₂) for a standard 1 MW PEM plant, 8% discount rate, 20-year life.</p>
+          <details class="model-assumptions"><summary>Assumptions and source inputs</summary><p>1 MW PEM plant; 52 kWh/kg specific energy use; 8% discount rate; 20-year life; annual OPEX at 3% of CAPEX. IRA 45V is a user-controlled modeled credit, not an eligibility determination.</p></details>
 
           <div class="sandbox-sliders">
             <div class="sandbox-slider-row">
@@ -419,11 +464,14 @@ function initMarketPage() {
             </div>
             <div style="display:flex; align-items:baseline; gap:8px;">
               <span id="sandbox-lcoh-val" class="sandbox-readout-val">$4.80</span>
-              <span id="sandbox-lcoh-verdict" class="sandbox-verdict pass">PASS</span>
             </div>
           </div>
           <p class="chart-note" id="sandbox-lcoh-delta"></p>
-          <p class="chart-note">PASS/FAIL is against an illustrative $${VIABILITY_THRESHOLD.toFixed(2)}/kg viability line, not a sourced benchmark — adjust your own assumptions above and judge for yourself.</p>
+          <div class="economics-ab" aria-label="Scenario A and B comparison">
+            <article><span>Scenario A</span><strong>Baseline</strong><b id="economics-a-value">—</b><button id="economics-save-a" type="button">Save A</button></article>
+            <article><span>Scenario B</span><strong id="economics-b-label">Baseline</strong><b id="economics-b-value">—</b><button id="economics-save-b" type="button">Save B</button></article>
+          </div>
+          <div class="economics-sensitivity-wrap"><h4>Electricity price × capacity factor</h4><div id="economics-sensitivity"></div></div>
         </div>
       </div>
 
@@ -473,6 +521,8 @@ function initMarketPage() {
   document.getElementById("calc-cap-factor").oninput = runSandboxLcohCalc;
   wireLcohScenarios();
   runSandboxLcohCalc();
+  document.getElementById("economics-save-a")?.addEventListener("click", () => saveEconomicsComparison("A"));
+  document.getElementById("economics-save-b")?.addEventListener("click", () => saveEconomicsComparison("B"));
 
   document.getElementById("vc-search").oninput = renderVCRoster;
   document.getElementById("vc-sector-filter").onchange = renderVCRoster;

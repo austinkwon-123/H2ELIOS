@@ -18,6 +18,117 @@
 const NREL_API_KEY = (window.H2G_CONFIG && window.H2G_CONFIG.NREL_API_KEY) || "DEMO_KEY";
 const AFDC_URL = `https://developer.nrel.gov/api/alt-fuel-stations/v1.json?fuel_type=HY&api_key=${NREL_API_KEY}&limit=200`;
 
+// The shell must never imply that every visible record is live merely because
+// the application itself is online. Each connected feed reports its own state;
+// the compact ribbon indicator then describes the aggregate honestly while the
+// curated/cached baseline keeps the product usable during an outage.
+const H2ELIOS_DATA_HEALTH = Object.create(null);
+window.H2ELIOSReportDataHealth = function (feed, state) {
+  H2ELIOS_DATA_HEALTH[feed] = state;
+  const indicator = document.querySelector(".freshness-indicator");
+
+  const states = Object.values(H2ELIOS_DATA_HEALTH);
+  const hasLive = states.includes("live");
+  const hasFallback = states.includes("cached") || states.includes("degraded");
+  const hasChecking = states.includes("checking");
+  let aggregate = "checking";
+  let label = "Checking data";
+  let title = "Checking connected data services";
+
+  if (hasFallback && hasLive) {
+    aggregate = "mixed";
+    label = "Live + cached";
+    title = "Some connected feeds are live; unavailable feeds use cached or curated data";
+  } else if (hasFallback) {
+    aggregate = "cached";
+    label = "Cached snapshot";
+    title = "Live services are unavailable; showing cached and curated data";
+  } else if (hasLive && !hasChecking) {
+    aggregate = "live";
+    label = "Live data";
+    title = "Connected data services are responding";
+  } else if (hasLive) {
+    aggregate = "mixed";
+    label = "Live + checking";
+    title = "At least one feed is live; remaining services are still being checked";
+  }
+
+  if (indicator) {
+    indicator.dataset.state = aggregate;
+    indicator.title = title;
+    const copy = indicator.querySelector(".freshness-copy");
+    if (copy) copy.textContent = label;
+  }
+
+  const sidebarFooter = document.querySelector(".sidebar-footer");
+  const sidebarLabel = document.getElementById("sidebar-status-label");
+  if (sidebarFooter) {
+    sidebarFooter.dataset.state = aggregate;
+    sidebarFooter.title = title;
+  }
+  if (sidebarLabel) {
+    sidebarLabel.textContent = aggregate === "live" ? "Live network" :
+      aggregate === "mixed" ? "Mixed data sources" :
+      aggregate === "cached" ? "Cached network" : "Checking data";
+  }
+
+  if (feed === "stations") {
+    const stationButton = document.querySelector('[data-layer="fuelingStations"]');
+    if (stationButton) {
+      const stationLabel = state === "live" ? "Fueling stations (live)" :
+        state === "checking" ? "Fueling stations (checking live feed)" :
+        "Fueling stations (cached snapshot)";
+      stationButton.dataset.feedState = state;
+      stationButton.setAttribute("aria-label", stationLabel);
+      stationButton.setAttribute("data-tip", stationLabel);
+    }
+  }
+
+  if (feed === "projects") {
+    const apiButton = document.querySelector('[data-layer="apiLive"]');
+    if (apiButton) {
+      const isLive = state === "live";
+      const apiLabel = isLive ? "Live API project tier" :
+        state === "checking" ? "Live API project tier (checking)" :
+        "Live API unavailable — cached IEA projects remain available";
+      apiButton.dataset.feedState = state;
+      apiButton.disabled = !isLive;
+      apiButton.setAttribute("aria-disabled", String(!isLive));
+      apiButton.setAttribute("aria-label", apiLabel);
+      apiButton.setAttribute("data-tip", apiLabel);
+    }
+  }
+};
+
+["projects", "analytics", "stations"].forEach((feed) => {
+  window.H2ELIOSReportDataHealth(feed, "checking");
+});
+// Do not leave the interface claiming that a connection is still being
+// checked forever. A late response can still promote the feed to live later.
+setTimeout(() => {
+  Object.entries(H2ELIOS_DATA_HEALTH).forEach(([feed, state]) => {
+    if (state === "checking") window.H2ELIOSReportDataHealth(feed, "degraded");
+  });
+}, 7000);
+
+// Ambient motion is animation that runs without user action and does not
+// explain a change in the data — as opposed to a loading indicator, a value
+// updating, or a transition the user just triggered, all of which stay on.
+//
+// Off by default. The two loops this gates (orbiting satellites and the
+// comet-pulse hub arcs, both in 18-api-live.js) are synthetic, and the arcs
+// additionally draw routes that are not real contracted supply chains while
+// rendering on the same globe as real project data. Flip to true to restore.
+const H2ELIOS_AMBIENT_MOTION = false;
+
+// The stylesheet already honours prefers-reduced-motion for CSS animation and
+// transitions, but that media query cannot reach requestAnimationFrame loops.
+const H2ELIOS_REDUCED_MOTION = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+function ambientMotionAllowed() {
+  return H2ELIOS_AMBIENT_MOTION && !H2ELIOS_REDUCED_MOTION;
+}
+
 const COLORS = {
   green: "#34d399",
   blue: "#60a5fa",
@@ -27,6 +138,19 @@ const COLORS = {
   gray: "#94a3b8",
   brown: "#b45309",
   mfg: "#a78bfa"
+};
+
+// Daylight map marks need pigment, not emission. These are deliberately
+// darker companions to the night palette so categories remain consistent
+// while lines and points keep enough contrast on pale land and ocean tiles.
+const LIGHT_COLORS = {
+  green: "#087a55",
+  blue: "#245db5",
+  pink: "#ad326e",
+  turquoise: "#0b7480",
+  gray_blue: "#52657a",
+  brown: "#8a4c08",
+  mfg: "#6243a8"
 };
 
 const COLOR_MATCH = [
@@ -39,6 +163,18 @@ const COLOR_MATCH = [
   "brown", COLORS.brown,
   "mfg", COLORS.mfg,
   /* default */ "#9ca3af"
+];
+
+const LIGHT_COLOR_MATCH = [
+  "match", ["get", "color"],
+  "green", LIGHT_COLORS.green,
+  "blue", LIGHT_COLORS.blue,
+  "pink", LIGHT_COLORS.pink,
+  "turquoise", LIGHT_COLORS.turquoise,
+  "gray_blue", LIGHT_COLORS.gray_blue,
+  "brown", LIGHT_COLORS.brown,
+  "mfg", LIGHT_COLORS.mfg,
+  /* default */ "#52657a"
 ];
 
 // Capacity-scaled radius: base + scale tier (1–8).
@@ -205,18 +341,26 @@ const H2GRID_BASE_STYLE = {
 };
 
 // ---- Map init: 3D globe ----------------------------------------------------
+const H2GRID_HOME_VIEW = {
+  center: [24, 8],
+  zoom: 1.85,
+  pitch: 0,
+  bearing: 8
+};
+
 const map = new maplibregl.Map({
   container: "map",
   style: H2GRID_BASE_STYLE,
-  center: [-32, 40],
-  zoom: 1.7,
-  pitch: 58,
-  bearing: 12,
+  ...H2GRID_HOME_VIEW,
   minZoom: 1.0,
   maxZoom: 16,
   maxPitch: 70, // default maxPitch is 60, which would clamp the click fly-to's target pitch of 65
   attributionControl: false
 });
+// A stable, read-only integration handle for shell coordination and visual
+// regression checks. The classic-script lexical `map` binding remains the
+// implementation source of truth.
+window.H2ELIOS_MAP = map;
 
 // Zoom in/out + reset view, one custom control instead of MapLibre's stock
 // NavigationControl (plain white 29px squares) — built the same way as the
@@ -242,7 +386,7 @@ class MapControlCluster {
     const zoomOut = mkBtn("Zoom out", '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>', () => mapRef.zoomOut());
     const sep = document.createElement("div");
     sep.className = "dock-sep";
-    const reset = mkBtn("Reset view", '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>', () => mapRef.flyTo({ center: [-32, 40], zoom: 1.7, pitch: 58, bearing: 12, duration: 1200 }));
+    const reset = mkBtn("Reset view", '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>', () => mapRef.flyTo({ ...H2GRID_HOME_VIEW, duration: 1200 }));
     this._container.append(zoomIn, zoomOut, sep, reset);
     return this._container;
   }
@@ -500,7 +644,7 @@ let statusFilter = "all";     // all | operating | construction | planned | atri
 let regionFilter = "all";     // all | americas | europe | mena | apac
 let colorFilter = null;       // null | taxonomy color key
 let selectedName = null;
-let spinning = true;          // idle globe rotation until first interaction
+let spinning = false;         // retained for compatibility; autoplay is disabled
 const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
 
 
@@ -596,14 +740,39 @@ function animateDetailIn(container) {
   if (el) el.classList.add("tab-detail-in");
 }
 
+// Every analytical card carries an explicit provenance declaration. Existing
+// route modules can opt into modeled/illustrative via data-provenance; cards
+// with scenario inputs are treated as modeled, and legacy sample/illustrative
+// surfaces are removed unless Prototype Lab is explicitly enabled.
+function applyAnalyticalProvenance(root) {
+  if (!root) return;
+  const prototypeEnabled = Boolean(window.H2G_CONFIG?.ENABLE_PROTOTYPE_WORKSPACES);
+  root.querySelectorAll(".dashboard-card, .kpi-card, .calc-panel").forEach((card) => {
+    if (!card.dataset.provenance) {
+      if (card.querySelector(".badge-sample") || /\billustrative\b/i.test(card.textContent)) card.dataset.provenance = "illustrative";
+      else if (card.querySelector('input[type="range"], input[type="number"]')) card.dataset.provenance = "modeled";
+      else card.dataset.provenance = "observed";
+    }
+    if (card.dataset.provenance === "illustrative" && !prototypeEnabled) {
+      card.remove();
+      return;
+    }
+    if (card.querySelector(":scope > .provenance-badge")) return;
+    const badge = document.createElement("span");
+    badge.className = `provenance-badge ${card.dataset.provenance}`;
+    badge.textContent = card.dataset.provenance === "illustrative" ? "Sandbox · Illustrative" :
+      card.dataset.provenance.charAt(0).toUpperCase() + card.dataset.provenance.slice(1);
+    card.prepend(badge);
+    if (card.dataset.provenance === "illustrative") card.classList.add("sandbox-surface");
+  });
+}
+
 // ---- Build layers on load ---------------------------------------------------
 map.on("load", () => {
-  addWebLayer();
   addHubLayers();
-  addFlowLayers();
   addLineLayer("pipelines", D.pipelines);
   addPointLayer("upstream", D.upstream);
-  addPointLayer("production", D.production, { pulse: true });
+  addPointLayer("production", D.production);
   addPointLayer("manufacturing", D.manufacturing);
   addPointLayer("storage", D.storagePoints);
   addPointLayer("endUse", D.endUse);
@@ -613,19 +782,19 @@ map.on("load", () => {
   setStatus("fallback", "Cached stations");
   loadLiveStations();
 
-  wireDock();
-  wireSegments();
-  wireLegend();
-  wireFlyouts();
-  wireSearch();
-  wireSearchHotkey();
+  // DOM controls are wired on DOMContentLoaded by the spatial shell so they
+  // remain usable even when remote map tiles load slowly. Map hit-testing is
+  // the only binding that must wait for these layers to exist.
   wireClicks();
-  wireDetailClose();
-  wireTheme();
+  setTheme(document.documentElement.dataset.theme || "dark");
+});
 
-  renderStats();
-  startAnimations();
-  startSpin();
+// A theme chosen on DOMContentLoaded lands before the style finishes loading,
+// so setTheme() only got as far as the DOM. Retry the map half on every
+// styledata until one attempt sticks; styledata also fires after later style
+// mutations, which keeps the paint correct if layers are re-added.
+map.on("styledata", () => {
+  if (pendingMapTheme !== null) setTheme(pendingMapTheme);
 });
 
 
@@ -634,21 +803,122 @@ function currentTheme() {
   return document.body.classList.contains("light") ? "light" : "dark";
 }
 
+// The theme whose map repaint has not landed yet, replayed on "styledata".
+let pendingMapTheme = null;
+
+// Cached because the WebGL layers (19-command-arcs, 20-spikes, 21-daynight) and
+// the pulse loop (02-layers) need it inside their per-frame render callbacks.
+// Reading document.documentElement.dataset.theme there meant a DOM lookup per
+// layer per frame; setTheme() is the only thing that can change the answer.
+let h2eliosLightMode = false;
+
+// Theming splits in two: the DOM half always succeeds, the map half depends on
+// the style being ready. map.getLayer() starts returning layers as soon as the
+// style JSON is parsed, while setPaintProperty/setSky keep throwing "Style is
+// not done loading" until the style completes — so guarding on getLayer was not
+// enough, and the unguarded setSky() at the end of applyMapTheme() threw on
+// every boot, taking the rest of shell init down with it.
+//
+// The guard is failure-driven rather than state-driven on purpose:
+// isStyleLoaded() also reports false while a source retries failing tiles, and
+// gating on it would leave the map permanently unthemed on a flaky network.
 function setTheme(theme) {
   document.body.classList.toggle("light", theme === "light");
+  h2eliosLightMode = theme === "light";
+  try {
+    applyMapTheme(theme);
+    pendingMapTheme = null;
+  } catch (error) {
+    pendingMapTheme = theme;
+  }
+  try { localStorage.setItem("h2grid-theme", theme); } catch (e) { /* ignore */ }
+}
+
+function applyMapTheme(theme) {
   const dark = theme !== "light";
 
   if (map.getLayer && map.getLayer("basemap-dark")) {
     map.setLayoutProperty("basemap-dark", "visibility", dark ? "visible" : "none");
     map.setLayoutProperty("basemap-light", "visibility", dark ? "none" : "visible");
+    map.setPaintProperty("basemap-light", "raster-opacity", dark ? 0 : 1);
+    map.setPaintProperty("basemap-light", "raster-brightness-min", dark ? 0 : 0.08);
+    map.setPaintProperty("basemap-light", "raster-brightness-max", dark ? 1 : 1);
+    map.setPaintProperty("basemap-light", "raster-contrast", dark ? 0 : 0.06);
+    map.setPaintProperty("basemap-light", "raster-saturation", dark ? 0 : -0.32);
   }
   if (map.getLayer && map.getLayer("hub-labels")) {
     map.setPaintProperty("hub-labels", "text-halo-color", dark ? "#01030a" : "#f4f7fc");
     map.setPaintProperty("hub-labels", "text-color",
       ["case", ["==", ["get", "funding"], "terminated"], dark ? "#fca5a5" : "#b91c1c", dark ? "#6ee7c5" : "#047857"]);
   }
+  if (map.getLayer && map.getLayer("land-fill")) {
+    map.setPaintProperty("land-fill", "fill-color", dark ? "#0b132b" : "#d9e3ee");
+    map.setPaintProperty("land-fill", "fill-opacity", dark ? 0.6 : 0.82);
+  }
+  if (map.getLayer && map.getLayer("night-lights")) {
+    map.setPaintProperty("night-lights", "raster-opacity", dark
+      ? ["interpolate", ["linear"], ["zoom"], 2, 0.7, 6, 0]
+      : 0);
+  }
+  if (map.getLayer && map.getLayer("coast-glow")) {
+    map.setPaintProperty("coast-glow", "line-color", dark ? "#00f0ff" : "#3b8196");
+    map.setPaintProperty("coast-glow", "line-opacity", dark
+      ? ["interpolate", ["linear"], ["zoom"], 0, 0.32, 3, 0.32, 6, 0.15, 9, 0.15]
+      : ["interpolate", ["linear"], ["zoom"], 0, 0.045, 3, 0.045, 6, 0.02, 9, 0.02]);
+  }
+  if (map.getLayer && map.getLayer("coast")) {
+    map.setPaintProperty("coast", "line-color", dark ? "#7fe6f2" : "#2f6576");
+    map.setPaintProperty("coast", "line-opacity", dark ? 0.55 : 0.68);
+  }
   if (map.getLayer && map.getLayer("pipelines-dash")) {
     map.setPaintProperty("pipelines-dash", "line-color", dark ? "#eef3fc" : "#22314d");
+  }
+  ["flows-base", "flows-dash"].forEach((id) => {
+    if (map.getLayer && map.getLayer(id)) map.setPaintProperty(id, "line-color", dark ? COLOR_MATCH : LIGHT_COLOR_MATCH);
+  });
+  if (map.getLayer && map.getLayer("flow-particles")) {
+    map.setPaintProperty("flow-particles", "circle-color", dark ? COLOR_MATCH : LIGHT_COLOR_MATCH);
+  }
+  ["upstream", "production", "manufacturing", "storage", "endUse", "fuelingStations"].forEach((id) => {
+    if (map.getLayer && map.getLayer(id)) {
+      map.setPaintProperty(id, "circle-color", dark ? COLOR_MATCH : LIGHT_COLOR_MATCH);
+      map.setPaintProperty(id, "circle-opacity", dark ? FILL_OPACITY_EXPR : [
+        "match", ["get", "statusClass"], "planned", 0.58, "atrisk", 0.92, "construction", 0.94, 0.96
+      ]);
+      map.setPaintProperty(id, "circle-blur", dark ? FILL_BLUR_EXPR : [
+        "match", ["get", "statusClass"], "planned", 0.18, 0.06
+      ]);
+    }
+    const glowId = id + "-glow";
+    if (map.getLayer && map.getLayer(glowId)) {
+      map.setPaintProperty(glowId, "circle-color", dark ? COLOR_MATCH : LIGHT_COLOR_MATCH);
+      map.setPaintProperty(glowId, "circle-blur", dark ? 1 : 0.42);
+      map.setPaintProperty(glowId, "circle-opacity", dark ? 0.3 : 0.055);
+    }
+  });
+  ["pipelines", "pipelines-glow"].forEach((id) => {
+    if (map.getLayer && map.getLayer(id)) map.setPaintProperty(id, "line-color", dark ? COLOR_MATCH : LIGHT_COLOR_MATCH);
+  });
+  if (map.getLayer && map.getLayer("pipelines-glow")) {
+    map.setPaintProperty("pipelines-glow", "line-opacity", dark ? 0.1 : 0.035);
+    map.setPaintProperty("pipelines-glow", "line-blur", dark ? 4 : 1.5);
+  }
+  if (map.getLayer && map.getLayer("iea-points")) {
+    map.setPaintProperty("iea-points", "circle-color", dark ? "#3fd6e8" : "#0b7480");
+    map.setPaintProperty("iea-points", "circle-blur", dark ? 0.65 : 0.12);
+    map.setPaintProperty("iea-points", "circle-stroke-color", dark ? "#3fd6e8" : "#075b66");
+  }
+  if (map.getLayer && map.getLayer("iea-clusters")) {
+    map.setPaintProperty("iea-clusters", "circle-color", dark ? "rgba(63, 214, 232, 0.05)" : "rgba(11, 116, 128, 0.08)");
+    map.setPaintProperty("iea-clusters", "circle-stroke-color", dark ? "#3fd6e8" : "#075b66");
+    map.setPaintProperty("iea-cluster-count", "text-color", dark ? "#3fd6e8" : "#075b66");
+    map.setPaintProperty("iea-cluster-count", "text-halo-color", dark ? "#01030a" : "#f5f8fb");
+  }
+  if (map.getLayer && map.getLayer("hubs")) {
+    map.setPaintProperty("hubs", "fill-color", ["case", ["==", ["get", "funding"], "terminated"], dark ? "#f87171" : "#b91c1c", dark ? "#34e0a1" : "#087a55"]);
+  }
+  if (map.getLayer && map.getLayer("hubs-outline")) {
+    map.setPaintProperty("hubs-outline", "line-color", ["case", ["==", ["get", "funding"], "terminated"], dark ? "#f87171" : "#b91c1c", dark ? "#34e0a1" : "#087a55"]);
   }
   if (map.getLayer && map.getLayer("selection-ring")) {
     map.setPaintProperty("selection-ring", "circle-stroke-color", dark ? "#ffffff" : "#17202f");
@@ -663,40 +933,23 @@ function setTheme(theme) {
       "fog-ground-blend": 0.8,
       "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.9, 3, 0.9, 6, 0.12, 9, 0]
     } : {
-      "sky-color": "#eaf1f9",
-      "horizon-color": "#c8d6e8",
-      "fog-color": "#e2eaf4",
-      "sky-horizon-blend": 0.7,
-      "horizon-fog-blend": 0.7,
-      "fog-ground-blend": 0.9,
-      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.5, 3, 0.5, 6, 0.06, 9, 0]
+      "sky-color": "#f3f7fb",
+      "horizon-color": "#d7e2ee",
+      "fog-color": "#eef3f8",
+      "sky-horizon-blend": 0.28,
+      "horizon-fog-blend": 0.28,
+      "fog-ground-blend": 0.32,
+      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.22, 3, 0.22, 6, 0.025, 9, 0]
     });
   }
-  try { localStorage.setItem("h2grid-theme", theme); } catch (e) { /* ignore */ }
 }
 
 function wireTheme() {
-  // v7: single mission-control theme. Force dark; toggle retired.
-  setTheme("dark");
+  setTheme(document.documentElement.dataset.theme || "dark");
   const btn = document.getElementById("theme-btn");
   if (btn) btn.style.display = "none";
 }
 
-
-// ---- Idle globe rotation ---------------------------------------------------------
-function startSpin() {
-  const stop = () => { spinning = false; };
-  ["mousedown", "wheel", "touchstart", "dragstart"].forEach((ev) => map.on(ev, stop));
-  map.on("moveend", () => { if (spinning) spinStep(); });
-  spinStep();
-}
-
-function spinStep() {
-  if (!spinning) return;
-  if (map.getZoom && map.getZoom() > 3.5) return;
-  const c = map.getCenter ? map.getCenter() : { lng: 15, lat: 20 };
-  map.easeTo({ center: [c.lng + 10, c.lat], duration: 8000, easing: (n) => n });
-}
 
 function stopSpin() { spinning = false; }
 

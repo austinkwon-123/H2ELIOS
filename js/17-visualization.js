@@ -3,10 +3,12 @@
    Temporal Sandbox dashboard builder, 3D extrusions, and spatial routing.
    ======================================================================= */
 
-window.timelineYear = 2026;
+window.timelineYear = window.H2Store?.getState().timelineYear || 2026;
 window.is3DActive = false;
 let timelineInterval = null;
 let sandboxChart = null;
+let timelineProjectQuery = "";
+const TIMELINE_PROJECT_PAGE_SIZE = 40;
 
 const COLOR_HEX_MAP = {
   green: '#34d399',
@@ -71,22 +73,30 @@ function initTimelinePage() {
 
   container.innerHTML = `
     <div class="timeline-container">
-      <div style="display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 16px; height: 100%; box-sizing: border-box; overflow: hidden; padding-top: 10px;">
+      <div class="page-header timeline-page-header">
+        <div>
+          <h2>Network Timeline</h2>
+          <p>Explore how the announced hydrogen network changes as projects reach their stated operating year.</p>
+        </div>
+        <span class="timeline-source-note">Announced + curated records</span>
+      </div>
+      <div class="timeline-main-grid" style="display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 16px; height: 100%; box-sizing: border-box; overflow: hidden;">
         
         <!-- Left Column: Controls, KPIs, and Expansion Chart -->
-        <div style="display: flex; flex-direction: column; gap: 16px; overflow: hidden; height: 100%;">
+        <div class="timeline-primary-column" style="display: flex; flex-direction: column; gap: 16px; overflow: hidden; height: 100%;">
           
           <!-- Controls Card -->
           <div class="dashboard-card glass" style="flex-shrink: 0; padding: 16px; margin: 0;">
-            <h2 class="stats-head">Temporal Sandbox Control</h2>
+            <h2 class="stats-head">Timeline control</h2>
             <p style="font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
-              Drag the controller to target a chronological projection year. The visual globe map filters instantly to show infrastructure active up to the targeted year.
+              Drag the controller to inspect cumulative announced capacity. Apply the selected year to Explore when you are ready to map it.
             </p>
             <div id="temporal-milestones" style="margin-bottom: 2px;"></div>
-            <div style="display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.18); padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--line);">
+            <div class="timeline-scrubber" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--line);">
               <button id="sandbox-play-btn" class="tab-btn" style="min-width: 64px; margin: 0; padding: 6px 12px; font-size: 11px;">▶ Play</button>
               <input type="range" class="temporal-slider" id="sandbox-slider" min="2020" max="2035" value="${window.timelineYear}" style="flex: 1; margin: 0;" />
               <span id="sandbox-year-label" style="font-size: 18px; font-weight: 700; color: var(--text-hi); font-family: var(--font); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums;">${window.timelineYear}</span>
+              <button id="timeline-apply-map" class="tab-btn" type="button">Apply year to map</button>
             </div>
           </div>
 
@@ -106,9 +116,9 @@ function initTimelinePage() {
           </div>
 
           <!-- Capacity Expansion Line/Area Chart Card -->
-          <div class="dashboard-card glass" style="flex: 1; min-height: 200px; padding: 16px; margin: 0; display: flex; flex-direction: column; overflow: hidden;">
+          <div class="dashboard-card glass timeline-capacity-card" style="flex: 1; min-height: 200px; padding: 16px; margin: 0; display: flex; flex-direction: column; overflow: hidden;">
             <h2 class="stats-head" style="margin-bottom: 12px;">Cumulative Projected Capacity Expansion (GW)</h2>
-            <div style="flex: 1; position: relative;">
+            <div class="timeline-capacity-chart" style="flex: 1; position: relative;">
               <canvas id="sandbox-capacity-chart" style="width:100%; height:100%;"></canvas>
             </div>
           </div>
@@ -116,9 +126,13 @@ function initTimelinePage() {
         </div>
 
         <!-- Right Column: Scrollable List of Rollout Pipeline for the Target Year -->
-        <div class="dashboard-card glass" style="height: 100%; display: flex; flex-direction: column; padding: 16px; margin: 0; overflow: hidden; box-sizing: border-box;">
+        <div class="dashboard-card glass timeline-pipeline-card" style="height: 100%; display: flex; flex-direction: column; padding: 16px; margin: 0; overflow: hidden; box-sizing: border-box;">
           <h2 class="stats-head">Timeline Pipeline Rollouts (<span class="target-year-title">${window.timelineYear}</span>)</h2>
           <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px;">Announced and curated facilities scheduled to enter operation in this specific year.</p>
+          <div class="timeline-list-tools">
+            <input id="sandbox-project-search" class="search-input" type="search" placeholder="Filter this year's projects" aria-label="Filter projects scheduled for the selected year" />
+            <span id="sandbox-project-count" aria-live="polite"></span>
+          </div>
           <div style="flex: 1; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;" id="sandbox-project-list">
             <!-- Renders lists dynamically -->
           </div>
@@ -132,10 +146,18 @@ function initTimelinePage() {
   const slider = document.getElementById("sandbox-slider");
   const label = document.getElementById("sandbox-year-label");
   const playBtn = document.getElementById("sandbox-play-btn");
+  const projectSearch = document.getElementById("sandbox-project-search");
+  const applyMapButton = document.getElementById("timeline-apply-map");
 
   slider.oninput = () => {
-    window.timelineYear = parseInt(slider.value);
+    window.H2Store?.dispatch({ type: "TIMELINE_YEAR_UPDATE", payload: { year: parseInt(slider.value) } });
+    window.timelineYear = window.H2Store?.getState().timelineYear || parseInt(slider.value);
     label.textContent = window.timelineYear;
+    updateSandboxDashboard();
+  };
+
+  projectSearch.oninput = () => {
+    timelineProjectQuery = projectSearch.value.trim().toLowerCase();
     updateSandboxDashboard();
   };
 
@@ -153,12 +175,30 @@ function initTimelinePage() {
         let val = parseInt(slider.value);
         val = val >= 2035 ? 2020 : val + 1;
         slider.value = val;
-        window.timelineYear = val;
+        window.H2Store?.dispatch({ type: "TIMELINE_YEAR_UPDATE", payload: { year: val } });
+        window.timelineYear = window.H2Store?.getState().timelineYear || val;
         label.textContent = val;
         updateSandboxDashboard();
       }, 950);
     }
   };
+
+  applyMapButton.onclick = () => {
+    window.beginMapHandoff?.({
+      fromRoute: "timeline",
+      label: "Timeline",
+      year: window.timelineYear,
+      selectionId: null
+    });
+  };
+
+  window.registerRouteCleanup?.("timeline", () => {
+    if (!timelineInterval) return;
+    clearInterval(timelineInterval);
+    timelineInterval = null;
+    const button = document.getElementById("sandbox-play-btn");
+    if (button) button.textContent = "▶ Play";
+  });
 
   // Compile Capacity Growth Curve data in advance
   compileGrowthCurve();
@@ -263,9 +303,6 @@ function updateSandboxDashboard() {
     el.textContent = window.timelineYear;
   });
 
-  // Sync map filters
-  applyFilters();
-
   // Gather active projects details and count totals
   let countTotal = 0;
   let capacityMwTotal = 0;
@@ -310,20 +347,39 @@ function updateSandboxDashboard() {
 
   // Render pipeline list for target year
   const listContainer = document.getElementById("sandbox-project-list");
+  const listCount = document.getElementById("sandbox-project-count");
   if (listContainer) {
     if (targetYearProjects.length === 0) {
+      if (listCount) listCount.textContent = "0 projects";
       listContainer.innerHTML = `<div class="news-empty" style="padding:40px 0;">No projects scheduled to enter operations in ${window.timelineYear}.</div>`;
     } else {
-      // Sort largest first
+      // Sort largest first, then keep the working set scannable. Search still
+      // covers the full year, so reducing identical rows does not hide data.
       targetYearProjects.sort((a, b) => getCapacityMw(b.f.properties.capacity) - getCapacityMw(a.f.properties.capacity));
-      
-      listContainer.innerHTML = targetYearProjects.map(item => {
+      const matchingProjects = timelineProjectQuery ? targetYearProjects.filter(({ f }) => {
+        const p = f.properties || {};
+        return [p.name, p.country, p.subtype, p.status, p.operator]
+          .some((value) => String(value || "").toLowerCase().includes(timelineProjectQuery));
+      }) : targetYearProjects;
+      const visibleProjects = matchingProjects.slice(0, TIMELINE_PROJECT_PAGE_SIZE);
+      if (listCount) {
+        listCount.textContent = matchingProjects.length > visibleProjects.length ?
+          `${visibleProjects.length} of ${matchingProjects.length}` : `${matchingProjects.length} project${matchingProjects.length === 1 ? "" : "s"}`;
+      }
+
+      if (matchingProjects.length === 0) {
+        listContainer.innerHTML = `<div class="news-empty" style="padding:40px 0;">No projects match “${escapeHtml(timelineProjectQuery)}” in ${window.timelineYear}.</div>`;
+        renderSandboxChart();
+        return;
+      }
+
+      listContainer.innerHTML = visibleProjects.map(item => {
         const p = item.f.properties;
         const coords = item.f.geometry.coordinates;
         const cap = p.capacity || "n/a";
         const cHex = COLOR_HEX_MAP[p.color] || '#3fd6e8';
-        const coordsJson = JSON.stringify(coords);
-        const propsJson = JSON.stringify(p);
+        const canMap = Array.isArray(coords) && coords.length >= 2 && !Number(p.approx);
+        const action = canMap ? `<button class="tab-btn timeline-project-map" type="button" data-project-index="${visibleProjects.indexOf(item)}">View on Map</button>` : "";
 
         return `
           <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:var(--r-md); padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:12px; position:relative;">
@@ -334,13 +390,16 @@ function updateSandboxDashboard() {
                 ${escapeHtml(p.subtype || "Facility")} · ${escapeHtml(cap)} · <span class="badge badge-${p.statusClass || "other"}" style="font-size:9.5px; padding:1px 4px; vertical-align:middle;">${escapeHtml(p.status)}</span>
               </div>
             </div>
-            <button class="tab-btn" style="padding:4px 8px; font-size:10.5px; margin:0; flex-shrink:0; color:var(--cyan); border-color:rgba(63,214,232,0.25);"
-                    onclick='flyToAndShowMapProject(${coordsJson}, ${propsJson})'>
-              🔍 View on Map
-            </button>
+            ${action}
           </div>
         `;
-      }).join("");
+      }).join("") + (matchingProjects.length > visibleProjects.length ?
+        `<div class="timeline-list-limit">Showing the first ${TIMELINE_PROJECT_PAGE_SIZE} by capacity. Use the filter to find a specific project.</div>` : "");
+      listContainer.querySelectorAll(".timeline-project-map").forEach((button) => {
+        const item = visibleProjects[Number(button.dataset.projectIndex)];
+        if (!item) return;
+        button.addEventListener("click", () => flyToAndShowMapProject(item.f.geometry.coordinates, item.f.properties));
+      });
     }
   }
 
@@ -350,37 +409,15 @@ function updateSandboxDashboard() {
 
 // Interactive cross-routing: Fly map camera and open Project Inspector
 window.flyToAndShowMapProject = function(coords, p) {
-  if (!coords || coords.length < 2) return;
-  
-  // 1. Navigate route back to map
-  location.hash = "map";
-  
-  // 2. Delay slightly to allow the map to mount, then fly camera
-  setTimeout(() => {
-    if (typeof map !== 'undefined' && map.flyTo) {
-      map.flyTo({
-        center: coords,
-        zoom: 8.5,
-        pitch: window.is3DActive ? 48 : 0,
-        bearing: window.is3DActive ? -18 : 0,
-        duration: 1500
-      });
-      
-      // Update map selection ring
-      if (map.getSource("selection")) {
-        map.getSource("selection").setData({
-          type: "FeatureCollection",
-          features: [{ type: "Feature", geometry: { type: "Point", coordinates: coords }, properties: {} }]
-        });
-      }
-
-      // Open inspector detail panel
-      if (typeof showDetail === 'function') {
-        showDetail(p);
-      }
-    }
-  }, 100);
+  if (!Array.isArray(coords) || coords.length < 2 || Number(p?.approx)) return;
+  window.beginMapHandoff?.({ fromRoute: "timeline", label: "Timeline", selectionId: p.id || p.name, props: p, lngLat: coords });
 };
+
+function applyTimelineFilter() {
+  window.timelineYear = window.H2Store?.getState().timelineYear || window.timelineYear;
+  if (typeof applyFilters === "function") applyFilters();
+}
+window.applyTimelineFilter = applyTimelineFilter;
 
 function renderSandboxChart() {
   const ctx = document.getElementById("sandbox-capacity-chart");
@@ -458,24 +495,21 @@ function renderSandboxChart() {
 
 // 3. 3D Volumetric Extrusions Layer & Controls
 function inject3DControls() {
-  const dock = document.getElementById("layer-dock");
+  const dock = document.getElementById("map-mode-switch");
   if (!dock || document.getElementById("dock-3d-btn")) return;
 
   const btn = document.createElement("button");
-  btn.className = "dock-btn dock-btn-3d has-tip tip-right";
+  btn.className = "mode-btn map-advanced-control";
   btn.id = "dock-3d-btn";
   btn.type = "button";
   btn.setAttribute("aria-label", "3D capacity extrusions");
   btn.setAttribute("data-tip", "3D capacity extrusions");
-  btn.innerHTML = `
-    <svg viewBox="0 0 24 24">
-      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-    </svg>
-  `;
+  btn.textContent = "3D Capacity";
   dock.appendChild(btn);
 
   btn.onclick = () => {
     window.is3DActive = !window.is3DActive;
+    window.H2Store?.dispatch({ type: "MAP_3D_UPDATE", payload: { value: window.is3DActive } });
     btn.classList.toggle("active", window.is3DActive);
 
     if (window.is3DActive) {
@@ -514,17 +548,12 @@ function update3DTowers() {
   // previously excluded, which meant the violet (electrolyser gigafactory) and
   // pink (nuclear) taxonomy colours could never appear as beams at all — the
   // globe could only ever show green / blue / gray_blue / brown.
-  const SPIKE_TIERS = [
-    ["production", D.production],
-    ["storage", D.storagePoints],
-    ["manufacturing", D.manufacturing],
-    ["upstream", D.upstream]
-  ];
+  const SPIKE_TIERS = [["facilities", D.production], ["facilities", D.storagePoints], ["facilities", D.manufacturing], ["facilities", D.upstream]];
   const points = [];
   SPIKE_TIERS.forEach(([toggleKey, fc]) => {
     if (fc && fc.features && layerVisible(toggleKey)) points.push(...fc.features);
   });
-  if (window.IEA_DATA && layerVisible("iea")) {
+  if (window.IEA_DATA && layerVisible("announced")) {
     window.IEA_DATA.features.forEach(f => {
       if (f.properties.category === "production" || f.properties.category === "storage") {
         points.push(f);
@@ -573,33 +602,18 @@ applyFilters = function () {
 function initVisualizationModule() {
   preProcessDatasets();
   inject3DControls();
-  enable3DByDefault();
+  enable3DOnFirstLoad();
 }
 
-// 3D volumetric is the app's signature view, so it is the state you land in
-// rather than something you have to discover in the dock. Runs through the
-// same button handler as a manual click so there is exactly one code path
-// for entering 3D — no duplicated pitch/visibility/spike setup to drift.
-function enable3DByDefault() {
-  // Deliberately a poll, not map.loaded() / map.once("load"). map.loaded()
-  // never settles true here because the custom WebGL layers call
-  // triggerRepaint() every frame, and by the time this runs the "load" event
-  // has usually already fired — so both of those silently never start 3D.
-  // Polling for the two things actually required (the dock button and the
-  // spike layer) is the only condition that reliably holds.
-  let tries = 0;
-  const timer = setInterval(() => {
-    const btn = document.getElementById("dock-3d-btn");
-    // statusFilter must be initialised too. update3DTowers' checkFilters does
-    // `statusFilter !== "all"` — while it is still undefined that test passes
-    // and every point is rejected, so firing early yields zero spikes and
-    // nothing ever recomputes them.
-    const ready = btn && window.H2GSpikes && map.getLayer("h2grid-3d-spikes")
-      && typeof statusFilter !== "undefined" && statusFilter !== undefined
-      && D.production.features.length > 0;
-    if (ready && !window.is3DActive) { btn.click(); clearInterval(timer); }
-    else if (++tries > 40) clearInterval(timer); // ~8s ceiling, then give up quietly
-  }, 200);
+function enable3DOnFirstLoad() {
+  const activate = () => {
+    const button = document.getElementById("dock-3d-btn");
+    if (!button || !window.H2GSpikes || !map.getLayer("h2grid-3d-spikes") || window.is3DActive) return false;
+    button.click();
+    return true;
+  };
+  if (activate()) return;
+  map.once("load", () => requestAnimationFrame(activate));
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initVisualizationModule);

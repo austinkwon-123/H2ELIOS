@@ -187,6 +187,7 @@ in float v_face;
 in vec3 v_color;
 
 uniform float u_alphaScale;
+uniform float u_lightMode;
 
 out vec4 fragColor;
 
@@ -226,6 +227,11 @@ void main() {
   // taxonomy colour pure means a dense cluster reads as saturated green rather
   // than glare, and single needles stay distinguishable inside it.
   vec3 col = v_color * facing * (0.70 + 0.75 * taper);
+  // Additive pastel light is effective against space, but burns to white on
+  // a daylight basemap. Light mode turns the same taxonomy hues into denser
+  // cartographic ink while retaining the capacity-height encoding.
+  col = mix(col, col * 0.34, u_lightMode);
+  alpha *= mix(1.0, 0.78, u_lightMode);
   fragColor = vec4(col + vec3(tip * 0.5), alpha);
 }`;
 
@@ -280,11 +286,13 @@ void main() {
       const zoom = map.getZoom();
       gl.uniform1f(gl.getUniformLocation(program, "u_halfWidth"), halfWidthFor(zoom));
       gl.uniform1f(gl.getUniformLocation(program, "u_heightScale"), heightScaleFor(zoom));
+      const lightTheme = h2eliosLightMode;
       gl.uniform1f(gl.getUniformLocation(program, "u_alphaScale"), alphaScaleFor(zoom));
+      gl.uniform1f(gl.getUniformLocation(program, "u_lightMode"), lightTheme ? 1 : 0);
       gl.uniform1f(gl.getUniformLocation(program, "u_tipTaper"), TIP_TAPER);
 
       gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // additive — emissive light, matching the arc layer
+      gl.blendFunc(gl.SRC_ALPHA, lightTheme ? gl.ONE_MINUS_SRC_ALPHA : gl.ONE);
       gl.depthFunc(gl.LEQUAL);
 
       const aCenter = gl.getAttribLocation(program, "a_center");

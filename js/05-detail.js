@@ -32,13 +32,12 @@ function selectFacility(p, lngLat) {
   selectedName = p.name;
   showDetail(p);
   if (lngLat) {
-    map.getSource("selection").setData({
+    map.getSource("selection")?.setData({
       type: "FeatureCollection",
       features: [{ type: "Feature", geometry: { type: "Point", coordinates: lngLat }, properties: {} }]
     });
   }
-  window.H2GSelection = { props: p, lngLat };
-  updateSelectionChip();
+  window.H2Store?.dispatch({ type: "PROJECT_SELECT", payload: { props: p, lngLat } });
 }
 
 // Universal selection context: a persistent chip outside any single
@@ -50,8 +49,9 @@ function updateSelectionChip() {
   const chip = document.getElementById("selection-chip");
   const label = document.getElementById("selection-chip-label");
   if (!chip || !label) return;
-  if (window.H2GSelection && window.H2GSelection.props) {
-    label.textContent = "Selected: " + window.H2GSelection.props.name;
+  const selection = window.H2Store?.getState().selection || window.H2GSelection;
+  if (selection && selection.props) {
+    label.textContent = "Selected: " + selection.props.name;
     chip.hidden = false;
   } else {
     chip.hidden = true;
@@ -60,13 +60,14 @@ function updateSelectionChip() {
 }
 
 function clearSelection() {
-  window.H2GSelection = null;
-  updateSelectionChip();
+  window.H2Store?.dispatch({ type: "PROJECT_CLEAR" });
 }
 
 function wireSelectionChip() {
   const btn = document.getElementById("selection-chip-clear");
   if (btn) btn.addEventListener("click", clearSelection);
+  window.H2Store?.subscribe((state) => state.selection, updateSelectionChip);
+  updateSelectionChip();
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireSelectionChip);
 else wireSelectionChip();
@@ -104,8 +105,16 @@ function showDetail(p) {
   closeOtherRightPanels("detail-card");
   lastDetailProps = p;
   const card = document.getElementById("detail-card");
+  const wasOpen = !card.hidden;
   document.getElementById("detail-content").innerHTML = buildDetailHTML(p);
   card.hidden = false;
+  // Only pull focus when the panel is newly opened from the keyboard. Moving it
+  // on a pointer click yanks the caret out of whatever the user was typing in,
+  // and re-focusing on every refresh would fight them each time live data
+  // re-selects the open facility (18-api-live.js).
+  if (!wasOpen && window.H2GDetailReturnFocus) {
+    requestAnimationFrame(() => document.getElementById("detail-close")?.focus());
+  }
 }
 
 function taxonomyLabel(c) {
@@ -128,15 +137,36 @@ function hostOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
-function closeDetailPanel() {
+// restoreFocus is false when the panel is being dismissed as a side effect of
+// something else (a route change), where sending focus back to the map's search
+// box would drag the user out of the workspace they just opened.
+//
+// This clears panel state only. window.H2GSelection and the selection chip are
+// deliberately untouched — that context is meant to survive navigating away
+// from where the selection was made (see updateSelectionChip above).
+function closeDetailPanel(restoreFocus = true) {
   document.getElementById("detail-card").hidden = true;
+  // Clearing selectedName also stops live-data refreshes from re-opening this
+  // panel over an unrelated workspace (18-api-live.js re-selects by name).
   selectedName = null;
-  map.getSource("selection").setData(emptyFC());
+  map.getSource("selection")?.setData(emptyFC());
+  const returnFocus = window.H2GDetailReturnFocus;
+  window.H2GDetailReturnFocus = null;
+  if (restoreFocus && returnFocus?.isConnected) requestAnimationFrame(() => returnFocus.focus());
 }
 
 function wireDetailClose() {
-  document.getElementById("detail-close").addEventListener("click", closeDetailPanel);
-  document.getElementById("detail-minimize").addEventListener("click", () => minimizeDetailPanel(lastDetailProps, null, document.getElementById("detail-card")));
+  document.getElementById("detail-close").addEventListener("click", () => closeDetailPanel(true));
+  document.getElementById("detail-minimize").addEventListener("click", () => {
+    if (!lastDetailProps || !window.H2Store) return;
+    const selection = window.H2Store.getState().selection;
+    const snapshot = window.H2Store.createSnapshot("project", {
+      label: lastDetailProps.name || "Project",
+      payload: { props: lastDetailProps, lngLat: selection?.lngLat || null }
+    });
+    window.H2Store.dispatch({ type: "COMPARISON_ADD", payload: { snapshot } });
+    closeDetailPanel(false);
+  });
 }
 
 

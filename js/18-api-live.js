@@ -293,9 +293,11 @@ function onMapReady(fn) {
       rows = await res.json();
     } catch (err) {
       console.error("live API fetch failed", err);
+      if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("projects", "cached");
       return;
     }
     if (token !== fetchToken) return; // a newer request already landed
+    if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("projects", "live");
 
     // colorFilter (hydrogen-taxonomy legend) has no server-side equivalent -
     // the API's end_use filter is a different axis (mobility/ammonia/...) -
@@ -322,8 +324,10 @@ function onMapReady(fn) {
       data = await res.json();
     } catch (err) {
       console.error("summary fetch failed", err);
+      if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("analytics", "cached");
       return;
     }
+    if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("analytics", "live");
     renderApiSummary(data);
   }
 
@@ -364,11 +368,13 @@ function onMapReady(fn) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       networkTotalCapacityMw = data.totals.total_capacity_mw || null;
+      if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("analytics", "live");
       updateGauge();
       const gauge = document.getElementById("viewport-gauge");
       if (gauge) gauge.classList.remove("gauge-loading");
     } catch (err) {
       console.error("network total fetch failed", err);
+      if (window.H2ELIOSReportDataHealth) window.H2ELIOSReportDataHealth("analytics", "cached");
     }
   }
 
@@ -623,6 +629,11 @@ function onMapReady(fn) {
    nobody can see.
    ======================================================================= */
 (function () {
+  // Synthetic orbits with no relationship to hydrogen data — pure ambiance, so
+  // it is gated off with the rest of the ambient motion (see 01-core.js).
+  // Returning here skips the layers entirely rather than just pausing the loop.
+  if (!ambientMotionAllowed()) return;
+
   const SAT_COUNT = 40;
   const GROUND_ZOOM_THRESHOLD = 6; // matches 07-live.js's --bg-fx fade schedule
 
@@ -728,6 +739,12 @@ function onMapReady(fn) {
    longitude in (-180, 180]) rather than needing a special case for it.
    ======================================================================= */
 (function () {
+  // Gated off with the rest of the ambient motion (see 01-core.js). This layer
+  // fails the test twice: the animation explains no change, and the routes are
+  // invented, drawn on the same globe and in the same visual language as the
+  // real pipeline data. Restoring it should mean sourcing the corridors first.
+  if (!ambientMotionAllowed()) return;
+
   // Hardcoded for visual impact, per spec - recognizable hydrogen-economy hub
   // regions, not a real supply-chain dataset.
   const ROUTES = [

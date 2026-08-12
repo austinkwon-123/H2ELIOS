@@ -213,8 +213,13 @@ void main() {
       gl.uniform1f(gl.getUniformLocation(program, "u_nightFull"), NIGHT_FULL);
       gl.uniform1f(gl.getUniformLocation(program, "u_dayStart"), DAY_START);
       gl.uniform1f(gl.getUniformLocation(program, "u_dayFull"), DAY_FULL);
-      gl.uniform1f(gl.getUniformLocation(program, "u_nightAlpha"), NIGHT_ALPHA);
-      gl.uniform1f(gl.getUniformLocation(program, "u_dayAlpha"), DAY_ALPHA);
+      // Dark mode uses the physically descriptive terminator as a cinematic
+      // layer. In light mode the same 0.74 night wash made half the globe look
+      // disabled and the daylight wash blew out borders, so keep the solar
+      // cue while preserving the cartographic surface and data marks.
+      const lightTheme = h2eliosLightMode;
+      gl.uniform1f(gl.getUniformLocation(program, "u_nightAlpha"), lightTheme ? 0.14 : NIGHT_ALPHA);
+      gl.uniform1f(gl.getUniformLocation(program, "u_dayAlpha"), lightTheme ? 0.025 : DAY_ALPHA);
 
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // normal compositing, not additive

@@ -13,7 +13,7 @@
 <meta property="og:type" content="website" />
 <script>
   (() => {
-    const preference = localStorage.getItem("h2elios-theme") || "system";
+    const preference = localStorage.getItem("h2elios-theme") || "dark";
     const light = preference === "light" || (preference === "system" && matchMedia("(prefers-color-scheme: light)").matches);
     document.documentElement.dataset.theme = light ? "light" : "dark";
     document.documentElement.dataset.themePreference = preference;
@@ -23,7 +23,7 @@
      shader plumbing (projectTileFor3D via vertexShaderPrelude), and a floating
      "@5" range lets a published site change renderer behavior on its own. -->
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
-<link rel="stylesheet" href="style.css?v=spatial-3" />
+<link rel="stylesheet" href="style.css?v=spatial-7" />
 <link rel="stylesheet" href="hud.css" />
 </head>
 <body data-route="map">
@@ -61,7 +61,7 @@
       <input id="network-search" type="search" placeholder="Search H2ELIOS" autocomplete="off" aria-label="Search projects, workspaces, and commands" />
       <kbd>⌘K</kbd>
     </div>
-    <div class="freshness-indicator" title="Project data synchronized"><span aria-hidden="true"></span><span class="freshness-copy">Live data</span></div>
+    <div class="freshness-indicator" data-state="checking" title="Checking connected data services"><span aria-hidden="true"></span><span class="freshness-copy">Checking data</span></div>
     <button id="toolbar-more" class="toolbar-icon" type="button" aria-label="More options" aria-haspopup="menu" aria-expanded="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
     </button>
@@ -88,14 +88,14 @@
   <button class="tab-btn" data-route="demand-transport" aria-label="Demand" title="Demand"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg><span>Demand</span></button>
   <button class="tab-btn" data-route="policy" aria-label="Policy" title="Policy"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 12h6M9 16h6"/></svg><span>Policy</span></button>
   <button class="tab-btn" data-route="timeline" aria-label="Timeline" title="Timeline"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg><span>Timeline</span></button>
-  <button class="tab-btn" data-route="companies" aria-label="Organizations" title="Organizations"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="7" height="13"/><rect x="14" y="3" width="7" height="18"/><path d="M6 12h1M6 16h1M17 7h1M17 11h1M17 15h1"/></svg><span>Organizations</span></button>
   <button class="tab-btn" data-route="tools" aria-label="Calculator" title="Calculator"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3-3z"/></svg><span>Calculator</span></button>
+  <button class="tab-btn prototype-workspace" data-route="companies" data-prototype-workspace hidden aria-label="Prototype Lab" title="Prototype Lab"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v5l-5 9a3 3 0 0 0 2.6 4.5h8.8A3 3 0 0 0 19 17l-5-9V3"/><path d="M7 16h10"/></svg><span>Prototype Lab</span></button>
 </nav>
     <div id="sidebar-map-tools" aria-label="Explore tools"></div>
   </div>
   <div class="sidebar-footer">
     <span class="sidebar-status-dot" aria-hidden="true"></span>
-    <span class="sidebar-footer-copy"><strong>Network online</strong><small>3,338 announced projects</small></span>
+    <span class="sidebar-footer-copy" id="sidebar-status-copy"><strong id="sidebar-status-label">Checking data</strong><small>3,338 announced projects</small></span>
   </div>
 </aside>
 
@@ -109,52 +109,34 @@
   <span id="selection-chip-label"></span>
   <button id="selection-chip-clear" type="button" aria-label="Clear selection">×</button>
 </div>
+<button id="handoff-return" class="glass handoff-return" type="button" hidden></button>
+<aside id="comparison-tray" class="glass comparison-tray" aria-label="Session comparison tray" hidden>
+  <div class="comparison-tray-head"><strong>Compare</strong><span>Session only · max 3</span></div>
+  <div id="comparison-tray-items"></div>
+</aside>
+<div id="mobile-analysis-notice" class="glass mobile-analysis-notice">
+  <strong>Desktop analysis recommended</strong>
+  <span>Search, map lookup, project details and summaries remain available here. Advanced 3D, layer and scenario controls require a wider display.</span>
+</div>
 
 <div id="workspace-content">
 <section id="page-map" class="page">
 <main id="map" aria-label="Global hydrogen network map"></main>
 
-<!-- Map-local mode switch: Explore (immersive, nothing extra) / Research
-     (project intelligence + network analytics) / Markets (ticker overlay),
-     plus the self-playing Demo as a small icon so it doesn't read as a
-     fourth mode. Lives on the map itself rather than the global ribbon —
-     these are viewing modes for this one workspace, not separate
-     destinations, so they shouldn't compete visually with #tab-nav. -->
-<div class="glass" id="map-mode-switch" role="group" aria-label="Map mode">
-  <div class="mode-active-indicator" aria-hidden="true"></div>
-  <button id="mode-explore-btn" class="mode-btn active" type="button">Explore</button>
-  <button id="analytics-btn" class="mode-btn" type="button">Research</button>
+<div class="glass" id="map-mode-switch" role="group" aria-label="Explore actions">
+  <button id="analytics-btn" class="mode-btn" type="button">Insights</button>
   <button id="markets-btn" class="mode-btn" type="button">Markets</button>
-  <div class="mode-switch-sep" aria-hidden="true"></div>
-  <button id="demo-btn" class="mode-btn-icon has-tip tip-bottom" type="button" data-tip="Self-playing walkthrough"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3.5 2"/><path d="M17.5 3.5 21 5l-1.5 3.5"/></svg></button>
+  <button id="data-quality-btn" class="mode-btn" type="button" aria-expanded="false" aria-controls="data-quality-panel">Data Quality</button>
 </div>
+<button id="demo-btn" type="button" hidden aria-label="Start guided walkthrough"></button>
 
 <!-- Left: layer dock -->
 <nav class="glass" id="layer-dock" aria-label="Layers">
-  <button class="dock-btn active has-tip tip-right" data-layer="upstream" aria-label="Upstream energy sources" data-tip="Upstream energy sources"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="production" aria-label="Production plants" data-tip="Production plants"><svg viewBox="0 0 24 24"><path d="M2 20h20M4 20V10l4 3v-3l4 3v-3l4 3V6h4v14"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="manufacturing" aria-label="Electrolyzer gigafactories" data-tip="Electrolyzer gigafactories"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="storage" aria-label="Storage & terminals" data-tip="Storage & terminals"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="pipelines" aria-label="Pipelines" data-tip="Pipelines"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-7 4 14 3-7h6"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="endUse" aria-label="End use" data-tip="End use"><svg viewBox="0 0 24 24"><path d="M1 16V7h13v9M14 10h4l4 4v2h-2M1 16h2m4.5 0H14"/><circle cx="5.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="fuelingStations" aria-label="Fueling stations (live)" data-tip="Fueling stations (live)"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M2 21h14M6 8h6M14 10h2a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V9l-2-2"/></svg></button>
-  <button class="dock-btn active has-tip tip-right" data-layer="hubs" aria-label="DOE hydrogen hubs" data-tip="DOE hydrogen hubs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
-  <!-- One control for supply-chain flows. It drives the draped 2D lines and the
-       3D elevated arcs together: both render the same D.flows dataset, so two
-       separate toggles were two switches for one thing. -->
-  <button class="dock-btn active has-tip tip-right" data-layer="flows" aria-label="Supply-chain flows" data-tip="Supply-chain flows"><svg viewBox="0 0 24 24"><path d="M3 18c3-10 15-10 18 0"/><circle cx="3" cy="18" r="1.6"/><circle cx="21" cy="18" r="1.6"/></svg></button>
-  <div class="dock-sep" data-dock-group="Data"></div>
-  <button class="dock-btn active has-tip tip-right" data-layer="iea" aria-label="IEA announced projects (3,338 records)" data-tip="IEA announced projects (3,338 records)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
-  <!-- Off by default. 936 of the 3,338 IEA records ship no coordinates, and the
-       build falls back to the country centroid plus a jitter — which drops
-       Australia's into the Simpson Desert and America's into rural Kansas.
-       They are real projects but their POSITION is fiction, so the globe shows
-       only precisely-located records unless this is switched on. -->
-  <button class="dock-btn has-tip tip-right" data-layer="ieaApprox" aria-label="Country-level estimated positions (936 IEA records)" data-tip="Country-level estimated positions (936 IEA records)"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" stroke-dasharray="3 2.4"/><circle cx="12" cy="10" r="2.2"/></svg></button>
-  <!-- Off by default: every row in the backend has data_source='iea', so this
-       tier draws the same 3,338 projects the IEA layer already shows. Leaving
-       both on double-draws the entire dataset. -->
-  <button class="dock-btn has-tip tip-right" data-layer="apiLive" aria-label="Live API tier (backend — same IEA records, served live)" data-tip="Live API tier (backend — same IEA records, served live)"><svg viewBox="0 0 24 24"><path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6M4.9 19.1l4.2-4.2M14.9 9.1l4.2-4.2"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="facilities" aria-label="Facilities" data-tip="Production, storage, manufacturing and end-use facilities"><svg viewBox="0 0 24 24"><path d="M2 20h20M4 20V10l4 3v-3l4 3v-3l4 3V6h4v14"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="pipelines" aria-label="Pipelines" data-tip="Hydrogen pipelines"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-7 4 14 3-7h6"/></svg></button>
+  <button class="dock-btn has-tip tip-right" data-layer="fueling" aria-label="Fueling" data-tip="Source-backed fueling stations"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M2 21h14M6 8h6M14 10h2a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V9l-2-2"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="hubs" aria-label="Hubs" data-tip="Source-backed hydrogen hubs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+  <button class="dock-btn active has-tip tip-right" data-layer="announced" aria-label="Announced Projects" data-tip="Precisely located IEA announced projects"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.6"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 4.9a10 10 0 0 1 0 14.2M5 19.1A10 10 0 0 1 5 4.9"/></svg></button>
   <div class="dock-sep" data-dock-group="Filter"></div>
   <button class="flyout-trigger has-tip tip-right" id="filter-status-trigger" data-flyout="status" aria-label="Filter by status" data-tip="Filter by status" aria-expanded="false" aria-controls="flyout-status">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M2 12h4M18 12h4M4.2 19.8l2.8-2.8M17 7l2.8-2.8"/></svg>
@@ -166,6 +148,13 @@
     <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M12 13v8M8 21h8"/></svg>
   </button>
 </nav>
+
+<div class="glass data-quality-panel" id="data-quality-panel" hidden>
+  <div class="data-quality-head"><div><span class="provenance-badge observed">Observed</span><strong>Map data quality</strong></div><button id="data-quality-close" type="button" aria-label="Close Data Quality">×</button></div>
+  <p>Precisely located announced projects are shown by default. Diagnostic and approximate positions stay separate from the analytical map.</p>
+  <label class="data-quality-toggle"><input id="data-quality-approx" type="checkbox" /> <span>Show 936 country-level estimated positions</span></label>
+  <dl><dt>Project source</dt><dd>IEA Hydrogen Production Projects Database</dd><dt>Position rule</dt><dd>Exact coordinates unless diagnostics are explicitly enabled</dd><dt>API tier</dt><dd>Cached delivery of the same project dataset; not a separate visual layer</dd></dl>
+</div>
 
 <div class="glass flyout-panel" id="flyout-status" data-flyout-panel="status" hidden>
   <div class="filter-label">Status</div>
@@ -201,7 +190,7 @@
 </div>
 
 <!-- Right: detail sheet -->
-<div class="glass right-panel-slot" id="detail-card" hidden>
+<div class="glass right-panel-slot" id="detail-card" role="region" aria-label="Project details" hidden>
   <div class="window-controls" role="group" aria-label="Panel controls">
     <button id="detail-close" class="wc-dot wc-close" type="button" title="Close" aria-label="Close"></button>
     <button id="detail-minimize" class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
@@ -240,11 +229,12 @@
 </div>
 
 <!-- Bottom-center (above filter dock): markets panel, wider for the chart -->
-<div class="glass right-panel-slot" id="markets-panel" hidden>
-  <div class="stats-head">Live feed</div>
+<div class="glass right-panel-slot" id="markets-panel" hidden aria-label="Hydrogen markets">
+  <div class="stats-head">Live market feed</div>
   <div id="analytics-markets-video" class="markets-video"></div>
-  <div class="stats-head">Markets</div>
+  <div class="stats-head">HYDR · Nasdaq · S&amp;P 500</div>
   <div id="analytics-markets-chart" class="markets-chart"></div>
+  <div class="stats-head">Hydrogen equities</div>
   <div id="analytics-markets" class="stock-list"></div>
 </div>
 
@@ -256,18 +246,18 @@
   <h3 id="demo-title"></h3>
   <p id="demo-text"></p>
   <div class="tour-nav">
-    <button id="demo-prev" title="Previous">←</button>
-    <button id="demo-play" title="Pause">❚❚</button>
+    <button id="demo-prev" type="button" title="Previous" aria-label="Previous walkthrough step">←</button>
+    <button id="demo-play" type="button" title="Pause" aria-label="Pause walkthrough">❚❚</button>
     <span id="demo-step-label"></span>
-    <button id="demo-next" title="Next">→</button>
-    <button id="demo-exit" title="Exit demo">✕</button>
+    <button id="demo-next" type="button" title="Next" aria-label="Next walkthrough step">→</button>
+    <button id="demo-exit" type="button" title="Exit demo" aria-label="Exit walkthrough">✕</button>
   </div>
 </div>
 
 <!-- Minimized panels dock here (see js/01-core.js minimizePanel()). -->
 <div id="minimized-tray" aria-label="Minimized panels"></div>
 
- <div id="attribution">Data: DOE · IEA Hydrogen Tracker · EIA · GEM · company sources — see citations · © OpenStreetMap © CARTO · Web lines are illustrative · Prototype</div>
+ <div id="attribution">Data: DOE · IEA Hydrogen Tracker · EIA · GEM · company sources — see citations · © OpenStreetMap © CARTO</div>
 
  <!-- Left: AI regional overview panel -->
  <div class="glass right-panel-slot" id="regional-ai-panel" hidden>
@@ -292,7 +282,7 @@
  <section id="page-technology" class="page-wrapper page" hidden></section>
  <section id="page-demand-transport" class="page-wrapper page" hidden></section>
  <section id="page-policy" class="page-wrapper page" hidden></section>
- <section id="page-companies" class="page-wrapper page" hidden></section>
+ <section id="page-companies" class="page-wrapper page prototype-workspace" data-prototype-workspace hidden></section>
  <section id="page-tools" class="page" hidden></section>
  <section id="page-timeline" class="page" hidden></section>
 </div>
@@ -308,8 +298,8 @@
 </div>
  
  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+ <script src="js/maplibre-fallback.js?v=spatial-1"></script>
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
- <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
  
  <!-- data -->
  <script src="js/data.js?v=geo-1"></script>
@@ -320,33 +310,31 @@
  
  <!-- app modules (load order = dependency order; see README) -->
  <!-- Local API keys. Gitignored; copy js/config.example.js to js/config.js. -->
- <script src="js/config.js"></script>
- <script src="js/01-core.js?v=spatial-2"></script>
+<script src="js/config.js"></script>
+<script src="js/store.js?v=focused-1"></script>
+<script src="js/01-core.js?v=spatial-4"></script>
  <script src="js/02-layers.js"></script>
  <script src="js/03-filters.js"></script>
  <script src="js/04-search.js"></script>
  <script src="js/05-detail.js?v=geo-1"></script>
- <script src="js/07-live.js"></script>
+ <script src="js/07-live.js?v=data-health-2"></script>
  
  <!-- feature overlays (depend on app modules above) -->
  <script src="js/iea-layer.js"></script>
- <script src="js/18-api-live.js"></script>
  <script src="js/hud.js"></script>
  <script src="js/08-analytics.js?v=spatial-1"></script>
  <script src="js/09-router.js"></script>
- <script src="js/10-calculator.js?v=spatial-1"></script>
+ <script src="js/10-calculator.js?v=spatial-2"></script>
  <script src="js/11-market.js"></script>
  <script src="js/12-technology.js?v=spatial-1"></script>
  <script src="js/13-demand-transport.js?v=spatial-1"></script>
  <script src="js/14-policy.js?v=spatial-1"></script>
- <script src="js/15-companies.js?v=spatial-1"></script>
+ <script src="js/15-companies.js?v=spatial-2"></script>
  <script src="js/16-ai-features.js?v=spatial-1"></script>
- <script src="js/17-visualization.js?v=spatial-1"></script>
- <script src="js/19-command-arcs.js"></script>
+ <script src="js/17-visualization.js?v=spatial-2"></script>
  <script src="js/20-spikes.js"></script>
- <script src="js/21-daynight.js"></script>
-<script src="js/22-demo.js"></script>
-<script src="js/23-spatial-shell.js?v=spatial-2"></script>
+<script src="js/22-demo.js?v=a11y-1"></script>
+<script src="js/23-spatial-shell.js?v=spatial-4"></script>
 <script src="js/24-geology-intelligence.js?v=geo-1"></script>
  </body>
  </html>

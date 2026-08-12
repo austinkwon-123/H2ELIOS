@@ -86,7 +86,7 @@ test.describe('H2ELIOS responsive interaction contract', () => {
 
     const explore = page.getByRole('button', { name: 'Explore — the global network', exact: true });
     const economics = page.getByRole('button', { name: 'Economics', exact: true });
-    const production = page.getByRole('button', { name: 'Production plants', exact: true });
+    const production = page.getByRole('button', { name: 'Facilities', exact: true });
 
     expect.soft(await explore.getAttribute('aria-current')).toBe('page');
     expect.soft(await production.getAttribute('aria-pressed')).toBe('true');
@@ -104,8 +104,7 @@ test.describe('H2ELIOS responsive interaction contract', () => {
     const targets = [
       page.locator('#sidebar-toggle'),
       page.locator('#toolbar-more'),
-      page.locator('#tab-nav button').first(),
-      page.locator('#layer-dock button').first()
+      page.locator('#tab-nav button').first()
     ];
     for (const target of targets) {
       const box = await target.boundingBox();

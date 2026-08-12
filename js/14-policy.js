@@ -86,28 +86,32 @@ const REGIONAL_TARGETS = {
     goal: "10 Million Metric Tons (MMT) clean production by 2030",
     budget: "$9.5B Infrastructure Act + uncapped 45V tax credits",
     standard: "Hourly energy matching, additionality, and regionality by 2028",
-    mechanism: "Section 45V production tax credits sliding up to $3.00/kg"
+    mechanism: "Section 45V production tax credits sliding up to $3.00/kg",
+    source: "https://www.hydrogen.energy.gov/library/roadmaps-vision/clean-hydrogen-strategy-roadmap"
   },
   eu: {
     country: "European Union (RePowerEU & RED III)",
     goal: "10 MMT domestic production + 10 MMT imports by 2030",
     budget: "€4.5B Innovation Fund auctions & national CfD budgets",
     standard: "Strict RFNBO delegated acts (additionality & temporal matching)",
-    mechanism: "Fixed premium subsidy auctions per kg H2 produced"
+    mechanism: "Fixed premium subsidy auctions per kg H2 produced",
+    source: "https://commission.europa.eu/strategy-and-policy/priorities-2019-2024/european-green-deal/repowereu-affordable-secure-and-sustainable-energy-europe_en"
   },
   germany: {
     country: "Germany (H2Global & Kernnetz)",
     goal: "10 GW domestic electrolyzer capacity by 2030",
     budget: "€20B+ federal amortization backing + €4B+ H2Global imports",
     standard: "RFNBO criteria matched to core transportation network links",
-    mechanism: "H2Global double-auction and Carbon Contracts for Difference (CCfD)"
+    mechanism: "H2Global double-auction and Carbon Contracts for Difference (CCfD)",
+    source: "https://www.bmwk.de/Redaktion/EN/Dossier/hydrogen.html"
   },
   apac: {
-    country: "Japan & South Korea (Import Hub CfD)",
-    goal: "Japan: 3 MMT supply by 2030; Korea: 30% clean power co-firing by 2035",
-    budget: "¥3 Trillion ($20B) CfD import gap fund + direct utility credits",
-    standard: "Carbon intensity certificates for blended ammonia/methanol imports",
-    mechanism: "15-year Contracts-for-Difference bridging grey/green prices"
+    country: "Japan (Basic Hydrogen Strategy)",
+    goal: "Up to 3 MMT hydrogen and ammonia supply by 2030",
+    budget: "Public support and private investment under the Basic Hydrogen Strategy",
+    standard: "Low-carbon hydrogen and ammonia supply certification",
+    mechanism: "Long-term support for low-carbon hydrogen and ammonia supply",
+    source: "https://www.meti.go.jp/shingikai/enecho/shoene_shinene/suiso_seisaku/pdf/20230606_5.pdf"
   }
 };
 
@@ -245,6 +249,11 @@ function selectRegionalTarget(key) {
 
   const detailsContainer = document.getElementById("mandate-details-container");
   if (detailsContainer) {
+    const mapRegion = { us: "americas", eu: "europe", germany: "europe", apac: "apac" }[key];
+    const mapRegionLabel = { americas: "Americas", europe: "Europe", apac: "Asia-Pacific" }[mapRegion];
+    const hasMappedRecords = Boolean(mapRegion && window.IEA_DATA?.features.some((feature) =>
+      !Number(feature.properties?.approx) && (REGION_GROUPS[mapRegion] || []).includes(feature.properties?.region)
+    ));
     detailsContainer.innerHTML = `
       <div style="background:var(--bg-1); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; display:flex; flex-direction:column; gap:10px;">
         <h4 style="font-size:12px; font-family:var(--font); color:var(--text-hi); margin:0;">${escapeHtml(d.country)}</h4>
@@ -261,8 +270,16 @@ function selectRegionalTarget(key) {
           <dt style="color:var(--text-faint); font-weight:600; font-size:10.5px;">Subsidy tool</dt>
           <dd style="color:var(--green-ok); font-weight:600; margin:0;">${escapeHtml(d.mechanism)}</dd>
         </dl>
+        <div class="policy-source-actions">
+          <a href="${escapeAttr(d.source)}" target="_blank" rel="noopener">Official source ↗</a>
+          ${hasMappedRecords ? `<button type="button" class="tab-btn" data-policy-map-region="${mapRegion}">Apply ${mapRegionLabel} to map</button>` : ""}
+        </div>
       </div>
     `;
+    detailsContainer.querySelector("[data-policy-map-region]")?.addEventListener("click", (event) => {
+      const region = event.currentTarget.dataset.policyMapRegion;
+      window.beginMapHandoff?.({ fromRoute: "policy", label: "Policy", filters: { region }, selectionId: null });
+    });
     animateDetailIn(detailsContainer);
   }
 }
@@ -281,7 +298,7 @@ function initPolicyPage() {
       </div>
 
       <!-- Filters Row -->
-      <div class="search-filter-row" style="display:flex; align-items:center; gap:12px; background:rgba(0,0,0,0.1); padding:10px 14px; border-radius:var(--r-md); border:1px solid var(--line);">
+      <div class="search-filter-row policy-region-filter" style="display:flex; align-items:center; gap:12px; background:rgba(0,0,0,0.1); padding:10px 14px; border-radius:var(--r-md); border:1px solid var(--line);">
         <label for="p-region-select" style="font-size: 11px; color: var(--text-muted);">Region Filter:</label>
         <select id="p-region-select" style="background:var(--bg-1); color:var(--text-hi); border:1px solid var(--line); padding:4px 8px; border-radius:4px; font-size:11.5px;">
           <option value="all">🌐 All Regions</option>
@@ -293,14 +310,14 @@ function initPolicyPage() {
       </div>
 
       <!-- Main Visual Grid -->
-      <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:16px;">
+      <div class="policy-main-grid" style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:16px;">
 
         <!-- Left: Searchable Policy timeline Feed -->
-        <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
+        <div class="dashboard-card glass" data-provenance="illustrative" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:12px;">
           <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Policy Timeline &amp; Impacts <span class="badge badge-sample">Sample</span></h3>
           <p style="font-size:10.5px; color:var(--text-faint); line-height:1.4; margin:-6px 0 0;">Illustrative examples of the kind of updates tracked here, not a live regulatory feed.</p>
 
-          <div style="display:flex; gap:8px; align-items:center;">
+          <div class="policy-search-controls" style="display:flex; gap:8px; align-items:center;">
             <input type="text" id="p-search" placeholder="Search regulations or keywords..."
                    style="flex:1; background:var(--bg-1); border:1px solid var(--line); border-radius:4px; padding:6px 12px; color:var(--text-hi); font-size:11.5px; outline:none;" />
             <select id="p-impact-filter" style="background:var(--bg-1); border:1px solid var(--line); border-radius:4px; padding:5px 8px; color:var(--text-hi); font-size:11.5px;">
@@ -311,17 +328,17 @@ function initPolicyPage() {
             </select>
           </div>
 
-          <div style="display:grid; grid-template-columns: 190px 1fr; gap:12px; min-height:280px;">
+          <div class="policy-timeline-grid" style="display:grid; grid-template-columns: 190px 1fr; gap:12px; min-height:280px;">
             <div id="policy-rail-container" class="policy-rail"></div>
             <div id="policy-reading-pane" class="mat-shelf" style="padding:16px;"></div>
           </div>
         </div>
 
         <!-- Right: Policy Impact Simulator & Mandates Roster -->
-        <div style="display:flex; flex-direction:column; gap:16px;">
+        <div class="policy-side-column" style="display:flex; flex-direction:column; gap:16px;">
           
           <!-- Competitiveness Simulator -->
-          <div class="dashboard-card glass" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
+          <div class="dashboard-card glass" data-provenance="illustrative" style="padding:16px; margin:0; display:flex; flex-direction:column; gap:10px;">
             <h3 style="font-size:14px; font-family:var(--font); color:var(--text-hi);">Policy Impact &amp; Parity Simulator</h3>
             <p style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin:0;">
               Analyze how carbon taxes and PTC production credits close the cost gap between green and grey hydrogen (grey baseline cost: $1.80/kg; SMR release: 9kg CO₂/kg).

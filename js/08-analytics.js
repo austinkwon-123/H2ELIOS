@@ -276,11 +276,13 @@ function initMarketsVideo() {
   const el = document.getElementById("analytics-markets-video");
   if (!el) return;
   const iframe = document.createElement("iframe");
-  iframe.src = `https://www.youtube.com/embed/live_stream?channel=${MARKETS_VIDEO_CHANNEL_ID}&autoplay=1&mute=1`;
+  iframe.src = `https://www.youtube.com/embed/live_stream?channel=${MARKETS_VIDEO_CHANNEL_ID}&autoplay=0&mute=1`;
   iframe.title = "Bloomberg Television — live";
   iframe.allow = "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture";
   iframe.allowFullscreen = true;
   iframe.frameBorder = "0";
+  iframe.loading = "lazy";
+  iframe.referrerPolicy = "strict-origin-when-cross-origin";
   el.appendChild(iframe);
 }
 
@@ -325,10 +327,18 @@ let marketsVideoLoaded = false;
 function closeMarketsPanel() {
   const btn = document.getElementById("markets-btn");
   const panel = document.getElementById("markets-panel");
+  if (!panel) return;
   if (!panel.hidden) {
     panel.hidden = true;
-    btn.classList.remove("active");
+    btn?.classList.remove("active");
     stopMarketsPolling();
+    // Third-party video/chart frames keep rendering even while their parent
+    // is hidden. Dispose them on close so Markets cannot slow navigation or
+    // keep playing off-screen; the next open recreates the live surfaces.
+    document.getElementById("analytics-markets-chart")?.replaceChildren();
+    document.getElementById("analytics-markets-video")?.replaceChildren();
+    marketsChartLoaded = false;
+    marketsVideoLoaded = false;
   }
 }
 

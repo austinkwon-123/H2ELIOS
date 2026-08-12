@@ -76,9 +76,9 @@ function renderCompanyEcosystem(data) {
   data.companies.forEach((c) => { (bySegment[c.segment] = bySegment[c.segment] || []).push(c); });
   const segments = COMPANY_SEGMENT_ORDER.filter((s) => bySegment[s] && bySegment[s].length);
 
-  const W = 640, H = 190;
+  const W = 760, H = 230;
   const clusterW = W / segments.length;
-  const cy = 90, maxR = clusterW * 0.36;
+  const cy = 106, maxR = clusterW * 0.34;
 
   const groups = segments.map((seg, ci) => {
     const cx = clusterW * ci + clusterW / 2;
@@ -89,14 +89,14 @@ function renderCompanyEcosystem(data) {
       const spread = maxR * Math.sqrt(i / Math.max(1, companies.length));
       const x = cx + Math.cos(angle) * spread;
       const y = cy + Math.sin(angle) * spread * 0.7;
-      return `<circle class="company-node" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${color}" fill-opacity="0.85" data-idx="${i}"><title>${escapeHtml(c.name)} — ${escapeHtml(c.country)}</title></circle>`;
+      return `<circle class="company-node" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8.5" fill="${color}" fill-opacity="0.9" data-idx="${i}" tabindex="0"><title>${escapeHtml(c.name)} — ${escapeHtml(c.country)}</title></circle>`;
     }).join("");
     return {
       seg, companies,
       markup: `<g class="company-cluster" data-seg="${escapeAttr(seg)}">
         <circle cx="${cx}" cy="${cy}" r="${maxR + 12}" fill="none" stroke="${color}" stroke-opacity="0.12" stroke-width="1" stroke-dasharray="2 4"/>
         ${nodes}
-        <text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${color}" font-family="system-ui">${escapeHtml(seg)}</text>
+        <text x="${cx}" y="${H - 10}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${color}" font-family="system-ui">${escapeHtml(seg)}</text>
       </g>`
     };
   });
@@ -115,6 +115,12 @@ function renderCompanyEcosystem(data) {
         search.value = c.name;
         renderCompaniesTable(data);
         document.getElementById("companies-table-body").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      circle.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          circle.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        }
       });
     });
   });
@@ -178,7 +184,33 @@ function renderPartnerBDConnector(data) {
 }
 
 window.initiatePartnerOutreach = function(name, email) {
-  alert(`This is a SAMPLE profile, not a real registered business - "${name}" and its contact address (${email}) are illustrative only.\n\nIn a version wired to a real partner directory, this would open an outreach draft to a verified contact.`);
+  let notice = document.getElementById("partner-outreach-notice");
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.id = "partner-outreach-notice";
+    notice.className = "app-toast";
+    notice.setAttribute("role", "status");
+    notice.setAttribute("aria-live", "polite");
+    notice.innerHTML = `
+      <div class="app-toast-copy">
+        <strong>Sample outreach preview</strong>
+        <span></span>
+      </div>
+      <button type="button" aria-label="Dismiss outreach preview">×</button>`;
+    notice.querySelector("button").addEventListener("click", () => {
+      notice.classList.remove("visible");
+      notice.hidden = true;
+    });
+    document.body.appendChild(notice);
+  }
+  notice.querySelector("span").textContent = `${name} and ${email} are illustrative. A connected directory would open a draft to a verified contact.`;
+  notice.hidden = false;
+  requestAnimationFrame(() => notice.classList.add("visible"));
+  clearTimeout(window.partnerOutreachNoticeTimer);
+  window.partnerOutreachNoticeTimer = setTimeout(() => {
+    notice.classList.remove("visible");
+    notice.hidden = true;
+  }, 6500);
 };
 
 function initCompaniesPage() {
@@ -188,11 +220,11 @@ function initCompaniesPage() {
   el.innerHTML = `
     <div class="page-container">
       <div class="page-header">
-        <h2>Companies &amp; Partners</h2>
+        <h2>Organizations &amp; Partners</h2>
         <p>Maintainable registry of global hydrogen developers and contractors, with a localized business development recommender.</p>
       </div>
 
-      <div class="dashboard-grid two-cols">
+      <div class="dashboard-grid two-cols companies-main-grid">
         <!-- Left: Searchable Companies Database -->
         <div class="dashboard-card" style="min-height: 480px;">
           <h3>Hydrogen Companies Registry</h3>

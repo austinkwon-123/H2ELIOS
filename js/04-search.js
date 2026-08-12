@@ -88,6 +88,34 @@ function paletteMatches(query) {
   return { workspaces, actions };
 }
 
+let searchActiveIndex = -1;
+
+function setSearchResultsOpen(open) {
+  const box = document.getElementById("network-search");
+  const results = document.getElementById("search-results");
+  results.hidden = !open;
+  box.setAttribute("aria-expanded", String(open));
+  if (!open) {
+    searchActiveIndex = -1;
+    box.removeAttribute("aria-activedescendant");
+  }
+}
+
+function searchResultOptions() {
+  return Array.from(document.querySelectorAll("#search-results .fac-item, #search-results .palette-item"));
+}
+
+function setActiveSearchOption(index) {
+  const box = document.getElementById("network-search");
+  const options = searchResultOptions();
+  if (!options.length) return;
+  searchActiveIndex = (index + options.length) % options.length;
+  options.forEach((option, i) => option.setAttribute("aria-selected", String(i === searchActiveIndex)));
+  const active = options[searchActiveIndex];
+  box.setAttribute("aria-activedescendant", active.id);
+  active.scrollIntoView?.({ block: "nearest" });
+}
+
 function renderPaletteSection(workspaces, actions) {
   if (!workspaces.length && !actions.length) return "";
   const row = (label, onClick) => {
@@ -106,7 +134,7 @@ function renderPaletteSection(workspaces, actions) {
     workspaces.forEach((c) => frag.appendChild(row(c.label, () => {
       location.hash = c.route;
       navigateTo(c.route);
-      document.getElementById("search-results").hidden = true;
+      setSearchResultsOpen(false);
     })));
   }
   if (actions.length) {
@@ -116,7 +144,7 @@ function renderPaletteSection(workspaces, actions) {
     frag.appendChild(head);
     actions.forEach((c) => frag.appendChild(row(c.label, () => {
       c.run();
-      document.getElementById("search-results").hidden = true;
+      setSearchResultsOpen(false);
     })));
   }
   return frag;
@@ -125,14 +153,43 @@ function renderPaletteSection(workspaces, actions) {
 function wireSearch() {
   const box = document.getElementById("network-search");
   const results = document.getElementById("search-results");
-  box.addEventListener("input", renderSearchResults);
+  box.setAttribute("role", "combobox");
+  box.setAttribute("aria-autocomplete", "list");
+  box.setAttribute("aria-controls", "search-results");
+  box.setAttribute("aria-expanded", "false");
+  results.setAttribute("role", "listbox");
+  results.setAttribute("aria-label", "H2ELIOS search results");
+  box.addEventListener("input", () => {
+    searchActiveIndex = -1;
+    box.removeAttribute("aria-activedescendant");
+    renderSearchResults();
+  });
   box.addEventListener("focus", renderSearchResults);
+  box.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (results.hidden) renderSearchResults();
+      setActiveSearchOption(searchActiveIndex + (event.key === "ArrowDown" ? 1 : -1));
+    } else if (event.key === "Enter" && searchActiveIndex >= 0) {
+      event.preventDefault();
+      searchResultOptions()[searchActiveIndex]?.click();
+    } else if (event.key === "Escape") {
+      setSearchResultsOpen(false);
+      box.select();
+    }
+  });
   document.addEventListener("click", (e) => {
-    if (!document.getElementById("search-capsule").contains(e.target)) results.hidden = true;
+    if (!document.getElementById("search-capsule").contains(e.target) && !results.contains(e.target)) setSearchResultsOpen(false);
   });
   window.addEventListener("resize", () => {
     if (!results.hidden) positionSearchResults();
   });
+  // Reposition when an inspector opens or closes, so the dropdown never ends up
+  // under it. Shares the shell's single inspector observer (23-spatial-shell.js)
+  // rather than starting a second one on the same nodes.
+  if (typeof onRightPanelToggle === "function") {
+    onRightPanelToggle(() => { if (!results.hidden) positionSearchResults(); });
+  }
 }
 
 function wireSearchHotkey() {
@@ -163,13 +220,37 @@ function positionSearchResults() {
     if (msRect.width) top = Math.max(top, msRect.bottom + 10);
   }
   results.style.top = `${top}px`;
-  results.style.right = `${window.innerWidth - rect.right}px`;
+
+  // Horizontal geometry has exactly one owner per breakpoint. Below 720px the
+  // stylesheet owns it (full-bleed sheet), so every inline value is cleared —
+  // inline styles would otherwise silently outrank the media query. Above it
+  // this function owns it, because only JS can read the live inspector width.
+  if (window.innerWidth <= 720) {
+    results.style.removeProperty("right");
+    results.style.removeProperty("width");
+    return;
+  }
+
+  const openInspector = document.querySelector(".right-panel-slot:not([hidden])");
+  if (openInspector) {
+    // offsetLeft is stable while the inspector's entrance transform is still
+    // animating; getBoundingClientRect() would place search against the moving
+    // visual edge and leave the two surfaces touching after the animation.
+    const inspectorLeft = openInspector.offsetLeft;
+    const sidebarWidth = parseFloat(getComputedStyle(document.body).getPropertyValue("--sidebar-width")) || 0;
+    const availableWidth = Math.max(240, inspectorLeft - sidebarWidth - 32);
+    results.style.right = `${window.innerWidth - inspectorLeft + 16}px`;
+    results.style.width = `${Math.min(420, availableWidth)}px`;
+  } else {
+    results.style.right = `${window.innerWidth - rect.right}px`;
+    results.style.removeProperty("width");
+  }
 }
 
 function renderSearchResults() {
   const box = document.getElementById("network-search");
   const results = document.getElementById("search-results");
-  if (document.activeElement !== box && !box.value) { results.hidden = true; return; }
+  if (document.activeElement !== box && !box.value) { setSearchResultsOpen(false); return; }
   positionSearchResults();
 
   const rawQuery = box.value || "";
@@ -203,6 +284,7 @@ function renderSearchResults() {
       <div class="fac-name">${escapeHtml(p.name)}<span class="badge badge-${p.statusClass}">${badgeText(p.statusClass)}</span></div>
       <div class="fac-meta">${escapeHtml(label)} · ${escapeHtml(p.subtype || "")} · ${escapeHtml(p.capacity || "")}</div>`;
     btn.addEventListener("click", () => {
+      window.H2GDetailReturnFocus = box;
       const c = centroidOf(f);
       const jumpAndSelect = () => {
         stopSpin();
@@ -220,11 +302,18 @@ function renderSearchResults() {
       } else {
         jumpAndSelect();
       }
-      results.hidden = true;
+      setSearchResultsOpen(false);
     });
     results.appendChild(btn);
   });
-  results.hidden = !paletteFrag && items.length === 0;
+  const options = searchResultOptions();
+  options.forEach((option, index) => {
+    option.id = `search-option-${index}`;
+    option.setAttribute("role", "option");
+    option.setAttribute("tabindex", "-1");
+    option.setAttribute("aria-selected", "false");
+  });
+  setSearchResultsOpen(options.length > 0);
 }
 
 function badgeText(sc) {
@@ -265,4 +354,3 @@ function setStationCount(n) {
   const el = document.getElementById("stat-stations");
   if (el) el.textContent = n; // ribbon telemetry readout removed - harmless no-op
 }
-

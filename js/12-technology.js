@@ -136,11 +136,13 @@ function confidenceOpacity(p) {
 }
 
 function jumpToProjectOnMap(p, coords) {
-  location.hash = "map";
-  navigateTo("map");
-  requestAnimationFrame(() => {
-    selectFacility(p, coords);
-    if (coords && map.flyTo) map.flyTo({ center: coords, zoom: 8, pitch: 55, duration: 1600, essential: true });
+  if (!Array.isArray(coords) || Number(p.approx)) return;
+  window.beginMapHandoff?.({
+    fromRoute: "technology",
+    label: "Technology",
+    selectionId: p.id || p.name,
+    props: p,
+    lngLat: coords
   });
 }
 
@@ -216,8 +218,20 @@ function renderTechConstellation(regionFilterLocal = "all") {
       const idx = Number(circle.dataset.idx);
       const d = g.shown[idx];
       if (!d) return;
-      circle.style.cursor = "pointer";
-      circle.addEventListener("click", () => jumpToProjectOnMap(d.p, d.coords));
+      const hasPreciseGeography = Array.isArray(d.coords) && !Number(d.p.approx);
+      circle.style.cursor = hasPreciseGeography ? "pointer" : "default";
+      if (hasPreciseGeography) {
+        circle.setAttribute("tabindex", "0");
+        circle.setAttribute("role", "button");
+        circle.setAttribute("aria-label", `Open ${d.p.name} on the map`);
+        circle.addEventListener("click", () => jumpToProjectOnMap(d.p, d.coords));
+        circle.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            jumpToProjectOnMap(d.p, d.coords);
+          }
+        });
+      }
       // Drag source for the Calculator drop zone (js/09-router.js
       // wireCalculatorDropTarget) — only projects (which carry a real
       // capacity) are draggable; Companies-ecosystem nodes aren't, since
@@ -279,12 +293,9 @@ function renderTrlSpectrum(regionFilterLocal = "all") {
     const color = TECH_COLORS[key];
     const isActive = key === selectedTechKey;
     const ring = isActive
-      ? `<circle cx="${x}" cy="${trackY}" r="${r + 6}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.5">
-           <animate attributeName="r" values="${r + 4};${r + 11};${r + 4}" dur="2s" repeatCount="indefinite"/>
-           <animate attributeName="opacity" values="0.55;0.1;0.55" dur="2s" repeatCount="indefinite"/>
-         </circle>`
+      ? `<circle cx="${x}" cy="${trackY}" r="${r + 6}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.5"/>`
       : "";
-    return `<g class="trl-node" data-tech="${key}">
+    return `<g class="trl-node${isActive ? ' active' : ''}" data-tech="${key}">
       ${ring}
       <circle cx="${x}" cy="${trackY}" r="${r}" fill="${color}" fill-opacity="0.85" stroke="${isActive ? '#ffffff' : color}" stroke-width="${isActive ? 2 : 1}">
         <title>${escapeHtml(TECH_CATALOG[key].name)} — ${escapeHtml(TECH_CATALOG[key].trl)}${cap > 0 ? `, ${Math.round(cap).toLocaleString()} MW tracked` : ", no tracked capacity in view"}</title>
@@ -462,7 +473,7 @@ function initTechnologyPage() {
       </div>
 
       <!-- Main Visual Grid -->
-      <div style="display:grid; grid-template-columns: 1.15fr 0.85fr; gap:16px;">
+      <div class="technology-main-grid" style="display:grid; grid-template-columns: 1.15fr 0.85fr; gap:16px;">
         
         <!-- Left Column: derived tech mix & interactive catalog -->
         <div style="display:flex; flex-direction:column; gap:16px;">

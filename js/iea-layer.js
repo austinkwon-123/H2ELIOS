@@ -11,7 +11,7 @@
   const HOLO = "#3fd6e8";
 
   // Register with the dock toggle system (app.js wires buttons on load).
-  TOGGLE_MAP.iea = ["iea-clusters", "iea-cluster-count", "iea-points"];
+  TOGGLE_MAP.announced = ["iea-clusters", "iea-cluster-count", "iea-points"];
 
   // 936 of the 3,338 IEA records arrive with no coordinates at all. build-iea.js
   // falls back to the country centroid plus a deterministic jitter so the record
@@ -20,12 +20,17 @@
   // Plotting them alongside surveyed coordinates makes the map assert positions
   // the source never claimed, so they are excluded unless explicitly requested.
   function showApprox() {
-    const btn = document.querySelector('.dock-btn[data-layer="ieaApprox"]');
-    return btn ? btn.classList.contains("active") : false;
+    return Boolean(document.getElementById("data-quality-approx")?.checked);
   }
 
   function filteredIEA() {
     const approxOn = showApprox();
+    const cohort = window.H2Store?.getState().filters.cohort;
+    const cohortProperty = cohort?.type === "endUse" ? {
+      Refining: "end_refining", Ammonia: "end_ammonia", Methanol: "end_methanol",
+      "Iron & Steel": "end_iron_steel", Mobility: "end_mobility", Power: "end_power",
+      "Grid & Blending": "end_grid_inj", "Bio / Synfuels": "end_synfuels"
+    }[cohort.value] : null;
     return {
       type: "FeatureCollection",
       features: IEA.features.filter((f) => {
@@ -34,6 +39,7 @@
         if (statusFilter !== "all" && p.statusClass !== statusFilter) return false;
         if (regionFilter !== "all" && !(REGION_GROUPS[regionFilter] || []).includes(p.region)) return false;
         if (colorFilter && p.color !== colorFilter) return false;
+        if (cohortProperty && !Number(p[cohortProperty]) && !(cohort.value === "Grid & Blending" && (Number(p.end_chp) || Number(p.end_domestic_heat))) && !(cohort.value === "Bio / Synfuels" && Number(p.end_biofuels))) return false;
         return true;
       })
     };
@@ -151,10 +157,8 @@
   // macrotask because wireDock() in 03-filters.js is what flips .active, and it
   // binds later than this module parses; running synchronously here would read
   // the class from before the toggle and invert the switch.
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest && e.target.closest('.dock-btn[data-layer="ieaApprox"]');
-    if (!btn) return;
-    setTimeout(() => { if (typeof applyFilters === "function") applyFilters(); }, 0);
+  document.getElementById("data-quality-approx")?.addEventListener("change", () => {
+    if (typeof applyFilters === "function") applyFilters();
   });
 
   // Exposed for verification.
