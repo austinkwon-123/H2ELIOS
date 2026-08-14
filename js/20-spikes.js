@@ -1,7 +1,6 @@
 /* ==========================================================================
    H2Grid · True 3D capacity spikes (globe-safe)
-   Raw WebGL2 via MapLibre's CustomLayerInterface — same technique as
-   19-command-arcs.js, and for the same reason: MapLibre 5.24 draws
+   Raw WebGL2 via MapLibre's CustomLayerInterface because MapLibre 5.24 draws
    `fill-extrusion` footprints under globe projection but IGNORES
    fill-extrusion-height, so extruded bars drape flat to the sphere. Verified
    with an isolated probe — identical code and version, globe renders a flat
@@ -320,7 +319,10 @@ void main() {
     }
   };
 
-  // The spikes are the thing standing off the globe, so they must draw last.
+  // The spikes are the thing standing off the globe, so they must draw last
+  // among the project marker layers. 19-pipeline-ribbons.js loads afterward
+  // and deliberately owns the final analytical-overlay position when enabled;
+  // its source-backed routes otherwise disappear inside dense spike clusters.
   // The circle/glow marker layers are added by addPointLayer well after this
   // module registers its layer on style load, which put those soft clouds ON
   // TOP of the beams — the clouds read as fog in front of the spikes instead

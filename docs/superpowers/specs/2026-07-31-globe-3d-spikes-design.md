@@ -27,27 +27,20 @@ any static host — which is where the public demo will live.
 
 ## Approach
 
-Replace the `fill-extrusion` approach with a custom WebGL layer, following the
-pattern already proven in `js/19-command-arcs.js`.
-
-That file exists for exactly this reason (`js/19-command-arcs.js:4`): "Native
-`line`/`fill-extrusion` layers drape to the map surface; this bypasses that
-entirely by writing straight to the GPU." It lifts vertices off the sphere in the
-vertex shader via `projectTileFor3D(vec2 posInTile, float elevationMeters)`,
+Replace the `fill-extrusion` approach with a custom WebGL layer. It lifts
+vertices off the sphere in the vertex shader via
+`projectTileFor3D(vec2 posInTile, float elevationMeters)`,
 injected per-frame through `shaderDescription.vertexShaderPrelude` — the supported
 MapLibre v5 mechanism that stays correct under **both** projections and
 interpolates across the globe→mercator transition near z12.
-
-The spike layer is a sibling of the arc layer: same shader plumbing, different
-geometry.
 
 ## Design
 
 ### New module — `js/20-spikes.js`
 
 A `CustomLayerInterface` layer, `id: "h2grid-3d-spikes"`, `renderingMode: "3d"`,
-loaded after `19-command-arcs.js`. Classic script sharing global scope, per the
-repo's existing convention (see README "Editing rules").
+loaded after the app modules it consumes. Classic script sharing global scope,
+per the repo's existing convention (see README "Editing rules").
 
 ### Data source
 
@@ -70,9 +63,9 @@ One square prism per project, as a single `TRIANGLE_STRIP` of 10 vertices: four
 corners in mercator space at `halfWidth` around the point, emitted as
 base/top pairs and wrapping back to the first corner.
 
-Per-vertex interleaved layout, 8 floats (`VERTEX_STRIDE = 32` bytes), mirroring
-the arc layer's convention of baking per-instance constants onto every vertex so
-one uniform state can draw the whole buffer:
+Per-vertex interleaved layout, 8 floats (`VERTEX_STRIDE = 32` bytes), baking
+per-instance constants onto every vertex so one uniform state can draw the whole
+buffer:
 
 ```
 [ mercX, mercY, top, corner, r, g, b, height ]
@@ -101,8 +94,8 @@ rather than tuning for one camera distance — the specific failure of the exist
 
 ### Appearance
 
-Additive blending, as the arc layer uses, so spikes read as emissive light rather
-than solid plastic. Vertical gradient in the fragment shader: bright at the base,
+Additive blending so spikes read as emissive light rather than solid plastic.
+Vertical gradient in the fragment shader: bright at the base,
 fading toward the apex. Per-face brightness from `corner` for form definition.
 Color from the existing hydrogen-taxonomy map (`COLOR_HEX_MAP` / `COLORS`), so
 spikes carry the same data encoding as every other layer.
@@ -111,8 +104,7 @@ spikes carry the same data encoding as every other layer.
 
 Reuses the existing dock toggle `#dock-3d-btn` ("Toggle 3D Volumetric
 Extrusions"). A custom-type layer has no `setLayoutProperty` visibility switch, so
-visibility is a plain flag on the layer object toggled directly, exactly as
-`js/19-command-arcs.js:249-255` does for `data-layer="commandArcs"`.
+visibility is a plain flag on the layer object toggled directly.
 
 On toggle:
 - **on** — build buffer, ease pitch to ~48°, set `visible = true`
