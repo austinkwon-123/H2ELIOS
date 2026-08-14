@@ -30,26 +30,20 @@ for (const width of [1440, 1100]) {
   });
 }
 
-test('the home view and the store agree on one opening camera', async ({ page }) => {
+test('the opening camera frames Europe, where the infrastructure is', async ({ page }) => {
   await open(page);
-  // Two independent copies of the default camera exist: H2GRID_HOME_VIEW seeds
-  // the map, the store's map.camera seeds the hand-off return. They silently
-  // drifting apart would send "return to Explore" somewhere the map never was.
-  const cameras = await page.evaluate(() => ({
-    home: { center: H2GRID_HOME_VIEW.center, zoom: H2GRID_HOME_VIEW.zoom, bearing: H2GRID_HOME_VIEW.bearing },
-    store: (() => {
-      const c = H2Store.getState().map.camera;
-      return { center: Array.from(c.center), zoom: c.zoom, bearing: c.bearing };
-    })()
-  }));
-  expect(cameras.store).toEqual(cameras.home);
-  // The dataset is European; an opening view that frames elsewhere puts the
-  // infrastructure off-screen, which is what made the 3D pipeline layer look
-  // broken rather than merely off-frame.
-  expect(cameras.home.center[0]).toBeGreaterThan(-15);
-  expect(cameras.home.center[0]).toBeLessThan(35);
-  expect(cameras.home.center[1]).toBeGreaterThan(35);
-  expect(cameras.home.center[1]).toBeLessThan(65);
+  // Only the constant is assertable here. The store's map.camera looks like a
+  // second copy of this default but is really live state — it tracks the map
+  // and by this point the 3D entrance has flown it to another zoom and pitch
+  // entirely. The store's own default is covered in tests/store.test.js.
+  const home = await page.evaluate(() => H2GRID_HOME_VIEW.center);
+  // An opening view that frames elsewhere puts the dataset off-screen, which is
+  // what made the 3D pipeline layer look broken rather than merely off-frame:
+  // toggling it moved 261 pixels from [24, 8] and 4,062 from [9, 51].
+  expect(home[0], 'longitude within Europe').toBeGreaterThan(-15);
+  expect(home[0], 'longitude within Europe').toBeLessThan(35);
+  expect(home[1], 'latitude within Europe').toBeGreaterThan(35);
+  expect(home[1], 'latitude within Europe').toBeLessThan(65);
 });
 
 test('Explore shell keeps the desktop sidebar in proportion to the map', async ({ page }) => {

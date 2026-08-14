@@ -352,6 +352,21 @@ function renderStats() {
   ]);
   countUp("stat-facilities", staticFeats.length + D.hubs.length);
   countUp("stat-operating", staticFeats.filter((f) => f.properties.statusClass === "operating").length);
+  renderSidebarInventory(staticFeats.length + D.hubs.length);
+}
+
+// The sidebar footer carried a hand-typed "3,338 announced projects". The
+// figure happened to stay true, but only because the H2InfraMap import landed
+// in the curated collections rather than the IEA one — the next import will not
+// be so lucky. Counting the same deduplicated set renderStats already built
+// keeps the two numbers from disagreeing and removes the standing invitation to
+// let the copy drift away from the data.
+function renderSidebarInventory(mapped) {
+  const el = document.getElementById("sidebar-inventory");
+  if (!el) return;
+  const announced = window.IEA_DATA?.features?.length || 0;
+  const n = (value) => value.toLocaleString("en-US");
+  el.textContent = `${n(announced)} announced · ${n(mapped)} mapped`;
 }
 
 function countUp(id, target) {

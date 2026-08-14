@@ -17,7 +17,10 @@ Internet required: MapLibre GL v5, CARTO tiles, Google Fonts, AFDC live fetch.
   holographic layer — 2,402 at real reported coordinates, 936 flagged
   country-approximate. Click clusters to expand, click points for details.
   Status/region/color filters rebuild the clusters live.
-- **Two-tier counters**: 138 verified (hand-curated, cited) vs 3,338 announced (IEA).
+- **Three-tier counters**: 138 verified (hand-curated, cited), 678 mapped European
+  assets (H2InfraMap ArcGIS snapshot, locations approximate and indicative) and
+  3,338 announced (IEA). The sidebar footer computes its figures from the loaded
+  data rather than carrying them as copy, so they cannot drift after an import.
 - **JARVIS HUD**: boot sequence on load, rotating targeting reticle locks onto
   selected facilities, decode-text effect on the detail sheet, HUD corner
   brackets, scanline + vignette overlay (dark mode).

@@ -38,6 +38,17 @@ test("fresh state is dark, map-routed, and has four active layer groups", () => 
   );
 });
 
+test("the seeded camera opens on Europe, matching H2GRID_HOME_VIEW", () => {
+  // This default seeds the hand-off return camera, and 01-core.js holds a
+  // second copy in H2GRID_HOME_VIEW that seeds the map itself. They are
+  // genuinely independent, so returning to Explore after a hand-off would
+  // otherwise be free to land somewhere the map never opened.
+  const camera = createStore().H2Store.getState().map.camera;
+  assert.deepEqual(Array.from(camera.center), [9, 51]);
+  assert.equal(camera.zoom, 1.85);
+  assert.equal(camera.bearing, 8);
+});
+
 test("a stored theme preference still wins over the system default", () => {
   const { H2Store } = createStore();
   H2Store.dispatch({ type: "THEME_CHANGE", payload: { theme: "light" } });
