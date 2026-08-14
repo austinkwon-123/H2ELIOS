@@ -188,30 +188,65 @@ function renderHandoffReturn(handoff) {
   if (handoff) button.textContent = `← Return to ${handoff.label}`;
 }
 
-function renderComparisonTray(comparisons) {
+// The tray is a map-workspace affordance: its snapshots are pinned from the
+// globe and its whole point is comparing things in space. Studio routes own
+// their right-hand column, so a floating tray there covers their content.
+// Visibility is route-scoped, but the snapshots themselves stay in session
+// state — navigate away and back and the same comparisons are still pinned.
+function comparisonTrayIsAllowedHere() {
+  return (window.H2Store?.getState().route || currentRouteFromHash()) === "map";
+}
+
+function renderComparisonTray(comparisons = window.H2Store?.getState().comparisons || []) {
   const tray = document.getElementById("comparison-tray");
   const list = document.getElementById("comparison-tray-items");
   if (!tray || !list) return;
-  tray.hidden = comparisons.length === 0;
+  tray.hidden = comparisons.length === 0 || !comparisonTrayIsAllowedHere();
   list.innerHTML = comparisons.map((snapshot) => `
     <article class="comparison-item" data-snapshot-id="${escapeAttr(String(snapshot.id))}">
       <span class="provenance-badge ${snapshot.type === "economics" ? "modeled" : "observed"}">${snapshot.type === "economics" ? "Modeled" : "Observed"}</span>
-      <strong>${escapeHtml(snapshot.label)}</strong>
+      <button type="button" class="comparison-open" data-comparison-open="${escapeAttr(String(snapshot.id))}" title="${snapshot.type === "economics" ? "Open in the calculator" : "Open alongside the current project"}">${escapeHtml(snapshot.label)}</button>
       <button type="button" class="comparison-remove" data-comparison-remove="${escapeAttr(String(snapshot.id))}" aria-label="Remove ${escapeAttr(snapshot.label)} from comparison">×</button>
     </article>`).join("");
+}
+
+// A tray row is a handle on a stored record, not a caption. Project snapshots
+// reopen as full panels in #snapshot-row, where two or three sit side by side
+// — that is the actual comparison, and it was unreachable while the rows were
+// inert markup. Economics snapshots already have a home in the calculator's
+// own scenario table, so their row sends you there rather than duplicating it.
+function openComparisonSnapshotById(id, fromRect) {
+  const snapshot = (window.H2Store?.getState().comparisons || []).find((item) => String(item.id) === String(id));
+  if (!snapshot) return;
+  if (snapshot.type === "economics") {
+    location.hash = "#/tools";
+    requestAnimationFrame(() => document.querySelector('.calc-tab[data-calc="scenario"]')?.click());
+    return;
+  }
+  if (!snapshot.payload?.props || typeof openComparisonSnapshot !== "function") return;
+  openComparisonSnapshot("detail-snapshot-" + String(snapshot.id), snapshot.payload.props, fromRect);
 }
 
 function wireSharedStateUI() {
   document.getElementById("handoff-return")?.addEventListener("click", returnFromMapHandoff);
   document.getElementById("comparison-tray-items")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-comparison-remove]");
-    if (!button) return;
-    window.H2Store?.dispatch({ type: "COMPARISON_REMOVE", payload: { id: button.dataset.comparisonRemove } });
+    const remove = event.target.closest("[data-comparison-remove]");
+    if (remove) {
+      window.H2Store?.dispatch({ type: "COMPARISON_REMOVE", payload: { id: remove.dataset.comparisonRemove } });
+      return;
+    }
+    const open = event.target.closest("[data-comparison-open]");
+    if (!open) return;
+    openComparisonSnapshotById(open.dataset.comparisonOpen, open.getBoundingClientRect());
   });
   window.H2Store?.subscribe((s) => s.handoff, renderHandoffReturn);
   window.H2Store?.subscribe((s) => s.comparisons, renderComparisonTray);
+  // Route changes do not alter the comparisons themselves, so the comparisons
+  // selector above never fires for them — the tray needs its own subscription
+  // to hide on a studio route and reappear on the way back to the map.
+  window.H2Store?.subscribe((s) => s.route, () => renderComparisonTray());
   renderHandoffReturn(window.H2Store?.getState().handoff);
-  renderComparisonTray(window.H2Store?.getState().comparisons || []);
+  renderComparisonTray();
 }
 
 // Slides the pill behind the active tab to its new position/width rather

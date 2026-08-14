@@ -276,7 +276,11 @@ function initMarketsVideo() {
   const el = document.getElementById("analytics-markets-video");
   if (!el) return;
   const iframe = document.createElement("iframe");
-  iframe.src = `https://www.youtube.com/embed/live_stream?channel=${MARKETS_VIDEO_CHANNEL_ID}&autoplay=0&mute=1`;
+  // autoplay=1 with mute=1: browsers only permit autoplay while muted, and the
+  // panel is a glanceable feed, so it should already be running when opened.
+  // closeMarketsPanel() disposes the iframe, so the next open recreates it and
+  // autoplays again rather than resuming a frame that kept playing off-screen.
+  iframe.src = `https://www.youtube.com/embed/live_stream?channel=${MARKETS_VIDEO_CHANNEL_ID}&autoplay=1&mute=1`;
   iframe.title = "Bloomberg Television — live";
   iframe.allow = "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture";
   iframe.allowFullscreen = true;

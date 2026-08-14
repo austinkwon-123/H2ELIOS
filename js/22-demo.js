@@ -15,23 +15,22 @@
 (function () {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  function setDock(layerKey, on) {
-    const btn = document.querySelector(`.dock-btn[data-layer="${layerKey}"]`);
-    if (!btn) return;
-    if (btn.classList.contains("active") !== on) btn.click();
-  }
-
   function set3D(on) {
     if (!!window.is3DActive === !!on) return;
     const btn = document.getElementById("dock-3d-btn");
     if (btn) btn.click();
   }
 
+  // Each panel owns real teardown: toolbar button state, markets polling, the
+  // YouTube iframe, the chart instance, the map selection ring and selectedName.
+  // Setting .hidden directly skipped all of it, so the walkthrough left behind
+  // stuck buttons, a poller still running and a video still playing off-screen.
   function closePanels() {
-    ["analytics-panel", "markets-panel", "detail-card"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el && !el.hidden) el.hidden = true;
-    });
+    if (typeof closeAnalyticsPanel === "function") closeAnalyticsPanel();
+    if (typeof closeMarketsPanel === "function") closeMarketsPanel();
+    if (typeof closeDetailPanel === "function" && !document.getElementById("detail-card")?.hidden) {
+      closeDetailPanel(false); // no focus restore: nothing here took focus
+    }
   }
 
   // Filters are plain globals owned by 03-filters.js; applyFilters() is the
@@ -47,23 +46,36 @@
     if (window.is3DActive) update3DTowers();
   }
 
-  // Tabs are ordinary buttons in the #tab-nav island; matching on the visible
-  // label keeps this readable and survives the buttons being reordered.
-  function showTab(labelStarts) {
-    const btn = [...document.querySelectorAll("#tab-nav .tab-btn")]
-      .find((b) => (b.textContent || "").trim().toLowerCase().startsWith(labelStarts.toLowerCase()));
+  // Navigate by route id, never by visible label. Labels are product copy and
+  // have already been renamed underneath this file once — Market -> Economics,
+  // Temporal -> Timeline, Tools -> Calculator, Map -> Explore — which silently
+  // turned matching steps into no-ops. Route ids are the stable contract.
+  //
+  // Falls back to the tab button's data-route only if the router is missing.
+  function showRoute(route) {
+    if (typeof navigateTo === "function") {
+      // Canonical form is "#map", not "#/map" — that is what every other
+      // location.hash write in the app produces and what the tests assert.
+      if (location.hash.replace(/^#\/?/, "") !== route) location.hash = route;
+      navigateTo(route);
+      return true;
+    }
+    const btn = document.querySelector(`#tab-nav .tab-btn[data-route="${route}"]`);
     if (btn) btn.click();
     return !!btn;
   }
 
+  // Ten steps, each route-addressed and each demonstrating something the build
+  // actually still does. The previous script had drifted badly: it drove a
+  // "flows" dock control that no longer exists, narrated a solar terminator and
+  // 3D supply-chain arcs whose scripts are no longer loaded, visited the hidden
+  // prototype workspace, and navigated by labels that had since been renamed.
   const STEPS = [
     {
-      // Opens on the strongest thing the product has. An earlier version led
-      // with a flat globe and only reached the beams at step two, which spent
-      // the one moment that decides whether anyone keeps watching.
       title: "The world's hydrogen build-out",
-      text: "Every beam is a real project, and its height is that project's production capacity. 3,338 announced facilities from the IEA database plus 138 hand-verified nodes — every one traceable to a cited source.",
+      text: "Every spike is a real project, and its height is that project's production capacity. Thousands of announced facilities from the IEA database plus hand-verified nodes — each traceable to a cited source.",
       hold: 8000,
+      route: "map",
       async run() {
         closePanels();
         setFilters({});
@@ -73,97 +85,33 @@
       }
     },
     {
-      title: "Pull back and the shape appears",
-      text: "From orbit the concentration is obvious: Europe and East Asia carry the pipeline, with corridors reaching toward the Gulf and North Africa. Height still encodes capacity — 107 km for a pilot, 1,587 km for a gigawatt plant.",
-      async run() {
-        setFilters({});
-        set3D(true);
-        map.flyTo({ center: [30, 25], zoom: 1.9, pitch: 45, bearing: 0, duration: 3200, essential: true });
-      }
-    },
-    {
       title: "The colours are the chemistry",
-      text: "Hydrogen is classified by how it is made. Green is renewable electrolysis, blue is gas with carbon capture, pink is nuclear, brown is coal. Watch the network filter down to green only — 79% of the announced pipeline.",
+      text: "Hydrogen is classified by how it is made: green is renewable electrolysis, blue is gas with carbon capture, pink is nuclear, brown is coal. Filter to green alone and most of the announced pipeline is still standing.",
+      hold: 7000,
+      route: "map",
       async run() {
         setFilters({ color: "green" });
         map.flyTo({ center: [9, 48], zoom: 2.9, pitch: 58, bearing: 8, duration: 2600, essential: true });
       }
     },
     {
-      title: "Blue, and the incumbents",
-      text: "Now blue — steam methane reforming with carbon capture. Far fewer projects, but they carry disproportionate capacity, and they cluster where the gas infrastructure already is.",
-      async run() {
-        setFilters({ color: "blue" });
-        map.flyTo({ center: [-70, 33], zoom: 2.6, pitch: 55, bearing: -10, duration: 2800, essential: true });
-      }
-    },
-    {
       title: "Announced is not built",
-      text: "Filter by status and the story changes. Of 520 GW announced globally, only 4–7% has ever reached construction. This is the filter that separates a press release from a plant.",
+      text: "Filter by status and the story changes sharply. Only a small fraction of announced capacity has ever reached construction — this is the filter that separates a press release from a plant.",
+      hold: 7000,
+      route: "map",
       async run() {
         setFilters({ status: "operating" });
         map.flyTo({ center: [20, 35], zoom: 2.2, pitch: 45, bearing: 0, duration: 2600, essential: true });
       }
     },
     {
-      title: "Sunlight is the constraint",
-      text: "The terminator is computed from the real solar position, updated every minute. Green hydrogen runs on solar and wind, so the lit hemisphere is the production window — and the bright dot is where the sun is directly overhead right now.",
+      title: "Live viewport analytics",
+      text: "The Insights panel is scoped to whatever is on screen. Pan or zoom and the project count, the capacity in view and the share-of-network gauge all recompute against the backend for exactly that viewport.",
+      hold: 8500,
+      route: "map",
       async run() {
         setFilters({});
         set3D(false);
-        map.flyTo({ center: [40, 15], zoom: 1.7, pitch: 0, bearing: 0, duration: 3000, essential: true });
-      }
-    },
-    {
-      title: "Supply chains, in 3D",
-      text: "The arcs are real contracted corridors from the curated dataset, drawn as true elevated geometry rather than lines painted on the surface — height and width scale with each route's great-circle distance.",
-      async run() {
-        setFilters({});
-        setDock("flows", true);
-        set3D(true);
-        map.flyTo({ center: [30, 30], zoom: 2.3, pitch: 60, bearing: 15, duration: 3000, essential: true });
-      }
-    },
-    {
-      title: "Zoom in and clusters resolve",
-      text: "The IEA tier clusters at distance and breaks apart as you descend, so 3,338 records stay legible from orbit and individually clickable up close.",
-      async run() {
-        setFilters({});
-        set3D(true);
-        map.flyTo({ center: [6.9, 51.5], zoom: 6.2, pitch: 50, bearing: -20, duration: 3200, essential: true });
-      }
-    },
-    {
-      title: "Pin projects to compare",
-      text: "Minimize a project instead of closing it and it drops into a small card in the corner. Click that card again and it becomes a pinned comparison panel — up to three at once, side by side, so capacity, status and operator sit next to each other instead of one at a time.",
-      hold: 7500,
-      async run() {
-        closePanels();
-        setFilters({});
-        set3D(false);
-        document.querySelectorAll("#snapshot-row .detail-snapshot, #minimized-tray .mini-card").forEach((el) => el.remove());
-        openSnapshots.length = 0;
-        map.flyTo({ center: [6.9, 51.5], zoom: 5.2, pitch: 30, bearing: 0, duration: 1600, essential: true });
-        const picks = allFacilities()
-          .filter((it) => it.label !== "Announced (IEA)" && it.f.properties && it.f.properties.name)
-          .slice(0, 3);
-        for (const { f } of picks) {
-          selectFacility(f.properties, f.geometry.coordinates);
-          await wait(650);
-          const minBtn = document.getElementById("detail-minimize");
-          if (minBtn) minBtn.click();
-          await wait(500);
-          const zoomBtn = document.querySelector("#minimized-tray .mini-card:last-child .wc-zoom");
-          if (zoomBtn) zoomBtn.click();
-          await wait(500);
-        }
-      }
-    },
-    {
-      title: "Live analytics",
-      text: "The panel is scoped to whatever is on screen. Pan or zoom and the project count, capacity and technology split recompute against the backend for exactly that viewport.",
-      async run() {
-        setFilters({});
         const btn = document.getElementById("analytics-btn");
         if (btn && document.getElementById("analytics-panel")?.hidden !== false) btn.click();
         map.flyTo({ center: [8, 50], zoom: 4.2, pitch: 30, bearing: 0, duration: 2600, essential: true });
@@ -171,7 +119,9 @@
     },
     {
       title: "And the markets that fund it",
-      text: "Live quotes for the listed hydrogen sector — electrolyser makers, fuel-cell firms and the industrial-gas majors — pulled through the backend so no API key is ever exposed to the browser.",
+      text: "Live quotes for the listed hydrogen sector — electrolyser makers, fuel-cell firms and the industrial-gas majors — beside a running finance broadcast, proxied through the backend so no API key reaches the browser.",
+      hold: 8000,
+      route: "map",
       async run() {
         setFilters({});
         closePanels();
@@ -181,69 +131,42 @@
       }
     },
     {
-      title: "Regional AI synthesis",
-      text: "Narrow to a region and the system writes a briefing for it — investment scale, anchor projects, and the bottleneck that actually constrains build-out there. Cached per region so it is instant on return.",
-      hold: 8000,
-      async run() {
-        closePanels();
-        setFilters({ region: "europe" });
-        map.flyTo({ center: [10, 50], zoom: 3.4, pitch: 40, bearing: 0, duration: 2600, essential: true });
-      }
-    },
-
-    // ---- Beyond the globe: the analysis tabs --------------------------------
-    {
-      title: "Market & economics",
-      text: "Real break-even hydrogen prices by country and sector from the IPCEI Clean Hydrogen Observatory, plus an LCOH sensitivity model and the funding rounds behind the sector.",
+      title: "Economics",
+      text: "Break-even hydrogen prices by country and sector, an LCOH sensitivity model you can drag, and the funding behind the sector.",
       hold: 6500,
-      async run() { closePanels(); setFilters({}); showTab("Market"); }
+      route: "market",
+      async run() { closePanels(); setFilters({}); showRoute("market"); }
     },
     {
       title: "Technology",
-      text: "The electrolyser mix — alkaline, PEM, SOEC, AEM — with technology-readiness levels, efficiency ranges, catalyst commodity exposure, and the bottleneck limiting each one.",
+      text: "The electrolyser mix — alkaline, PEM, SOEC and AEM — with technology-readiness levels, efficiency ranges, and the critical-material exposure limiting each one.",
       hold: 6500,
-      async run() { showTab("Technology"); }
+      route: "technology",
+      async run() { showRoute("technology"); }
     },
     {
       title: "Demand & transport",
-      text: "Where the molecules actually go: refining, ammonia, steel, mobility. Plus carrier logistics — liquid hydrogen against ammonia against LOHC, compared on the volume that matters.",
+      text: "Where the molecules actually go: refining, ammonia, steel and mobility — plus carrier logistics comparing liquid hydrogen, ammonia and LOHC on the volumes that matter.",
       hold: 6500,
-      async run() { showTab("Demand"); }
+      route: "demand-transport",
+      async run() { showRoute("demand-transport"); }
     },
     {
       title: "Policy",
-      text: "The regulation that decides whether any of this gets built — subsidy frameworks, tariff guidelines, and the recent policy changes reshaping each region's economics.",
+      text: "The regulation that decides whether any of this gets built — subsidy frameworks, tariff rules, and the recent changes reshaping each region's economics.",
       hold: 6500,
-      async run() { showTab("Policy"); }
+      route: "policy",
+      async run() { showRoute("policy"); }
     },
     {
-      title: "Temporal sandbox",
-      text: "Drag a year and the whole network resolves to that moment — which projects are online, how much capacity exists, and how the build-out curve actually bends between now and 2035.",
+      title: "Timeline, then the Calculator",
+      text: "Scrub a year to see which projects come online and how the build-out curve bends. The Calculator then closes the loop: unit conversion, stack efficiency, CAPEX/OPEX and levelised cost, all recomputing live.",
       hold: 7000,
-      async run() { showTab("Temporal"); }
-    },
-    {
-      title: "Companies & partners",
-      text: "A registry of the developers, EPC contractors and technology providers behind the projects, so a node on the globe connects to the people who would actually build it.",
-      hold: 6000,
-      async run() { showTab("Companies"); }
-    },
-    {
-      title: "Tools",
-      text: "Five live engineering models — unit conversion, stack efficiency, CAPEX/OPEX, levelised cost of hydrogen, and current density. Drag any input and every dependent figure recomputes.",
-      hold: 6500,
-      async run() { showTab("Tools"); }
-    },
-    {
-      title: "That's H₂Grid",
-      text: "3,338 announced projects, 138 verified nodes, live market data and eight analysis surfaces — every figure traceable to a cited source. Back to the globe.",
-      hold: 6000,
+      route: "tools",
       async run() {
-        showTab("Map");
-        setFilters({});
-        set3D(true);
-        await wait(600);
-        map.flyTo({ center: [12, 40], zoom: 2.6, pitch: 56, bearing: -12, duration: 3000, essential: true });
+        showRoute("timeline");
+        await wait(1800);
+        showRoute("tools");
       }
     }
   ];
@@ -292,9 +215,9 @@
     playing = false;
     idx = -1;
     el("demo-card").hidden = true;
-    // Leave the app on the globe in a clean, usable state rather than wherever
-    // the last step happened to stop — including on another tab.
-    showTab("Map");
+    // Leave the app on Explore in a clean, usable state rather than wherever
+    // the last step happened to stop — the final steps end on a studio route.
+    showRoute("map");
     closePanels();
     document.querySelectorAll("#snapshot-row .detail-snapshot, #minimized-tray .mini-card").forEach((el) => el.remove());
     openSnapshots.length = 0;
@@ -328,5 +251,12 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
   else wire();
 
-  window.H2GDemo = { start, stop, go, get step() { return idx; }, steps: STEPS.length };
+  // `routes` lets tests assert that every step lands on the workspace it claims
+  // without having to scrape narration copy.
+  window.H2GDemo = {
+    start, stop, go,
+    get step() { return idx; },
+    steps: STEPS.length,
+    routes: STEPS.map((s) => s.route)
+  };
 })();

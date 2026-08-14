@@ -163,37 +163,6 @@ function wireFlyouts() {
     });
   });
 
-  const qualityButton = document.getElementById("data-quality-btn");
-  const qualityPanel = document.getElementById("data-quality-panel");
-  const qualityClose = document.getElementById("data-quality-close");
-  const setQualityOpen = (open) => {
-    if (!qualityButton || !qualityPanel) return;
-    qualityPanel.hidden = !open;
-    qualityButton.classList.toggle("active", open);
-    qualityButton.setAttribute("aria-expanded", String(open));
-  };
-  qualityButton?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const opening = qualityPanel.hidden;
-    if (opening && typeof closeAnalyticsPanel === "function") closeAnalyticsPanel();
-    if (opening && typeof closeMarketsPanel === "function") closeMarketsPanel();
-    setQualityOpen(opening);
-  });
-  document.getElementById("analytics-btn")?.addEventListener("click", () => setQualityOpen(false));
-  document.getElementById("markets-btn")?.addEventListener("click", () => setQualityOpen(false));
-  qualityClose?.addEventListener("click", () => {
-    setQualityOpen(false);
-    qualityButton?.focus();
-  });
-  document.addEventListener("click", (event) => {
-    if (!qualityPanel?.hidden && !qualityPanel.contains(event.target) && !qualityButton?.contains(event.target)) setQualityOpen(false);
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !qualityPanel?.hidden) {
-      setQualityOpen(false);
-      qualityButton?.focus();
-    }
-  });
 }
 
 
@@ -216,6 +185,10 @@ function wireDock() {
       (TOGGLE_MAP[btn.dataset.layer] || []).forEach((id) => {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
       });
+      // Custom WebGL layers do not have a MapLibre layout.visibility value.
+      // Keep the raised conduit attached to the same Pipelines control as the
+      // three draped source layers, rather than giving one dataset two states.
+      if (btn.dataset.layer === "pipelines") window.H2GPipelines?.setVisible(on);
       renderSearchResults();
     });
   });
@@ -228,6 +201,7 @@ function syncDockLayers() {
     (TOGGLE_MAP[btn.dataset.layer] || []).forEach((id) => {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
     });
+    if (btn.dataset.layer === "pipelines") window.H2GPipelines?.setVisible(on);
   });
 }
 map.on("load", syncDockLayers);

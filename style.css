@@ -1261,7 +1261,11 @@ button { font-family: inherit; color: inherit; }
 .page.page-fade-in { opacity: 0; transition: none; }
 
 /* ---------- Hydrogen calculator (Tools tab) ---------- */
-#page-tools { padding: 90px 20px 40px; min-height: 100vh; display: flex; justify-content: center; }
+/* min-height pins the page to the viewport, but the calculator's own content is
+   taller than that on short displays. Without overflow-y the surplus rendered
+   below the fold with nothing able to scroll to it — the page simply ended.
+   `auto` keeps the full-height look when it fits and scrolls when it does not. */
+#page-tools { padding: 90px 20px 40px; min-height: 100vh; max-height: 100vh; overflow-y: auto; display: flex; justify-content: center; }
 .tools-shell { width: 100%; max-width: 640px; }
 .calc-nav {
   display: flex; flex-wrap: wrap; gap: 2px;
@@ -2194,21 +2198,29 @@ button { font-family: inherit; color: inherit; }
 }
 
 /* Temporal Sandbox dashboard full-screen constraint styles */
+/* One scroll for the whole workspace. This page used to be a viewport-locked
+   flex box whose panels each scrolled internally, so a mouse wheel did
+   something different depending on which panel it happened to be over, and the
+   rollout list trapped the gesture entirely. The page now grows to its content
+   and scrolls once; the panels never scroll on their own. */
 #page-timeline {
-  padding: 90px 24px 20px;
-  height: 100vh;
+  padding: 90px 24px 40px;
+  /* A bounded height, not min-height: html and body are both overflow:hidden
+     (the shell locks the document), so an auto-height page cannot scroll —
+     it just grows past the viewport and strands its lower half. This element
+     is the single scroll container for the workspace. */
+  height: 100dvh;
   box-sizing: border-box;
   display: flex;
   justify-content: center;
-  overflow: hidden;
+  overflow-y: auto;
 }
 .timeline-container {
   width: 100%;
   max-width: 1200px;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 @media (max-width: 1040px) {
@@ -2545,9 +2557,139 @@ button { font-family: inherit; color: inherit; }
 }
 .temporal-slider::-moz-range-track { height: 4px; background: transparent; }
 
+/* ---------- Timeline instrument ----------------------------------------
+   One card carrying the year readout, the cumulative curve, the per-year
+   additions ruler and the scrubber, all sharing a single 2020-2035 axis.
+   The amber playhead (drawn on the canvas) is the one loud element; every
+   surface here stays quiet so it is the thing the eye lands on. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+}
+
+.timeline-instrument { gap: 0; }
+
+/* The instrument stays put while the rollout list scrolls past it, so the
+   selected year and the projects landing in that year stay visible together.
+   The column must stretch to the row height to give the sticky card something
+   to travel within — a grid item sized to its own content has no travel, which
+   is why sticking the column itself did nothing. Disabled below 1040px, where
+   the grid stacks and a pinned card would just cover the list. */
+@media (min-width: 1041px) {
+  .timeline-primary-column { align-self: stretch; }
+  .timeline-instrument {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.ti-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--separator, var(--line));
+}
+.ti-year { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.ti-year-value {
+  font-size: clamp(38px, 4.4vw, 52px);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: var(--text-hi);
+  font-variant-numeric: tabular-nums;
+}
+.ti-year-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.ti-stats { display: flex; gap: 28px; margin: 0; }
+.ti-stats dt {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+}
+.ti-stats dd {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  color: var(--cyan, #3fd6e8);
+  font-variant-numeric: tabular-nums;
+}
+.ti-stats dd.is-capacity { color: var(--green-ok, #34d399); }
+
+.ti-plot {
+  flex: 1 1 auto;
+  /* The card sizes to its content now, so this min-height is what actually
+     gives the curve its height rather than a stretched flex parent. */
+  min-height: 260px;
+  margin-top: 14px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.ti-plot canvas { width: 100% !important; height: 100% !important; }
+
+.ti-ruler { margin-top: 2px; }
+.ti-ruler svg { display: block; width: 100%; }
+
+.ti-scrub { display: block; margin: 2px 0 14px; }
+.ti-scrub .temporal-slider { width: 100%; margin: 0; }
+
+.ti-actions { display: flex; align-items: center; gap: 10px; }
+.ti-year-echo {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.ti-play,
+.ti-apply {
+  padding: 7px 14px;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--text-secondary);
+  background: var(--material-control, rgba(255,255,255,.06));
+  border: 1px solid var(--separator, var(--line));
+  border-radius: var(--r-control, 8px);
+  cursor: pointer;
+  transition: background var(--dur-hover, .15s) ease, color var(--dur-hover, .15s) ease;
+}
+.ti-play:hover,
+.ti-apply:hover { color: var(--text-primary, var(--text-hi)); background: var(--material-control-hover, rgba(255,255,255,.1)); }
+.ti-apply { border-color: rgba(217, 154, 61, 0.38); color: #d99a3d; }
+.ti-apply:hover { background: rgba(217, 154, 61, 0.12); color: #e8b264; }
+.ti-play:focus-visible,
+.ti-apply:focus-visible,
+.ti-scrub .temporal-slider:focus-visible { outline: 2px solid var(--accent, #0a84ff); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .ti-readout { gap: 14px; }
+  .ti-stats { gap: 18px; }
+  .ti-stats dd { font-size: 16px; }
+  .ti-actions { flex-wrap: wrap; }
+  .ti-year-echo { margin-left: 0; order: 3; }
+}
+
 /* ---------- Universal selection context chip ---------- */
+/* Anchored bottom-RIGHT, opposite the Compare tray. Both used to sit in the
+   left column, 40px apart, so the chip read as a stray third row of the tray —
+   and since pinning a project also selects it, the same name could appear in
+   both at once in two different visual languages. They are different things
+   (this is "what is selected now", the tray is "what is pinned"), so they now
+   occupy different corners. Shifts clear of the right-hand panels when one is
+   open, the same way #snapshot-row does. */
 #selection-chip {
-  position: fixed; left: 14px; bottom: 14px; z-index: 900;
+  position: fixed; right: 14px; bottom: 14px; z-index: 900;
   display: flex; align-items: center; gap: 8px;
   padding: 7px 8px 7px 14px;
   background: rgba(4, 6, 10, 0.92);
@@ -2578,6 +2720,7 @@ button { font-family: inherit; color: inherit; }
   transition: background var(--t-hover) ease, color var(--t-hover) ease;
 }
 #selection-chip-clear:hover { background: rgba(229, 99, 92, 0.18); color: var(--red); }
+body:has(.right-panel-slot:not([hidden])) #selection-chip { right: 428px; }
 
 /* ---------- Calculator: selection-context prefill row ---------- */
 .calc-prefill-row {
@@ -3365,11 +3508,11 @@ textarea::placeholder { color: var(--text-faint); }
    Spatial Intelligence application shell
    -------------------------------------------------------------------------- */
 body {
-  --sidebar-width: 264px;
+  --sidebar-width: clamp(216px, 16vw, 232px);
   background: var(--bg-window);
   color: var(--text-secondary);
 }
-body.sidebar-collapsed { --sidebar-width: 62px; }
+body.sidebar-collapsed { --sidebar-width: 56px; }
 
 .skip-link {
   position: fixed;
@@ -3389,7 +3532,7 @@ body.sidebar-collapsed { --sidebar-width: 62px; }
 #command-ribbon {
   left: var(--sidebar-width);
   width: calc(100% - var(--sidebar-width));
-  height: 58px;
+  height: 56px;
   padding: 0 14px;
   display: grid;
   grid-template-columns: minmax(190px, 1fr) auto minmax(300px, 1fr);
@@ -3546,7 +3689,7 @@ body:not([data-route="map"]) #map-mode-switch { display: none; }
   z-index: 1200;
   width: var(--sidebar-width);
   display: grid;
-  grid-template-rows: 58px minmax(0, 1fr) auto;
+  grid-template-rows: 56px minmax(0, 1fr) auto;
   color: var(--text-secondary);
   background:
     linear-gradient(180deg, rgba(255,255,255,.035), transparent 18%),
@@ -3734,7 +3877,7 @@ body:not([data-route="map"]) #sidebar-map-tools { display: none; }
 [data-filtered-out] { display: none !important; }
 
 .sidebar-footer {
-  min-height: 58px;
+  min-height: 56px;
   padding: 11px 17px;
   display: flex;
   align-items: center;
@@ -3749,8 +3892,8 @@ body:not([data-route="map"]) #sidebar-map-tools { display: none; }
 body.sidebar-collapsed .sidebar-brand { justify-content: center; padding: 0; }
 body.sidebar-collapsed .sidebar-lockup { display: none; }
 body.sidebar-collapsed .sidebar-brand::before { display: block; }
-body.sidebar-collapsed .sidebar-scroll { padding-inline: 8px; overflow-x: hidden; }
-body.sidebar-collapsed .sidebar-filter-wrap { width: 36px; margin-inline: 5px; padding: 0 9px; }
+body.sidebar-collapsed .sidebar-scroll { padding-inline: 6px; overflow-x: hidden; }
+body.sidebar-collapsed .sidebar-filter-wrap { width: 36px; margin-inline: 4px; padding: 0 9px; }
 body.sidebar-collapsed .sidebar-filter-wrap input,
 body.sidebar-collapsed .sidebar-section-title,
 body.sidebar-collapsed #layer-dock::before,
@@ -3760,7 +3903,15 @@ body.sidebar-collapsed #app-sidebar .tab-btn span,
 body.sidebar-collapsed .sidebar-footer-copy { max-width: 0; opacity: 0; pointer-events: none; }
 body.sidebar-collapsed #app-sidebar .tab-btn,
 body.sidebar-collapsed #app-sidebar .dock-btn,
-body.sidebar-collapsed #app-sidebar .flyout-trigger { width: 44px; padding: 0; justify-content: center; }
+body.sidebar-collapsed #app-sidebar .flyout-trigger {
+  width: 44px;
+  padding: 0;
+  /* The visually hidden label remains a zero-width flex child. Without
+     clearing the inherited gap, flex centres the icon plus an empty 9px
+     track and leaves the glyph 4.5px left of the active block's centre. */
+  gap: 0;
+  justify-content: center;
+}
 body.sidebar-collapsed #app-sidebar .dock-sep { margin-block: 9px 4px; }
 body.sidebar-collapsed .sidebar-footer { justify-content: center; padding-inline: 0; }
 body.sidebar-collapsed #app-sidebar .has-tip::after { display: block; }
@@ -4435,15 +4586,15 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
 
 @media (max-width: 1100px) {
   /* Below 1100px the sidebar is an overlay drawer rather than a column: the
-     layout always reserves the 62px rail via --sidebar-width, and expanding
+     layout always reserves the 56px rail via --sidebar-width, and expanding
      floats the full panel over the content behind a scrim instead of shoving
      the map sideways. Escape or a tap on the scrim closes it, both wired in
      23-spatial-shell.js. #app-sidebar is already position:fixed, so the
      overlay is a width change — it needs the base width transition, not a
      transform. */
-  body { --sidebar-width: 62px; }
-  #app-sidebar { width: 264px; }
-  body.sidebar-collapsed #app-sidebar { width: 62px; }
+  body { --sidebar-width: 56px; }
+  #app-sidebar { width: 232px; }
+  body.sidebar-collapsed #app-sidebar { width: 56px; }
   body:not(.sidebar-collapsed):not(.focus-mode)::after {
     content: "";
     position: fixed;
@@ -4457,12 +4608,12 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
   html[data-theme="light"] body:not(.sidebar-collapsed):not(.focus-mode)::after {
     background: rgba(34, 42, 54, .26);
   }
-  body.sidebar-collapsed { --sidebar-width: 62px; }
+  body.sidebar-collapsed { --sidebar-width: 56px; }
   body.sidebar-collapsed .sidebar-brand { justify-content: center; padding: 0; }
   body.sidebar-collapsed .sidebar-lockup { display: none; }
   body.sidebar-collapsed .sidebar-brand::before { display: block; }
-  body.sidebar-collapsed .sidebar-scroll { padding-inline: 8px; }
-  body.sidebar-collapsed .sidebar-filter-wrap { width: 36px; margin-inline: 5px; padding: 0 9px; }
+  body.sidebar-collapsed .sidebar-scroll { padding-inline: 6px; }
+  body.sidebar-collapsed .sidebar-filter-wrap { width: 36px; margin-inline: 4px; padding: 0 9px; }
   body.sidebar-collapsed .sidebar-filter-wrap input,
   body.sidebar-collapsed .sidebar-section-title,
   body.sidebar-collapsed #layer-dock::before,
@@ -4484,7 +4635,12 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
 }
 
 @media (max-width: 720px) {
-  body { --sidebar-width: 54px; }
+  body,
+  body.sidebar-collapsed { --sidebar-width: 52px; }
+  #app-sidebar { width: 232px; grid-template-rows: 54px minmax(0, 1fr) 54px; }
+  body.sidebar-collapsed #app-sidebar { width: 52px; }
+  body.sidebar-collapsed .sidebar-scroll { padding-inline: 4px; }
+  body.sidebar-collapsed .sidebar-filter-wrap { margin-inline: 4px; }
   #command-ribbon { height: 54px; padding-inline: 8px; grid-template-columns: auto 1fr auto; gap: 8px; }
   #sidebar-toggle,
   #toolbar-more { width: 44px; height: 44px; }
@@ -4500,7 +4656,7 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
   #demo-btn { display: none; }
   #search-capsule { width: 34px; padding: 0 8px; }
   #search-capsule input { width: 0; opacity: 0; }
-  #search-capsule:focus-within { position: fixed; top: 10px; left: 62px; right: 8px; width: auto; z-index: 1800; }
+  #search-capsule:focus-within { position: fixed; top: 10px; left: calc(var(--sidebar-width) + 8px); right: 8px; width: auto; z-index: 1800; }
   #search-capsule:focus-within input { width: 100%; opacity: 1; }
   body:has(#search-capsule:focus-within) #map-mode-switch { opacity: 0; pointer-events: none; }
   #search-capsule:focus-within { background: var(--material-panel) !important; }
@@ -4528,18 +4684,22 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
     height: auto !important;
     overflow: visible !important;
   }
+  /* This class now carries the whole instrument (readout, plot, ruler,
+     scrubber), not just a chart, so it must size to its content. The old
+     320px clamp plus overflow:hidden would cut the scrubber off entirely. */
   .timeline-capacity-card {
-    height: 320px !important;
-    min-height: 320px !important;
-    flex: 0 0 320px !important;
-    overflow: hidden !important;
+    height: auto !important;
+    min-height: 0 !important;
+    flex: 0 0 auto !important;
+    overflow: visible !important;
   }
+  /* Give the plot a definite height here — it has no flex parent to stretch
+     into once the grid stacks. */
   .timeline-capacity-chart {
-    height: 250px !important;
-    min-height: 0;
-    flex: 0 0 250px !important;
+    height: 230px !important;
+    min-height: 0 !important;
+    flex: 0 0 230px !important;
   }
-  #sandbox-project-list { max-height: 72dvh; }
   #page-timeline {
     height: auto;
     min-height: 100dvh;
@@ -4571,8 +4731,13 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
     max-height: calc(100dvh - 74px);
   }
   body:has(.right-panel-slot:not([hidden])) #search-results { max-height: calc(38dvh - 70px); }
-  #selection-chip { left: calc(var(--sidebar-width) + 12px); }
-  body:has(.right-panel-slot:not([hidden])) #selection-chip { bottom: calc(62dvh + 16px); }
+  /* Narrow viewports give the right-hand panels the full width and anchor them
+     to the bottom, so there is no side to dodge to — the chip lifts above them
+     instead. The Compare tray is left-aligned down here, so cap the chip's
+     width to keep the two from meeting in the middle. */
+  #selection-chip { right: 12px; max-width: calc(100vw - var(--sidebar-width) - 24px); }
+  #selection-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body:has(.right-panel-slot:not([hidden])) #selection-chip { right: 12px; bottom: calc(62dvh + 16px); }
   .right-panel-slot,
   #detail-card,
   #analytics-panel,
@@ -4597,7 +4762,6 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
 [data-prototype-workspace][hidden],
 .handoff-return[hidden],
 .comparison-tray[hidden],
-.data-quality-panel[hidden],
 .mobile-analysis-notice[hidden] { display: none !important; }
 
 .provenance-badge {
@@ -4676,9 +4840,53 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
   background: var(--material-control);
 }
 .comparison-item .provenance-badge { margin: 0; }
-.comparison-item strong { overflow: hidden; color: var(--text-primary); font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
-.comparison-remove,
-#data-quality-close {
+.comparison-open {
+  overflow: hidden;
+  min-width: 0;
+  padding: 0;
+  color: var(--text-primary);
+  font: 600 10.5px/1.3 var(--font);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.comparison-open:hover,
+.comparison-open:focus-visible { color: var(--cyan); }
+
+/* Opening a row whose panel is already on screen flashes that panel rather
+   than stacking a duplicate — the answer to "which one is it" is to point at
+   it, not to open it again. */
+@keyframes snapshotFlash {
+  0%, 100% { box-shadow: var(--shadow-panel); }
+  35% { box-shadow: var(--shadow-panel), 0 0 0 2px var(--cyan); }
+}
+.snapshot-flash { animation: snapshotFlash 0.55s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .snapshot-flash { animation: none; outline: 2px solid var(--cyan); }
+}
+
+/* Pin-to-Compare, sharing the panel's control row with the traffic lights.
+   Labelled rather than a fourth dot: the dots are window state (close,
+   minimize) and this is a data action, so it should not read as one of them. */
+.panel-pin {
+  padding: 3px 9px;
+  color: var(--text-tertiary);
+  font: 600 9.5px/1 var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--material-control);
+  border: 1px solid var(--separator);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color var(--t-hover) ease, border-color var(--t-hover) ease;
+}
+.panel-pin:hover,
+.panel-pin:focus-visible { color: var(--text-primary); border-color: var(--separator-strong); }
+.panel-pin.is-pinned { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, transparent); }
+.comparison-remove {
   display: grid;
   place-items: center;
   width: 26px;
@@ -4691,34 +4899,7 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
   cursor: pointer;
 }
 .comparison-remove:hover,
-.comparison-remove:focus-visible,
-#data-quality-close:hover,
-#data-quality-close:focus-visible { color: var(--text-primary); background: var(--material-hover); }
-
-.data-quality-panel {
-  position: fixed;
-  top: 64px;
-  right: 16px;
-  z-index: 1300;
-  width: min(390px, calc(100vw - var(--sidebar-width) - 32px));
-  padding: 16px;
-  color: var(--text-secondary);
-  background: var(--material-panel) !important;
-  border: 1px solid var(--separator-strong);
-  border-radius: 16px;
-  box-shadow: var(--shadow-panel);
-  font-size: 11px;
-  line-height: 1.5;
-}
-.data-quality-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.data-quality-head > div { display: flex; align-items: center; gap: 8px; }
-.data-quality-head .provenance-badge { margin: 0; }
-.data-quality-head strong { color: var(--text-primary); font-size: 13px; }
-.data-quality-panel p { margin: 12px 0; }
-.data-quality-toggle { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px; border-radius: 9px; background: var(--material-control); color: var(--text-primary); }
-.data-quality-panel dl { display: grid; grid-template-columns: 92px 1fr; gap: 7px 10px; margin: 13px 0 0; }
-.data-quality-panel dt { color: var(--text-tertiary); }
-.data-quality-panel dd { margin: 0; color: var(--text-secondary); }
+.comparison-remove:focus-visible { color: var(--text-primary); background: var(--material-hover); }
 
 .economics-ab { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .economics-ab article { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; padding: 10px; border: 1px solid var(--separator); border-radius: 10px; background: var(--material-control); }
@@ -4747,7 +4928,6 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
 .timeline-project-map { padding: 5px 9px; margin: 0; flex-shrink: 0; color: var(--accent); }
 .mobile-analysis-notice { display: none; }
 
-html[data-theme="light"] .data-quality-panel,
 html[data-theme="light"] .comparison-tray,
 html[data-theme="light"] .handoff-return { background: rgba(250, 252, 255, .97) !important; }
 html[data-theme="light"] .sensitivity-cell { color: #fff; filter: saturate(.82) brightness(.86); }
@@ -4772,7 +4952,6 @@ html[data-theme="light"] .sensitivity-cell { color: #fff; filter: saturate(.82) 
   .mobile-analysis-notice strong { flex: 0 0 auto; color: var(--text-primary); }
   #sidebar-map-tools,
   #dock-3d-btn,
-  #data-quality-btn,
   .economics-ab,
   .economics-sensitivity-wrap,
   #calc-save-scenario,

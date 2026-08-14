@@ -24,13 +24,13 @@ function createStore(hash = "#/map") {
   return window;
 }
 
-test("fresh state follows the system theme, is map-routed, and has four active layer groups", () => {
+test("fresh state is dark, map-routed, and has four active layer groups", () => {
   const { H2Store } = createStore();
   const state = H2Store.getState();
-  // "system", not "dark": initSpatialShell reads the same localStorage key with
-  // `|| "system"`, so a store defaulting to "dark" described a theme the app
-  // was not applying for any first-time visitor on a light OS.
-  assert.equal(state.theme, "system");
+  // "dark" is the product default. initSpatialShell seeds the shell from this
+  // store (with its own `|| "dark"` fallback), so this value is what a first
+  // run actually renders — it must not defer to the OS colour scheme.
+  assert.equal(state.theme, "dark");
   assert.equal(state.route, "map");
   assert.deepEqual(
     Object.entries(state.map.layers).filter(([, active]) => active).map(([key]) => key),
@@ -77,6 +77,36 @@ test("comparison tray is session-only and capped at three newest snapshots", () 
   assert.deepEqual(Array.from(H2Store.getState().comparisons, (item) => item.id), ["p2", "p3", "p4"]);
   H2Store.dispatch({ type: "COMPARISON_REMOVE", payload: { id: "p3" } });
   assert.deepEqual(Array.from(H2Store.getState().comparisons, (item) => item.id), ["p2", "p4"]);
+});
+
+test("the comparison cap is per kind, so scenarios cannot evict pinned projects", () => {
+  // Regression: the cap was a pooled slice(-3) over one array shared by
+  // projects pinned on the globe and economics scenarios saved in the
+  // calculator, so saving a third scenario silently dropped the projects the
+  // user was mid-comparison on, from a workspace they were not looking at.
+  const { H2Store } = createStore();
+  for (const id of ["a", "b"]) {
+    H2Store.dispatch({ type: "COMPARISON_ADD", payload: { snapshot: H2Store.createSnapshot("project", { id, label: id }) } });
+  }
+  for (const id of ["s1", "s2", "s3", "s4"]) {
+    H2Store.dispatch({ type: "COMPARISON_ADD", payload: { snapshot: H2Store.createSnapshot("economics", { id, label: id }) } });
+  }
+  const ids = Array.from(H2Store.getState().comparisons, (item) => item.id);
+  assert.deepEqual(ids.filter((id) => id === "a" || id === "b"), ["a", "b"]);
+  assert.deepEqual(ids.filter((id) => id.startsWith("s")), ["s2", "s3", "s4"]);
+});
+
+test("re-pinning the same project updates its row instead of duplicating it", () => {
+  const { H2Store } = createStore();
+  for (let pass = 0; pass < 3; pass += 1) {
+    H2Store.dispatch({
+      type: "COMPARISON_ADD",
+      payload: { snapshot: H2Store.createSnapshot("project", { id: "compare-tes-zeg", label: `TES pass ${pass}` }) }
+    });
+  }
+  const comparisons = H2Store.getState().comparisons;
+  assert.equal(comparisons.length, 1);
+  assert.equal(comparisons[0].label, "TES pass 2");
 });
 
 test("H2GSelection compatibility writes through the store", () => {

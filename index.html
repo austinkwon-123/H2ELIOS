@@ -19,12 +19,35 @@
     document.documentElement.dataset.themePreference = preference;
   })();
 </script>
-<!-- Pinned exactly: 20-spikes.js / 19-command-arcs.js depend on the v5 custom-layer
-     shader plumbing (projectTileFor3D via vertexShaderPrelude), and a floating
-     "@5" range lets a published site change renderer behavior on its own. -->
+<script>
+  // This app intentionally has no build pipeline, so a checked-in version
+  // suffix can drift away from the file it names. One token per HTML load is
+  // applied to every local JS/CSS request instead; document.write is
+  // intentional here because these classic scripts share globals and must
+  // remain parser-blocking in their declared dependency order.
+  (() => {
+    const token = Date.now().toString(36);
+    const url = (path) => `${path}?v=${token}`;
+    window.H2ELIOS_ASSETS = Object.freeze({
+      token,
+      style(path) {
+        document.write(`<link rel="stylesheet" href="${url(path)}" />`);
+      },
+      script(path) {
+        document.write(`<script src="${url(path)}"><\/script>`);
+      }
+    });
+  })();
+</script>
+<!-- Pinned exactly: 19-pipeline-ribbons.js and 20-spikes.js depend on the v5
+     custom-layer shader plumbing (projectTileFor3D via vertexShaderPrelude),
+     and a floating "@5" range lets a published site change renderer behavior
+     on its own. -->
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
-<link rel="stylesheet" href="style.css?v=spatial-7" />
-<link rel="stylesheet" href="hud.css" />
+<script>
+  H2ELIOS_ASSETS.style("style.css");
+  H2ELIOS_ASSETS.style("hud.css");
+</script>
 </head>
 <body data-route="map">
 <a class="skip-link" href="#workspace-content">Skip to workspace</a>
@@ -111,7 +134,7 @@
 </div>
 <button id="handoff-return" class="glass handoff-return" type="button" hidden></button>
 <aside id="comparison-tray" class="glass comparison-tray" aria-label="Session comparison tray" hidden>
-  <div class="comparison-tray-head"><strong>Compare</strong><span>Session only · max 3</span></div>
+  <div class="comparison-tray-head"><strong>Compare</strong><span>Session only · 3 per kind</span></div>
   <div id="comparison-tray-items"></div>
 </aside>
 <div id="mobile-analysis-notice" class="glass mobile-analysis-notice">
@@ -126,7 +149,6 @@
 <div class="glass" id="map-mode-switch" role="group" aria-label="Explore actions">
   <button id="analytics-btn" class="mode-btn" type="button">Insights</button>
   <button id="markets-btn" class="mode-btn" type="button">Markets</button>
-  <button id="data-quality-btn" class="mode-btn" type="button" aria-expanded="false" aria-controls="data-quality-panel">Data Quality</button>
 </div>
 <button id="demo-btn" type="button" hidden aria-label="Start guided walkthrough"></button>
 
@@ -148,13 +170,6 @@
     <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M12 13v8M8 21h8"/></svg>
   </button>
 </nav>
-
-<div class="glass data-quality-panel" id="data-quality-panel" hidden>
-  <div class="data-quality-head"><div><span class="provenance-badge observed">Observed</span><strong>Map data quality</strong></div><button id="data-quality-close" type="button" aria-label="Close Data Quality">×</button></div>
-  <p>Precisely located announced projects are shown by default. Diagnostic and approximate positions stay separate from the analytical map.</p>
-  <label class="data-quality-toggle"><input id="data-quality-approx" type="checkbox" /> <span>Show 936 country-level estimated positions</span></label>
-  <dl><dt>Project source</dt><dd>IEA Hydrogen Production Projects Database</dd><dt>Position rule</dt><dd>Exact coordinates unless diagnostics are explicitly enabled</dd><dt>API tier</dt><dd>Cached delivery of the same project dataset; not a separate visual layer</dd></dl>
-</div>
 
 <div class="glass flyout-panel" id="flyout-status" data-flyout-panel="status" hidden>
   <div class="filter-label">Status</div>
@@ -192,6 +207,7 @@
 <!-- Right: detail sheet -->
 <div class="glass right-panel-slot" id="detail-card" role="region" aria-label="Project details" hidden>
   <div class="window-controls" role="group" aria-label="Panel controls">
+    <button id="detail-compare" class="panel-pin" type="button" aria-pressed="false" title="Pin this project to Compare">Compare</button>
     <button id="detail-close" class="wc-dot wc-close" type="button" title="Close" aria-label="Close"></button>
     <button id="detail-minimize" class="wc-dot wc-min" type="button" title="Minimize" aria-label="Minimize"></button>
   </div>
@@ -298,43 +314,60 @@
 </div>
  
  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
- <script src="js/maplibre-fallback.js?v=spatial-1"></script>
+ <script>H2ELIOS_ASSETS.script("js/maplibre-fallback.js");</script>
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
  
  <!-- data -->
- <script src="js/data.js?v=geo-1"></script>
- <script src="js/iea-data.js"></script>
- <script src="js/eu-stations-data.js"></script>
- <script src="js/breakeven-data.js"></script>
- <script src="js/news-data.js"></script>
+ <script>
+   [
+     "js/data.js",
+     "js/h2inframap-data.js",
+     "js/iea-data.js",
+     "js/eu-stations-data.js",
+     "js/breakeven-data.js",
+     "js/news-data.js"
+   ].forEach((path) => H2ELIOS_ASSETS.script(path));
+ </script>
  
  <!-- app modules (load order = dependency order; see README) -->
  <!-- Local API keys. Gitignored; copy js/config.example.js to js/config.js. -->
-<script src="js/config.js"></script>
-<script src="js/store.js?v=focused-1"></script>
-<script src="js/01-core.js?v=spatial-4"></script>
- <script src="js/02-layers.js"></script>
- <script src="js/03-filters.js"></script>
- <script src="js/04-search.js"></script>
- <script src="js/05-detail.js?v=geo-1"></script>
- <script src="js/07-live.js?v=data-health-2"></script>
- 
+ <script>
+   [
+     "js/config.js",
+     "js/store.js",
+     "js/01-core.js",
+     "js/02-layers.js",
+     "js/03-filters.js",
+     "js/04-search.js",
+     "js/05-detail.js",
+     "js/07-live.js"
+   ].forEach((path) => H2ELIOS_ASSETS.script(path));
+ </script>
+ <!-- Owns the live API project tier AND the "Live viewport" gauge. Dropping
+      this tag left the gauge permanently at 0% with a healthy backend. -->
+ <script>H2ELIOS_ASSETS.script("js/18-api-live.js");</script>
+
  <!-- feature overlays (depend on app modules above) -->
- <script src="js/iea-layer.js"></script>
- <script src="js/hud.js"></script>
- <script src="js/08-analytics.js?v=spatial-1"></script>
- <script src="js/09-router.js"></script>
- <script src="js/10-calculator.js?v=spatial-2"></script>
- <script src="js/11-market.js"></script>
- <script src="js/12-technology.js?v=spatial-1"></script>
- <script src="js/13-demand-transport.js?v=spatial-1"></script>
- <script src="js/14-policy.js?v=spatial-1"></script>
- <script src="js/15-companies.js?v=spatial-2"></script>
- <script src="js/16-ai-features.js?v=spatial-1"></script>
- <script src="js/17-visualization.js?v=spatial-2"></script>
- <script src="js/20-spikes.js"></script>
-<script src="js/22-demo.js?v=a11y-1"></script>
-<script src="js/23-spatial-shell.js?v=spatial-4"></script>
-<script src="js/24-geology-intelligence.js?v=geo-1"></script>
+ <script>
+   [
+     "js/iea-layer.js",
+     "js/hud.js",
+     "js/08-analytics.js",
+     "js/09-router.js",
+     "js/10-calculator.js",
+     "js/11-market.js",
+     "js/12-technology.js",
+     "js/13-demand-transport.js",
+     "js/14-policy.js",
+     "js/15-companies.js",
+     "js/16-ai-features.js",
+     "js/17-visualization.js",
+     "js/20-spikes.js",
+     "js/19-pipeline-ribbons.js",
+     "js/22-demo.js",
+     "js/23-spatial-shell.js",
+     "js/24-geology-intelligence.js"
+   ].forEach((path) => H2ELIOS_ASSETS.script(path));
+ </script>
  </body>
  </html>

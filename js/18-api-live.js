@@ -27,19 +27,46 @@
 // the satellites layer entirely. Classic scripts share one global lexical
 // scope anyway (see every other file's own header comment), so this is the
 // same sharing convention the rest of the codebase already relies on.
+// Runs fn once the style can accept addSource/addLayer.
+//
+// The gate is failure-driven rather than isStyleLoaded(). That flag also reads
+// false while a source retries failing tiles, and under the offline fallback
+// style it may never flip at all — which silently prevented this whole tier,
+// and with it the LIVE VIEWPORT gauge, from ever initialising. MapLibre's
+// emitter swallows exceptions thrown inside its listeners, so a failure here
+// is invisible unless it is caught and reported explicitly.
+//
+// fn must be idempotent: a retry after a partial application re-runs the
+// statements that already succeeded. See the guards at the top of each caller.
 function onMapReady(fn) {
   let done = false;
   const run = () => {
-    if (done || !map.isStyleLoaded()) return;
-    done = true;
-    fn();
+    if (done) return;
+    try {
+      fn();
+      done = true;
+      map.off("load", run);
+      map.off("styledata", run);
+      map.off("idle", run);
+    } catch (error) {
+      // Style not mutable yet — a later load/styledata/idle retries. Anything
+      // still failing on the last attempt surfaces via the console below.
+      lastMapReadyError = error;
+    }
   };
   run();
   if (!done) {
     map.on("load", run);
     map.on("styledata", run);
+    map.on("idle", run);
+    setTimeout(() => {
+      if (!done && lastMapReadyError) {
+        console.error("H2ELIOS: live API tier failed to initialise", lastMapReadyError);
+      }
+    }, 8000);
   }
 }
+let lastMapReadyError = null;
 
 (function () {
   const API_HOLO = "#facc15"; // distinct from IEA's cyan, so the two tiers read as separate layers
@@ -116,9 +143,9 @@ function onMapReady(fn) {
     return [lngDeg, dec / rad];
   }
 
-  // Shared with 21-daynight.js, which shades the globe from the same solar
-  // position. Exported rather than duplicated so there is exactly one
-  // implementation of the ephemeris to be right or wrong.
+  // Public for any live solar readout that needs the same position. Exported
+  // rather than duplicated so there is exactly one implementation of the
+  // ephemeris to be right or wrong.
   window.H2GSun = { subsolarPoint };
 
   let subsolarMarker = null;
@@ -457,6 +484,11 @@ function onMapReady(fn) {
   }
 
   onMapReady(() => {
+    // Idempotence guard: onMapReady retries on style events until one attempt
+    // completes, so this body can be entered more than once. Bailing on the
+    // first source keeps a retry from re-adding sources, layers, listeners or
+    // firing a second fetch.
+    if (map.getSource("api-projects")) return;
     map.addSource("api-projects", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 
     map.addLayer({
@@ -495,6 +527,10 @@ function onMapReady(fn) {
     map.addSource("api-projects-extrusion", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     map.addLayer({
       id: "api-projects-extrusion", type: "fill-extrusion", source: "api-projects-extrusion",
+      // The API layer may arrive before or after the 3D control initialises.
+      // Seed it from the shared mode state so an asynchronous fetch cannot
+      // resurrect capacity bars after the user has already switched them off.
+      layout: { visibility: window.is3DActive ? "visible" : "none" },
       paint: {
         // Bigger projects don't just stand taller - they run "hotter": color
         // interpolates from the normal taxonomy color up toward a lightened
@@ -697,6 +733,7 @@ function onMapReady(fn) {
   }
 
   onMapReady(() => {
+    if (map.getSource("satellites")) return; // see the guard note in the API tier
     map.addSource("satellites", { type: "geojson", data: satelliteData });
 
     // Bloom: larger, near-transparent, blurred cyan halo underneath the
@@ -838,6 +875,7 @@ function onMapReady(fn) {
   }
 
   onMapReady(() => {
+    if (map.getSource("hub-routes-baseline")) return; // see the guard note in the API tier
     const beforeId = map.getLayer("hubs") ? "hubs" : undefined;
 
     map.addSource("hub-routes-baseline", { type: "geojson", data: baselineFC() });

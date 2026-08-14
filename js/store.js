@@ -44,7 +44,10 @@
     filters: { status: "all", region: "all", color: null, cohort: null },
     timelineYear: 2026,
     map: {
-      camera: { center: [24, 8], zoom: 1.85, pitch: 0, bearing: 8 },
+      // Mirrors H2GRID_HOME_VIEW in js/01-core.js — see the note there for why
+      // the opening view is European. These two must not drift: this one seeds
+      // the hand-off return camera, that one seeds the map itself.
+      camera: { center: [9, 51], zoom: 1.85, pitch: 0, bearing: 8 },
       layers: { facilities: true, pipelines: true, fueling: false, hubs: true, announced: true },
       mode3d: false
     },
@@ -53,15 +56,16 @@
   });
   const subscriptions = new Set();
 
-  // Defaults to "system" to match initSpatialShell, which reads the same key
-  // with `|| "system"`. Defaulting to "dark" here meant a first-time visitor on
-  // a light OS got a store saying "dark" while the shell rendered light.
+  // Defaults to "dark", matching initSpatialShell, which now seeds the shell
+  // from this store with its own `|| "dark"` fallback. The store is the source
+  // of truth for theme, so a first run must land on the product's default
+  // rather than deferring to the OS.
   function readThemePreference() {
     try {
       const value = global.localStorage && global.localStorage.getItem("h2elios-theme");
-      return value === "light" || value === "system" || value === "dark" ? value : "system";
+      return value === "light" || value === "system" || value === "dark" ? value : "dark";
     } catch (error) {
-      return "system";
+      return "dark";
     }
   }
 
@@ -182,7 +186,18 @@
       case "comparison add": {
         const snapshot = payload.snapshot || (payload.id && payload.type ? payload : createSnapshot(payload.type, payload));
         const withoutDuplicate = current.comparisons.filter((item) => item.id !== snapshot.id);
-        return { ...current, comparisons: withoutDuplicate.concat(snapshot).slice(-3) };
+        // The cap is per kind, not pooled. Projects pinned from the globe and
+        // economics scenarios saved in the calculator share this one array, so
+        // a single cap of 3 meant saving a third scenario silently evicted the
+        // projects you were mid-comparison on — in a workspace you weren't
+        // even looking at. Evict only same-kind entries, oldest first.
+        const evicted = new Set(
+          withoutDuplicate.filter((item) => item.type === snapshot.type).slice(0, -2).map((item) => String(item.id))
+        );
+        return {
+          ...current,
+          comparisons: withoutDuplicate.filter((item) => !evicted.has(String(item.id))).concat(snapshot)
+        };
       }
       case ACTIONS.COMPARISON_REMOVE:
       case "comparison remove": {

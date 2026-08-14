@@ -188,19 +188,61 @@ function updateSpatialShellRoute(route = currentWorkspaceRoute()) {
 // was duplicated work that could drift apart.
 const rightPanelToggleListeners = [];
 let rightPanelObserver = null;
+let rightPanelArbitrating = false;
 
 function onRightPanelToggle(handler) {
   if (typeof handler !== "function") return;
   rightPanelToggleListeners.push(handler);
   if (rightPanelObserver) return;
-  rightPanelObserver = new MutationObserver(() => {
+  rightPanelObserver = new MutationObserver((records) => {
+    // Most openers already call closeOtherRightPanels(), but live refreshes,
+    // restored inspectors and future integrations can reveal a panel by
+    // changing `hidden` directly. On narrow screens every inspector owns the
+    // same bottom sheet rectangle, so one missed call produces two fully
+    // overlapping scroll surfaces. Treat the newly revealed panel as the
+    // owner here as a last-line invariant, independent of which code opened
+    // it. The guard prevents the close mutations from recursively arbitrating.
+    const changedPanels = [];
+    records.forEach((record) => {
+      if (record.type === "attributes" && record.target.matches?.(".right-panel-slot")) {
+        changedPanels.push(record.target);
+      }
+      record.addedNodes?.forEach((node) => {
+        if (!(node instanceof Element)) return;
+        if (node.matches(".right-panel-slot")) changedPanels.push(node);
+        changedPanels.push(...node.querySelectorAll(".right-panel-slot"));
+      });
+    });
+    if (!changedPanels.length) return;
+    const opened = changedPanels.filter((panel) => !panel.hidden).pop();
+    if (opened && !rightPanelArbitrating && typeof closeOtherRightPanels === "function") {
+      rightPanelArbitrating = true;
+      try {
+        // A comparison snapshot is allowed beside the live detail inspector on
+        // desktop; that pairing is the comparison feature. It still conflicts
+        // with Insights/Markets, while mobile has only one bottom-sheet slot
+        // and therefore keeps the stricter single-inspector rule.
+        const exceptId = opened.classList.contains("detail-snapshot") && window.innerWidth > 720
+          ? "detail-card"
+          : opened.id;
+        closeOtherRightPanels(exceptId);
+      }
+      finally { rightPanelArbitrating = false; }
+    }
     rightPanelToggleListeners.forEach((listener) => {
       try { listener(); }
       catch (error) { console.error("H2ELIOS: inspector-toggle listener failed", error); }
     });
   });
-  document.querySelectorAll(".right-panel-slot").forEach((panel) => {
-    rightPanelObserver.observe(panel, { attributes: true, attributeFilter: ["hidden"] });
+  // Observe the body rather than only the five panels present at startup.
+  // Restored comparison/detail panels are created later in #snapshot-row and
+  // arrive already visible, so there is no subsequent `hidden` mutation an
+  // observer attached to the startup nodes could ever see.
+  rightPanelObserver.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["hidden"]
   });
 }
 
@@ -225,10 +267,34 @@ function setSidebarExpanded(expanded, persist = true) {
   const filter = document.getElementById("sidebar-filter");
   if (filter) filter.tabIndex = expanded ? 0 : -1;
   if (persist) localStorage.setItem("h2elios-sidebar-expanded", String(expanded));
-  requestAnimationFrame(() => {
+  syncShellGeometryAfterSidebarSettles(sidebar);
+}
+
+// The sidebar animates its width over 0.3s. syncSpatialMapPadding() reads
+// sidebar.offsetWidth, so running it one frame after the class flip sampled
+// the START of that animation: expanding to 232px left the map's padding at
+// the collapsed 56px and nothing ever corrected it, so the globe sat 176px
+// off-centre, partly under the sidebar, until an unrelated event happened to
+// re-sync. Sync once immediately (never worse than before) and again once the
+// width has actually settled. The timer is the fallback for when no
+// transition runs at all — prefers-reduced-motion, or a width that resolves
+// instantly — since transitionend would never fire in those cases.
+function syncShellGeometryAfterSidebarSettles(sidebar) {
+  requestAnimationFrame(syncSpatialMapPadding);
+  let settled = false;
+  const settle = () => {
+    if (settled) return;
+    settled = true;
+    sidebar.removeEventListener("transitionend", onTransitionEnd);
+    clearTimeout(fallback);
     if (typeof map !== "undefined" && map && typeof map.resize === "function") map.resize();
     syncSpatialMapPadding();
-  });
+  };
+  function onTransitionEnd(event) {
+    if (event.target === sidebar && event.propertyName === "width") settle();
+  }
+  sidebar.addEventListener("transitionend", onTransitionEnd);
+  const fallback = setTimeout(settle, 450);
 }
 
 function labelSidebarControls() {

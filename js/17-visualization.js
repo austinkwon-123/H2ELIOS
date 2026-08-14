@@ -30,15 +30,33 @@ function parseOnlineYear(updatedStr) {
 }
 
 // Helper: Parse capacity strings to MWel equivalent
+// Returns installed electrolyser/production POWER in MW, or 0 when the record
+// does not state one. Three things this must not do, all of which it used to:
+//
+//   Energy is not power. /GW/ also matches "GWh", so a salt cavern described
+//   as "10723 GWh" of stored energy was counted as a 10,723 GW plant — that
+//   one record alone was 29% of the cumulative curve.
+//
+//   Product mass is not capacity. The kt branch caught "850000 ktpa ammonia"
+//   and turned it into 14,110 GW, 87% of the announced total. Ammonia and
+//   methanol tonnages describe output of a different molecule and cannot be
+//   summed into a hydrogen capacity figure.
+//
+//   Unknown is not 10 MW. Returning a placeholder for the 730 records with no
+//   parseable capacity invented roughly 7 GW of plant that nobody announced.
 function getCapacityMw(c) {
-  if (!c || c === "n/a") return 10;
-  let m = c.match(/([\d.]+)\s*GW/i);
+  if (!c || c === "n/a") return 0;
+  let m = c.match(/([\d.]+)\s*GW(?!h)/i);
   if (m) return parseFloat(m[1]) * 1000;
-  m = c.match(/([\d.]+)\s*MW/i);
+  m = c.match(/([\d.]+)\s*MW(?!h)/i);
   if (m) return parseFloat(m[1]);
+  // Annual hydrogen output converted to equivalent continuous power. The 16.6
+  // MW per kt/yr factor is the project's existing assumption (~50 kWh/kg at a
+  // ~34% capacity factor) and is left unchanged here.
+  if (/\b(ammonia|nh3|methanol|meoh|urea)\b/i.test(c)) return 0;
   m = c.match(/([\d.]+)\s*kt/i);
   if (m) return parseFloat(m[1]) * 16.6;
-  return 10;
+  return 0;
 }
 
 // 1. Dataset Pre-processing: Attach numeric onlineYear to all loaded GeoJSON data
@@ -80,60 +98,69 @@ function initTimelinePage() {
         </div>
         <span class="timeline-source-note">Announced + curated records</span>
       </div>
-      <div class="timeline-main-grid" style="display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 16px; height: 100%; box-sizing: border-box; overflow: hidden;">
-        
-        <!-- Left Column: Controls, KPIs, and Expansion Chart -->
-        <div class="timeline-primary-column" style="display: flex; flex-direction: column; gap: 16px; overflow: hidden; height: 100%;">
+      <div class="timeline-main-grid" style="display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 16px; box-sizing: border-box;">
+
+        <!-- Left column: the time instrument. It sticks while the rollout list
+             beside it scrolls past, so the year you are inspecting and the
+             projects landing in that year stay on screen together. -->
+        <div class="timeline-primary-column" style="display: flex; flex-direction: column; gap: 16px;">
           
-          <!-- Controls Card -->
-          <div class="dashboard-card glass" style="flex-shrink: 0; padding: 16px; margin: 0;">
-            <h2 class="stats-head">Timeline control</h2>
-            <p style="font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
-              Drag the controller to inspect cumulative announced capacity. Apply the selected year to Explore when you are ready to map it.
-            </p>
-            <div id="temporal-milestones" style="margin-bottom: 2px;"></div>
-            <div class="timeline-scrubber" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--line);">
-              <button id="sandbox-play-btn" class="tab-btn" style="min-width: 64px; margin: 0; padding: 6px 12px; font-size: 11px;">▶ Play</button>
-              <input type="range" class="temporal-slider" id="sandbox-slider" min="2020" max="2035" value="${window.timelineYear}" style="flex: 1; margin: 0;" />
-              <span id="sandbox-year-label" style="font-size: 18px; font-weight: 700; color: var(--text-hi); font-family: var(--font); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums;">${window.timelineYear}</span>
-              <button id="timeline-apply-map" class="tab-btn" type="button">Apply year to map</button>
-            </div>
-          </div>
+          <!-- One instrument, one axis. The year readout, the cumulative
+               curve, the per-year additions ruler and the scrubber previously
+               sat in three separate cards, each with its own horizontal
+               geometry, so nothing lined up and the selected year had to be
+               re-found in each. They now share a single 2020-2035 axis: the
+               playhead runs through the curve and the ruler at the same x. -->
+          <div class="dashboard-card glass timeline-instrument timeline-capacity-card" style="flex: 0 0 auto; padding: 18px; margin: 0; display: flex; flex-direction: column;">
 
-          <!-- KPIs Card -->
-          <div class="dashboard-card glass" style="flex-shrink: 0; padding: 16px; margin: 0;">
-            <h2 class="stats-head">Year Active Summary (<span class="target-year-title">${window.timelineYear}</span>)</h2>
-            <div class="kpi-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px;">
-              <div class="kpi-card">
-                <span class="lbl">Cumulative Projects</span>
-                <span class="val" id="sandbox-kpi-count" style="font-size: 20px; font-weight: 700; color: var(--cyan);">0</span>
+            <div class="ti-readout">
+              <div class="ti-year">
+                <span class="ti-year-value target-year-title">${window.timelineYear}</span>
+                <span class="ti-year-label">selected year</span>
               </div>
-              <div class="kpi-card">
-                <span class="lbl">Cumulative Capacity</span>
-                <span class="val" id="sandbox-kpi-cap" style="font-size: 20px; font-weight: 700; color: var(--green-ok);">0 GW</span>
-              </div>
+              <dl class="ti-stats">
+                <div>
+                  <dt>Projects online</dt>
+                  <dd id="sandbox-kpi-count">0</dd>
+                </div>
+                <div>
+                  <dt>Cumulative capacity</dt>
+                  <dd id="sandbox-kpi-cap" class="is-capacity">0 GW</dd>
+                </div>
+              </dl>
             </div>
-          </div>
 
-          <!-- Capacity Expansion Line/Area Chart Card -->
-          <div class="dashboard-card glass timeline-capacity-card" style="flex: 1; min-height: 200px; padding: 16px; margin: 0; display: flex; flex-direction: column; overflow: hidden;">
-            <h2 class="stats-head" style="margin-bottom: 12px;">Cumulative Projected Capacity Expansion (GW)</h2>
-            <div class="timeline-capacity-chart" style="flex: 1; position: relative;">
-              <canvas id="sandbox-capacity-chart" style="width:100%; height:100%;"></canvas>
+            <div class="timeline-capacity-chart ti-plot" style="position: relative;">
+              <canvas id="sandbox-capacity-chart"></canvas>
+            </div>
+
+            <!-- Ruler: capacity added per year, aligned to the plot's x-axis. -->
+            <div id="temporal-milestones" class="ti-ruler"></div>
+
+            <label class="ti-scrub">
+              <span class="sr-only">Selected year</span>
+              <input type="range" class="temporal-slider" id="sandbox-slider" min="2020" max="2035" step="1" value="${window.timelineYear}" />
+            </label>
+
+            <div class="ti-actions">
+              <button id="sandbox-play-btn" class="ti-play" type="button">▶ Play</button>
+              <span id="sandbox-year-label" class="ti-year-echo" aria-hidden="true">${window.timelineYear}</span>
+              <button id="timeline-apply-map" class="ti-apply" type="button">Apply year to map</button>
             </div>
           </div>
 
         </div>
 
-        <!-- Right Column: Scrollable List of Rollout Pipeline for the Target Year -->
-        <div class="dashboard-card glass timeline-pipeline-card" style="height: 100%; display: flex; flex-direction: column; padding: 16px; margin: 0; overflow: hidden; box-sizing: border-box;">
+        <!-- Right column: every project entering operation in the selected
+             year, listed in full. No inner scroller — the page carries it. -->
+        <div class="dashboard-card glass timeline-pipeline-card" style="display: flex; flex-direction: column; padding: 16px; margin: 0; box-sizing: border-box;">
           <h2 class="stats-head">Timeline Pipeline Rollouts (<span class="target-year-title">${window.timelineYear}</span>)</h2>
           <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px;">Announced and curated facilities scheduled to enter operation in this specific year.</p>
           <div class="timeline-list-tools">
             <input id="sandbox-project-search" class="search-input" type="search" placeholder="Filter this year's projects" aria-label="Filter projects scheduled for the selected year" />
             <span id="sandbox-project-count" aria-live="polite"></span>
           </div>
-          <div style="flex: 1; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;" id="sandbox-project-list">
+          <div style="display: flex; flex-direction: column; gap: 10px;" id="sandbox-project-list">
             <!-- Renders lists dynamically -->
           </div>
         </div>
@@ -182,6 +209,37 @@ function initTimelinePage() {
       }, 950);
     }
   };
+
+  // The plot is the control. Dragging across the curve sets the year, so the
+  // chart stops being a read-only picture sitting above its own slider. The
+  // range input is kept as the accessible, keyboard-operable path.
+  const plot = container.querySelector(".ti-plot");
+  if (plot) {
+    const yearFromPointer = (event) => {
+      if (!sandboxChart || !sandboxChart.chartArea) return null;
+      const rect = sandboxChart.canvas.getBoundingClientRect();
+      const { left, right } = sandboxChart.chartArea;
+      const scaleX = rect.width / sandboxChart.width;
+      const x = event.clientX - rect.left;
+      const t = (x - left * scaleX) / Math.max(1, (right - left) * scaleX);
+      const idx = Math.round(t * (yearsArr.length - 1));
+      return yearsArr[Math.max(0, Math.min(yearsArr.length - 1, idx))];
+    };
+    const scrubTo = (event) => {
+      const year = yearFromPointer(event);
+      if (year == null || year === window.timelineYear) return;
+      slider.value = String(year);
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    plot.addEventListener("pointerdown", (event) => {
+      plot.setPointerCapture(event.pointerId);
+      scrubTo(event);
+    });
+    plot.addEventListener("pointermove", (event) => {
+      if (plot.hasPointerCapture(event.pointerId)) scrubTo(event);
+    });
+    plot.addEventListener("pointerup", (event) => plot.releasePointerCapture(event.pointerId));
+  }
 
   applyMapButton.onclick = () => {
     window.beginMapHandoff?.({
@@ -255,16 +313,32 @@ function renderTemporalMilestones() {
   const el = document.getElementById("temporal-milestones");
   if (!el || !yearsArr.length) return;
   const W = 640, H = 46;
-  const padX = 10;
   const n = yearsArr.length;
-  const colW = (W - padX * 2) / n;
+  // Inset the ruler to the plot's own drawing area so a bar sits directly
+  // under the curve point for the same year. Without this the ruler spanned
+  // the full card while the plot was inset by its y-axis, and the two
+  // horizontal scales disagreed by ~30px across the whole width.
+  let padL = 10, padR = 10;
+  const area = sandboxChart && sandboxChart.chartArea;
+  const canvasW = sandboxChart && sandboxChart.width;
+  if (area && canvasW > 0) {
+    padL = (area.left / canvasW) * W;
+    padR = ((canvasW - area.right) / canvasW) * W;
+  }
+  // A line chart's category scale runs point-to-point across the plot
+  // (offset:false), so year i sits at left + i*(width/(n-1)) — not at the
+  // centre of an i-th band. Using band centres put the ruler up to 15px out
+  // of step with the curve, which is exactly the misreading this alignment
+  // is meant to prevent.
+  const step = (W - padL - padR) / (n - 1);
+  const barW = step * 0.55;
   const maxInc = Math.max(1, ...yearsArr.map((y) => incrementalCapByYear[y] || 0));
 
   const bars = yearsArr.map((y, i) => {
     const inc = incrementalCapByYear[y] || 0;
     const h = 4 + (inc / maxInc) * 30;
-    const x = padX + i * colW + colW * 0.2;
-    const w = colW * 0.6;
+    const x = padL + i * step - barW / 2;
+    const w = barW;
     const isCurrent = y === window.timelineYear;
     const isPast = y < window.timelineYear;
     const fill = isCurrent ? "#3fd6e8" : isPast ? "rgba(63,214,232,0.45)" : "rgba(120,160,200,0.18)";
@@ -273,7 +347,7 @@ function renderTemporalMilestones() {
 
   const ticks = yearsArr.filter((y) => y % 3 === 0 || y === yearsArr[0] || y === yearsArr[n - 1]).map((y) => {
     const i = yearsArr.indexOf(y);
-    const x = padX + i * colW + colW / 2;
+    const x = padL + i * step;
     return `<text x="${x.toFixed(1)}" y="${H - 2}" text-anchor="middle" font-size="8.5" fill="#67748c" font-family="var(--font-mono)">${y}</text>`;
   }).join("");
 
@@ -436,19 +510,34 @@ function renderSandboxChart() {
     id: 'customYearLine',
     beforeDraw: (chart) => {
       const { ctx, chartArea, scales } = chart;
-      const xVal = window.timelineYear;
       const xScale = scales.x;
-      const xPixel = xScale.getPixelForValue(xVal);
+      // Category scale: getPixelForValue() takes the INDEX, not the label.
+      // Passing the year itself returned ~32767 against a chart area of about
+      // 43-550, so the bounds check below always failed and this playhead was
+      // never actually drawn.
+      const idx = yearsArr.indexOf(window.timelineYear);
+      if (idx < 0) return;
+      const xPixel = xScale.getPixelForValue(idx);
 
       if (xPixel >= chartArea.left && xPixel <= chartArea.right) {
         ctx.save();
-        ctx.strokeStyle = "#3fd6e8";
-        ctx.lineWidth = 1.6;
-        ctx.setLineDash([3, 2]);
+        // Amber, not the data's cyan. A playhead drawn in the series colour
+        // reads as one more gridline; it has to say "you are here" instead.
+        ctx.strokeStyle = "#d99a3d";
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(xPixel, chartArea.top);
         ctx.lineTo(xPixel, chartArea.bottom);
         ctx.stroke();
+        // Cap: a small solid wedge at the top so the head is findable at a
+        // glance even where the line crosses a dense part of the curve.
+        ctx.fillStyle = "#d99a3d";
+        ctx.beginPath();
+        ctx.moveTo(xPixel - 4, chartArea.top);
+        ctx.lineTo(xPixel + 4, chartArea.top);
+        ctx.lineTo(xPixel, chartArea.top + 5);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
       }
     }
@@ -463,10 +552,18 @@ function renderSandboxChart() {
         data: capacityCurveData,
         borderColor: "#3fd6e8",
         borderWidth: 1.8,
-        pointBackgroundColor: "#3fd6e8",
+        // Everything past the selected year is still an announcement, so it is
+        // drawn as a dashed, dimmed continuation rather than the same confident
+        // line. Scrubbing therefore shows commitment receding, not just a
+        // marker sliding along an unchanging curve.
+        segment: {
+          borderColor: (c) => (yearsArr[c.p1DataIndex] > window.timelineYear ? "rgba(63,214,232,0.34)" : "#3fd6e8"),
+          borderDash: (c) => (yearsArr[c.p1DataIndex] > window.timelineYear ? [4, 3] : undefined)
+        },
+        pointBackgroundColor: (c) => (yearsArr[c.dataIndex] > window.timelineYear ? "rgba(63,214,232,0.34)" : "#3fd6e8"),
         pointBorderColor: "#01030a",
         pointHoverRadius: 5,
-        pointRadius: 2,
+        pointRadius: (c) => (yearsArr[c.dataIndex] === window.timelineYear ? 4 : 2),
         fill: true,
         backgroundColor: "rgba(63, 214, 232, 0.04)",
         tension: 0.25
@@ -486,7 +583,14 @@ function renderSandboxChart() {
         },
         y: {
           grid: { color: gridColor },
-          ticks: { color: labelColor, font: { size: 9.5 } }
+          // The axis previously ran to "35,000" with no unit anywhere near it,
+          // so the only clue to the scale was the KPI above. State it.
+          title: { display: true, text: "Cumulative capacity (GW)", color: labelColor, font: { size: 10 } },
+          ticks: {
+            color: labelColor,
+            font: { size: 9.5 },
+            callback: (v) => (v >= 1000 ? (v / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + "k" : v)
+          }
         }
       }
     }
@@ -511,6 +615,14 @@ function inject3DControls() {
     window.is3DActive = !window.is3DActive;
     window.H2Store?.dispatch({ type: "MAP_3D_UPDATE", payload: { value: window.is3DActive } });
     btn.classList.toggle("active", window.is3DActive);
+
+    // The live API tier owns a native fill-extrusion layer while curated/IEA
+    // capacity uses H2GSpikes. Leaving the native layer visible after this
+    // switch turned off made the control lie and left hundreds of bars hiding
+    // the physical pipeline ribbons. One mode switch owns both renderers.
+    if (map.getLayer("api-projects-extrusion")) {
+      map.setLayoutProperty("api-projects-extrusion", "visibility", window.is3DActive ? "visible" : "none");
+    }
 
     if (window.is3DActive) {
       // Idle rotation re-arms itself on every moveend, so without this the
@@ -606,7 +718,12 @@ function initVisualizationModule() {
 }
 
 function enable3DOnFirstLoad() {
+  // Reader-width layouts deliberately hide the advanced 3D control. Starting
+  // them in the state that control would toggle on made the pitched globe and
+  // long capacity beams overflow the narrow canvas with no visible way back.
+  if (window.innerWidth <= 720) return;
   const activate = () => {
+    if (window.innerWidth <= 720) return false;
     const button = document.getElementById("dock-3d-btn");
     if (!button || !window.H2GSpikes || !map.getLayer("h2grid-3d-spikes") || window.is3DActive) return false;
     button.click();

@@ -108,6 +108,7 @@ function showDetail(p) {
   const wasOpen = !card.hidden;
   document.getElementById("detail-content").innerHTML = buildDetailHTML(p);
   card.hidden = false;
+  syncDetailCompareButton();
   // Only pull focus when the panel is newly opened from the keyboard. Moving it
   // on a pointer click yanks the caret out of whatever the user was typing in,
   // and re-focusing on every refresh would fight them each time live data
@@ -155,18 +156,59 @@ function closeDetailPanel(restoreFocus = true) {
   if (restoreFocus && returnFocus?.isConnected) requestAnimationFrame(() => returnFocus.focus());
 }
 
+// Snapshot ids are derived from the project name rather than a timestamp so
+// that pinning the same project twice updates one row instead of filling the
+// tray with identical copies (COMPARISON_ADD dedupes by id), and so a tray row
+// maps to a stable panel id in #snapshot-row across pins.
+function comparisonIdFor(props) {
+  const slug = String(props?.name || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return "compare-" + (slug || "project");
+}
+
+function currentProjectIsPinned() {
+  if (!lastDetailProps || !window.H2Store) return false;
+  const id = comparisonIdFor(lastDetailProps);
+  return window.H2Store.getState().comparisons.some((snapshot) => String(snapshot.id) === id);
+}
+
+// Pins WITHOUT closing the panel. Comparing side by side only works if the
+// thing you just pinned is still on screen when you pick the next one — the
+// previous wiring hung this off the Minimize dot and then closed the panel,
+// so the only way to add something to Compare was to make it disappear.
+function pinCurrentProjectToComparison() {
+  if (!lastDetailProps || !window.H2Store) return;
+  const selection = window.H2Store.getState().selection;
+  const snapshot = window.H2Store.createSnapshot("project", {
+    id: comparisonIdFor(lastDetailProps),
+    label: lastDetailProps.name || "Project",
+    payload: { props: lastDetailProps, lngLat: selection?.lngLat || null }
+  });
+  window.H2Store.dispatch({ type: "COMPARISON_ADD", payload: { snapshot } });
+}
+
+function syncDetailCompareButton() {
+  const button = document.getElementById("detail-compare");
+  if (!button) return;
+  const pinned = currentProjectIsPinned();
+  button.textContent = pinned ? "Pinned" : "Compare";
+  button.classList.toggle("is-pinned", pinned);
+  button.setAttribute("aria-pressed", pinned ? "true" : "false");
+}
+
 function wireDetailClose() {
   document.getElementById("detail-close").addEventListener("click", () => closeDetailPanel(true));
+  // Minimize means minimize: the panel becomes a mini-card in the bottom tray,
+  // which is what its dot has always advertised and what the restore/FLIP
+  // machinery in js/01-core.js is built for.
   document.getElementById("detail-minimize").addEventListener("click", () => {
-    if (!lastDetailProps || !window.H2Store) return;
-    const selection = window.H2Store.getState().selection;
-    const snapshot = window.H2Store.createSnapshot("project", {
-      label: lastDetailProps.name || "Project",
-      payload: { props: lastDetailProps, lngLat: selection?.lngLat || null }
-    });
-    window.H2Store.dispatch({ type: "COMPARISON_ADD", payload: { snapshot } });
-    closeDetailPanel(false);
+    if (!lastDetailProps) return;
+    minimizeDetailPanel(lastDetailProps, null, document.getElementById("detail-card"));
   });
+  document.getElementById("detail-compare")?.addEventListener("click", () => {
+    pinCurrentProjectToComparison();
+    syncDetailCompareButton();
+  });
+  window.H2Store?.subscribe((state) => state.comparisons, syncDetailCompareButton);
 }
 
 

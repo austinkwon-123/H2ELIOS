@@ -240,6 +240,12 @@ function capacityText(mw) {
 // map, which would also snapshot every dynamically-added runtime layer
 // (satellites, comet arcs, API project circles/extrusions, their current
 // data payloads, etc.) into what's supposed to be a clean minimal backdrop.
+// MapLibre's atmosphere response is deliberately nonlinear: holding the dark
+// globe at 0.9 through zoom 3 clips the sunward limb into a broad white band
+// that erases markers. Keep one restrained curve for both the cold style and
+// the post-load theme pass so startup cannot flash the old blown-out value.
+const H2ELIOS_DARK_ATMOSPHERE_BLEND = ["interpolate", ["linear"], ["zoom"], 0, 0.42, 3, 0.42, 6, 0.08, 9, 0];
+
 const H2GRID_BASE_STYLE = {
     version: 8,
     projection: { type: "globe" },
@@ -335,14 +341,22 @@ const H2GRID_BASE_STYLE = {
       // Shares the 3->6 orbital->ground fade schedule with the starfield
       // (--bg-fx in 07-live.js) and coast-glow above, so the whole space-view
       // transition reads as one effect.
-      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.75, 3, 0.75, 6, 0.08, 9, 0]
+      "atmosphere-blend": H2ELIOS_DARK_ATMOSPHERE_BLEND
     },
     glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf"
 };
 
 // ---- Map init: 3D globe ----------------------------------------------------
+// Centred on Europe because that is where the infrastructure is. The previous
+// [24, 8] framed Africa and the Middle East, which was defensible when the
+// dataset was a thin global sample; once the H2InfraMap import made pipelines,
+// storage and terminals overwhelmingly European, the opening view pointed at
+// the emptiest part of the map. Measured at identical zoom and pitch, toggling
+// the 3D pipeline layer changed 261 screen pixels from [24, 8] and 4,062 from
+// [9, 51] — the layer was never faint, it was off-frame.
+// Kept in sync with the same default in js/store.js.
 const H2GRID_HOME_VIEW = {
-  center: [24, 8],
+  center: [9, 51],
   zoom: 1.85,
   pitch: 0,
   bearing: 8
@@ -581,6 +595,48 @@ function buildDetailSnapshotPanel(props, snapId) {
   return panel;
 }
 
+// A stored properties object becoming a full panel in #snapshot-row. Two
+// callers arrive here: restoring a mini-card, and clicking a row in the
+// Compare tray (js/09-router.js) — the tray used to render its rows as inert
+// text, so the side-by-side panels this builds were unreachable from it.
+// `fromRect` is the on-screen rect the panel should appear to grow out of.
+function openComparisonSnapshot(snapId, props, fromRect) {
+  // Already on screen: flash it rather than stacking a duplicate, so a second
+  // click on the same tray row reads as "that one, there" instead of no-op.
+  const existing = document.getElementById(snapId);
+  if (existing) {
+    existing.classList.remove("snapshot-flash");
+    void existing.offsetWidth;
+    existing.classList.add("snapshot-flash");
+    return existing;
+  }
+  // A restored snapshot is itself a right-hand inspector. Previously it was
+  // appended first and relied on the shell's later MutationObserver to notice
+  // it, which left Insights visibly underneath whenever that observer had not
+  // wired yet or another initializer had failed earlier. Claim the slot at the
+  // source of the action. Desktop may retain the live detail card beside a
+  // comparison snapshot; narrow screens have one bottom-sheet slot only.
+  const liveDetail = document.getElementById("detail-card");
+  const keepDesktopDetail = window.innerWidth > 720 && liveDetail && !liveDetail.hidden;
+  closeOtherRightPanels(keepDesktopDetail ? "detail-card" : snapId);
+  document.getElementById("min-card-" + snapId)?.remove();
+  const panel = buildDetailSnapshotPanel(props, snapId);
+  ensureSnapshotRow().appendChild(panel);
+  // updateSnapshotRowOffset() only re-runs off a `hidden`-attribute change
+  // on detail-card/regional-ai-panel/markets-panel (see the MutationObserver
+  // above) - it never fires just because #snapshot-row itself gains content.
+  // If one of those was ALREADY open before this, its own hidden-flip
+  // happened before #snapshot-row even existed (the row is created lazily),
+  // so the row was never nudged out from under it. Opening a snapshot is
+  // exactly that "row now has content" moment, so re-check explicitly here
+  // rather than relying on an attribute change that already happened.
+  updateSnapshotRowOffset();
+  openSnapshots.push({ id: snapId, props });
+  flipIn(panel, fromRect);
+  enforceSnapshotCap();
+  return panel;
+}
+
 // `fromEl`, when given, is the panel/card about to disappear — its on-screen
 // rect is what the new mini-card visually grows out of (see flipIn()).
 function minimizeDetailPanel(props, reuseId, fromEl) {
@@ -615,21 +671,7 @@ function minimizeDetailPanel(props, reuseId, fromEl) {
   function restore() {
     const rect = mini.getBoundingClientRect();
     mini.remove();
-    const panel = buildDetailSnapshotPanel(props, snapId);
-    ensureSnapshotRow().appendChild(panel);
-    // updateSnapshotRowOffset() only re-runs off a `hidden`-attribute change
-    // on detail-card/regional-ai-panel/markets-panel (see the
-    // MutationObserver below) - it never fires just because #snapshot-row
-    // itself gains content. If one of those was ALREADY open before this,
-    // its own hidden-flip happened before #snapshot-row even existed (the
-    // row is created lazily, on first minimize), so the row was never
-    // nudged out from under it. Restoring a snapshot is exactly that
-    // "row now has content" moment, so re-check explicitly here rather than
-    // relying on an attribute change that already happened.
-    updateSnapshotRowOffset();
-    openSnapshots.push({ id: snapId, props });
-    flipIn(panel, rect);
-    enforceSnapshotCap();
+    openComparisonSnapshot(snapId, props, rect);
   }
   mini.querySelector(".wc-close").addEventListener("click", (e) => { e.stopPropagation(); mini.remove(); });
   mini.querySelector(".wc-zoom").addEventListener("click", (e) => { e.stopPropagation(); restore(); });
@@ -806,8 +848,8 @@ function currentTheme() {
 // The theme whose map repaint has not landed yet, replayed on "styledata".
 let pendingMapTheme = null;
 
-// Cached because the WebGL layers (19-command-arcs, 20-spikes, 21-daynight) and
-// the pulse loop (02-layers) need it inside their per-frame render callbacks.
+// Cached because the active custom WebGL layer (20-spikes) and the pulse loop
+// (02-layers) need it inside their per-frame render callbacks.
 // Reading document.documentElement.dataset.theme there meant a DOM lookup per
 // layer per frame; setTheme() is the only thing that can change the answer.
 let h2eliosLightMode = false;
@@ -931,7 +973,7 @@ function applyMapTheme(theme) {
       "sky-horizon-blend": 0.5,
       "horizon-fog-blend": 0.5,
       "fog-ground-blend": 0.8,
-      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.9, 3, 0.9, 6, 0.12, 9, 0]
+      "atmosphere-blend": H2ELIOS_DARK_ATMOSPHERE_BLEND
     } : {
       "sky-color": "#f3f7fb",
       "horizon-color": "#d7e2ee",
