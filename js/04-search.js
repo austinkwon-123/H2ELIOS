@@ -6,6 +6,22 @@
    ======================================================================= */
 
 // ---- Search --------------------------------------------------------------------------------------
+// ArcGIS MultiLineStrings are split into LineStrings for the custom WebGL
+// renderer, but those segments are still one infrastructure project. Search
+// and headline counts operate on projects, not GPU draw units, so collapse only
+// the imported segment copies while leaving genuinely separate curated phases.
+function uniqueInfrastructureProjects(features) {
+  const seen = new Set();
+  return (features || []).filter((feature) => {
+    const p = feature.properties || {};
+    if (!p.h2infraLayer || p.h2infraObjectId === undefined || p.h2infraObjectId === null) return true;
+    const key = `${p.h2infraLayer}:${p.h2infraObjectId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function allFacilities() {
   const items = [];
   const push = (label, features) => {
@@ -15,7 +31,7 @@ function allFacilities() {
   push("Production", D.production.features);
   push("Gigafactory", D.manufacturing.features);
   push("Storage", D.storagePoints.features);
-  push("Pipeline", D.pipelines.features);
+  push("Pipeline", uniqueInfrastructureProjects(D.pipelines.features));
   push("End use", D.endUse.features);
   
   if (window.IEA_DATA) {
@@ -330,10 +346,10 @@ function centroidOf(f) {
 
 // ---- Stats ------------------------------------------------------------------------------
 function renderStats() {
-  const staticFeats = [
+  const staticFeats = uniqueInfrastructureProjects([
     ...D.upstream.features, ...D.production.features, ...D.manufacturing.features,
     ...D.storagePoints.features, ...D.pipelines.features, ...D.endUse.features
-  ];
+  ]);
   countUp("stat-facilities", staticFeats.length + D.hubs.length);
   countUp("stat-operating", staticFeats.filter((f) => f.properties.statusClass === "operating").length);
 }

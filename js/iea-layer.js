@@ -18,9 +18,9 @@
   // is not lost — but a centroid is not a location: Australia's land in the
   // Simpson Desert, America's in rural Kansas, Japan's in the Japanese Alps.
   // Plotting them alongside surveyed coordinates makes the map assert positions
-  // the source never claimed, so they are excluded unless explicitly requested.
+  // the source never claimed, so the analytical map always excludes them.
   function showApprox() {
-    return Boolean(document.getElementById("data-quality-approx")?.checked);
+    return false;
   }
 
   function filteredIEA() {
@@ -151,15 +151,6 @@
     _applyFilters();
     if (map.getSource && map.getSource("iea")) map.getSource("iea").setData(filteredIEA());
   };
-
-  // The approximate-position control needs no TOGGLE_MAP entry — it changes
-  // which features the source contains, not a layer's visibility. Deferred to a
-  // macrotask because wireDock() in 03-filters.js is what flips .active, and it
-  // binds later than this module parses; running synchronously here would read
-  // the class from before the toggle and invert the switch.
-  document.getElementById("data-quality-approx")?.addEventListener("change", () => {
-    if (typeof applyFilters === "function") applyFilters();
-  });
 
   // Exposed for verification.
   window.H2GIea = {

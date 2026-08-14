@@ -15,6 +15,8 @@ index.html            markup + script/style load order
 style.css             design tokens + all UI styling (mission-control dark)
 hud.css               boot / reticle / scanline accents
 build-iea.py          regenerates js/iea-data.js from the IEA Excel databases
+build-h2inframap.js   snapshots six public H2InfraMap ArcGIS domain layers;
+                        keeps provider fields, provenance and precision warning
 build-eu-stations.js  regenerates js/eu-stations-data.js from the IPCEI Clean
                         Hydrogen Observatory refuelling-stations dataset
 build-breakeven.js    regenerates js/breakeven-data.js from the IPCEI Clean
@@ -22,6 +24,9 @@ build-breakeven.js    regenerates js/breakeven-data.js from the IPCEI Clean
 build-news.py          regenerates js/news-data.js from hydrogen-relevant RSS feeds
 js/
   data.js             curated 138 verified nodes (hand-edited, cited)
+  h2inframap-data.js  generated H2InfraMap facilities + pipeline geometries;
+                        merges into the existing static map collections on load;
+                        all routes stay in 2D and long corridors get one 3D path
   iea-data.js         3,338 IEA "announced" records (generated — don't hand-edit)
   eu-stations-data.js 177 EU/UK/EFTA refuelling stations, IPCEI Clean Hydrogen
                         Observatory (generated — don't hand-edit)
@@ -54,6 +59,9 @@ js/
   patches `applyFilters`; `hud.js` patches `selectFacility`/`showDetail` (detail) —
   both must stay last.
 - Refresh IEA data: drop new IEA `.xlsx` files in Downloads, rerun `build-iea.py`.
+- Refresh H2InfraMap data: run `node build-h2inframap.js`. The source ArcGIS
+  items publish no licence or terms-of-use text; the generated metadata records
+  that explicitly, and imported coordinates remain marked approximate.
 - Refresh hydrogen news: rerun `python3 build-news.py` (set `ANTHROPIC_API_KEY`
   for LLM-written one-line summaries; without it, falls back to each feed's own
   snippet). Regenerates `js/news-data.js` — review the diff before committing,
