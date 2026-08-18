@@ -24,7 +24,7 @@ function createStore(hash = "#/map") {
   return window;
 }
 
-test("fresh state is dark, map-routed, and has four active layer groups", () => {
+test("fresh state is dark, map-routed, and has five active layer groups", () => {
   const { H2Store } = createStore();
   const state = H2Store.getState();
   // "dark" is the product default. initSpatialShell seeds the shell from this
@@ -34,7 +34,7 @@ test("fresh state is dark, map-routed, and has four active layer groups", () => 
   assert.equal(state.route, "map");
   assert.deepEqual(
     Object.entries(state.map.layers).filter(([, active]) => active).map(([key]) => key),
-    ["facilities", "pipelines", "hubs", "announced"]
+    ["facilities", "pipelines", "hubs", "announced", "flows"]
   );
 });
 

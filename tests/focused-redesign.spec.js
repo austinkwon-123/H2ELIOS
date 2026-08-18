@@ -192,12 +192,16 @@ test('dark low-zoom atmosphere preserves the limb without the blow-out value', a
   expect(blends.light.resolved).toBeCloseTo(0.22, 5);
 });
 
-test('map defaults to four active layer groups, 3D capacity, and then stays stationary', async ({ page }) => {
+test('map defaults to five active layer groups, 3D capacity, and then stays stationary', async ({ page }) => {
   await open(page);
-  await expect(page.locator('#layer-dock .dock-btn[data-layer]')).toHaveCount(5);
-  await expect(page.locator('#layer-dock .dock-btn.active[data-layer]')).toHaveCount(4);
-  expect(await page.evaluate(() => Boolean(window.H2GArcs || window.H2GDayNight))).toBe(false);
+  await expect(page.locator('#layer-dock .dock-btn[data-layer]')).toHaveCount(6);
+  await expect(page.locator('#layer-dock .dock-btn.active[data-layer]')).toHaveCount(5);
+  // Corridors and pipelines are drawn by two different modules on purpose:
+  // arcs for contractual supply relationships with no physical route, ribbons
+  // for surveyed steel. Both load; the day/night terminator stays out.
+  expect(await page.evaluate(() => Boolean(window.H2GArcs))).toBe(true);
   expect(await page.evaluate(() => Boolean(window.H2GPipelines))).toBe(true);
+  expect(await page.evaluate(() => Boolean(window.H2GDayNight))).toBe(false);
   if (await page.locator('html').getAttribute('data-map-runtime') === 'offline') {
     await expect(page.getByText('Map runtime unavailable')).toBeVisible();
     return;
@@ -256,9 +260,14 @@ test('map defaults to four active layer groups, 3D capacity, and then stays stat
     map.getSource('satellites') ||
     map.getSource('hub-comets') ||
     map.getLayer('night-hemisphere') ||
-    map.getLayer('h2grid-3d-arcs') ||
     map.getLayer('h2grid-daynight')
   ))).toBe(false);
+  // The corridor arcs are back and this layer is expected to exist. What must
+  // not come back is its unconditional per-frame repaint, which is why the
+  // module was cut in the first place — it now asks the same policy gate the
+  // rest of the globe obeys, and that gate is off.
+  expect(await page.evaluate(() => Boolean(map.getLayer('h2grid-3d-arcs')))).toBe(true);
+  expect(await page.evaluate(() => ambientMotionAllowed())).toBe(false);
 });
 
 test('mobile inspectors enforce one owner for their shared bottom-sheet slot', async ({ page }) => {
@@ -522,9 +531,11 @@ for (const height of [900, 760]) {
 
 test('walkthrough narration does not promise controls that no longer exist', async ({ page }) => {
   await open(page);
-  // "flows" was a dock control that has since been removed; a step driving it
-  // was a silent no-op that still narrated a visual change.
-  await expect(page.locator('.dock-btn[data-layer="flows"]')).toHaveCount(0);
+  // "flows" was removed and is now back, driving the corridor arcs. The
+  // original point of this test stands either way: narration must not promise
+  // a control the dock does not have, so assert the control exists rather than
+  // that it is absent.
+  await expect(page.locator('.dock-btn[data-layer="flows"]')).toHaveCount(1);
   const usesRemovedDock = await page.evaluate(() =>
     window.H2GDemo.routes.length > 0 && typeof setDock !== 'undefined');
   expect(usesRemovedDock).toBe(false);

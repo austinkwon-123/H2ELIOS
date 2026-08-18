@@ -394,8 +394,15 @@ void main() {
     },
 
     render(gl, args) {
-      const show = { corridor: dockOn("flows"), pipeline: dockOn("pipelines") };
-      if (!show.corridor && !show.pipeline) return;
+      // Pipelines belong to 19-pipeline-ribbons.js now. That module renders the
+      // same D.pipelines routes as a raised conduit with a top face and side
+      // walls, so drawing them here too would double the geometry and let two
+      // modules disagree about the same right-of-way. This layer keeps the
+      // corridors, which nothing else draws: they are contractual supply
+      // relationships with no physical route, and the sweeping arc is what
+      // distinguishes them from surveyed steel.
+      const show = { corridor: dockOn("flows"), pipeline: false };
+      if (!show.corridor) return;
 
       const program = this.getShader(gl, args.shaderData);
       gl.useProgram(program);
@@ -440,7 +447,12 @@ void main() {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, buf.count);
       });
 
-      map.triggerRepaint(); // keep the traveling pulse animating every frame
+      // An unconditional repaint here held the whole map at full frame rate
+      // forever, which is why this module was cut in the ambient-motion pass.
+      // The pulse now runs only when the same policy gate the rest of the globe
+      // obeys says motion is allowed; otherwise u_time stops advancing and the
+      // arcs hold still, costing nothing.
+      if (typeof ambientMotionAllowed === "function" && ambientMotionAllowed()) map.triggerRepaint();
     }
   };
 

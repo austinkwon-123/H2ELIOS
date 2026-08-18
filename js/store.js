@@ -48,7 +48,7 @@
       // the opening view is European. These two must not drift: this one seeds
       // the hand-off return camera, that one seeds the map itself.
       camera: { center: [9, 51], zoom: 1.85, pitch: 0, bearing: 8 },
-      layers: { facilities: true, pipelines: true, fueling: false, hubs: true, announced: true },
+      layers: { facilities: true, pipelines: true, fueling: false, hubs: true, announced: true, flows: true },
       mode3d: false
     },
     handoff: null,
