@@ -1,9 +1,13 @@
 {
   "scripts": {
     "start": "node server.js",
+    "test": "npm run test:unit && npm run test:ui",
+    "test:unit": "node --test tests/*.test.js",
     "test:store": "node --test tests/store.test.js",
     "test:ui": "playwright test",
-    "test:ui:headed": "playwright test --headed"
+    "test:ui:headed": "playwright test --headed",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node etl/import-iea-data.js --reset"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

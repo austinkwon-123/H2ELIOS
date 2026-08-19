@@ -46,7 +46,7 @@ test.describe('H2ELIOS responsive interaction contract', () => {
     await expect(detail).toBeVisible();
     expect.soft(await detail.getAttribute('role')).toBe('region');
     expect.soft((await detail.getAttribute('aria-label')) ?? '').toMatch(/project details/i);
-    expect.soft(await page.evaluate(() => document.activeElement?.id)).toBe('detail-close');
+    await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('detail-close');
 
     const detailBox = await detail.boundingBox();
     expect(detailBox).not.toBeNull();
@@ -55,7 +55,10 @@ test.describe('H2ELIOS responsive interaction contract', () => {
 
     await close.click();
     await expect(detail).toBeHidden();
-    expect.soft(await page.evaluate(() => document.activeElement?.id)).toBe('network-search');
+    // closeDetailPanel restores the invoking control on requestAnimationFrame;
+    // hidden changes synchronously, so observing hidden alone can precede the
+    // focus hand-off on a busy renderer.
+    await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('network-search');
   });
 
   test('sub-1100 sidebar semantics match its visible state and Escape lifecycle', async ({ page }) => {
@@ -72,8 +75,11 @@ test.describe('H2ELIOS responsive interaction contract', () => {
     expect.soft(await filter.getAttribute('tabindex')).toBe('-1');
 
     await toggle.click();
-    const expandedBox = await sidebar.boundingBox();
-    expect.soft(expandedBox.width).toBeGreaterThan(200);
+    // Width transitions from the compact rail to the full sidebar. Measuring
+    // on the click frame races that transition and intermittently reads 56px
+    // even though aria-expanded has already changed.
+    await expect.poll(async () => (await sidebar.boundingBox())?.width || 0)
+      .toBeGreaterThan(200);
     expect.soft(await toggle.getAttribute('aria-expanded')).toBe('true');
 
     await page.keyboard.press('Escape');
