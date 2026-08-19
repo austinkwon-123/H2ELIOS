@@ -366,12 +366,21 @@ test('Timeline year is explicitly applied to Explore', async ({ page }) => {
 });
 
 test('Markets side surface restores video, comparison chart, and ticker area', async ({ page }) => {
+  await page.route('**/api/quotes?**', async (route) => {
+    const symbols = ['PLUG', 'BE', 'BLDP', 'HTOO', 'AIQUY', 'FCEL', 'APD', 'LIN', 'CMI', 'GTLS'];
+    const quotes = Object.fromEntries(symbols.map((symbol, index) => [symbol, { c: 10 + index, dp: index % 2 ? -0.4 : 0.6 }]));
+    await route.fulfill({ json: { configured: true, quotes, failed: [] } });
+  });
   await open(page);
   await page.locator('#markets-btn').click();
   await expect(page.locator('#markets-panel')).toBeVisible();
   await expect(page.locator('#analytics-markets-video iframe')).toHaveCount(1);
   await expect(page.locator('#analytics-markets-chart .tradingview-widget-container')).toHaveCount(1);
   await expect(page.locator('#analytics-markets')).toBeVisible();
+  await expect(page.locator('#analytics-markets .stock-row')).toHaveCount(10);
+  await expect(page.locator('#analytics-markets [data-symbol="PLUG"]')).toContainText('Plug Power');
+  await expect(page.locator('#analytics-markets [data-symbol="PLUG"]')).toContainText('10.00');
+  await expect(page.locator('#analytics-markets .markets-status')).toContainText('Live · 10/10 symbols');
 
   // Beyond "an iframe exists": it must be the live-stream embed, already
   // playing, and muted — browsers block unmuted autoplay outright, so
@@ -383,6 +392,19 @@ test('Markets side surface restores video, comparison chart, and ticker area', a
   expect(src).toMatch(/[?&]mute=1(&|$)/);
   // The iframe must also be *permitted* to autoplay by its allow policy.
   expect(await frame.getAttribute('allow')).toContain('autoplay');
+});
+
+test('Markets falls back to a live TradingView equity watchlist when Finnhub is unavailable', async ({ page }) => {
+  await page.route('**/api/quotes?**', (route) => route.fulfill({
+    json: { configured: true, quotes: {}, failed: ['PLUG', 'BE', 'BLDP'] }
+  }));
+  await open(page);
+  await page.locator('#markets-btn').click();
+
+  await expect(page.locator('#analytics-markets .markets-status')).toContainText('Live equities · TradingView');
+  await expect(page.locator('#analytics-markets .markets-equities-widget')).toBeVisible();
+  await expect(page.locator('#analytics-markets .markets-equities-widget'))
+    .toHaveAttribute('data-symbols', /NASDAQ:PLUG.*NYSE:GTLS/);
 });
 
 test('Markets teardown disposes the video and a reopen autoplays a fresh one', async ({ page }) => {
@@ -450,7 +472,6 @@ test('Live viewport recomputes count, capacity and gauge after the map moves', a
     .poll(() => page.evaluate(() => document.getElementById('gauge-pct').textContent), { timeout: 15000 })
     .not.toBe('0%');
   await expect(page.locator('#viewport-gauge')).not.toHaveClass(/gauge-loading/);
-
   const read = () => page.evaluate(() => ({
     pct: document.getElementById('gauge-pct').textContent,
     dash: document.getElementById('gauge-fill-path').style.strokeDashoffset,
@@ -473,68 +494,20 @@ test('Live viewport recomputes count, capacity and gauge after the map moves', a
   expect(await page.evaluate(() => map.getStyle().layers.filter((l) => l.id === 'api-projects').length)).toBe(1);
 });
 
-test('the film runs under two minutes and takes over the frame', async ({ page }) => {
+test('the retired Film feature leaves no control, runtime, or keyboard override', async ({ page }) => {
   await open(page);
+  await expect(page.locator('#demo-btn, #demo-card, #cine')).toHaveCount(0);
+  expect(await page.evaluate(() => typeof window.H2GDemo)).toBe('undefined');
+  expect(await page.evaluate(() => [...document.scripts].some((script) => script.src.includes('25-cinematic')))).toBe(false);
 
-  const film = await page.evaluate(() => ({
-    beats: window.H2GDemo.beats,
-    runtimeMs: window.H2GDemo.runtimeMs
-  }));
-  // The runtime is the contract. This is made to be recorded and posted, and a
-  // demo film that runs long is one nobody finishes watching.
-  expect(film.runtimeMs).toBeLessThan(120000);
-  expect(film.beats.length).toBeGreaterThanOrEqual(6);
-  expect(film.beats).toContain('corridors');
-
-  // Deliberately not awaited: start() resolves only when the whole film ends,
-  // so returning its promise would block page.evaluate for the full runtime.
-  await page.evaluate(() => { window.H2GDemo.start(); });
-  await page.waitForTimeout(1200);
-  // Chrome is present and the shell has stepped out of the way.
-  await expect(page.locator('#cine')).toBeVisible();
-  await expect(page.locator('#cine-boot')).toBeVisible();
-  await expect(page.locator('body')).toHaveClass(/cine-active/);
-  await expect(page.locator('body')).toHaveClass(/focus-mode/);
-
-  // Past the boot sequence a caption is showing and the runtime bar has moved.
-  await page.waitForTimeout(6500);
-  await expect(page.locator('#cine-caption')).toHaveClass(/is-in/);
-  await expect(page.locator('#cine-headline')).not.toBeEmpty();
-  expect(await page.evaluate(() =>
-    parseFloat(document.getElementById('cine-progress-fill').style.width))).toBeGreaterThan(0);
-});
-
-test('exiting the film restores the app it borrowed', async ({ page }) => {
-  await open(page);
-  const before = await page.evaluate(() => ({
-    dock: [...document.querySelectorAll('.dock-btn[data-layer]')].map((b) => [b.dataset.layer, b.classList.contains('active')]),
-    status: statusFilter, color: colorFilter, region: regionFilter
-  }));
-
-  // Deliberately not awaited: start() resolves only when the whole film ends,
-  // so returning its promise would block page.evaluate for the full runtime.
-  await page.evaluate(() => { window.H2GDemo.start(); });
-  // Land inside a beat that has muted layers and applied a colour filter, so
-  // the restore has something real to undo rather than a no-op.
-  await page.waitForTimeout(9000);
-  await page.evaluate(() => window.H2GDemo.stop());
-  await page.waitForTimeout(1500);
-
-  await expect(page.locator('#cine')).toHaveCount(0);
-  await expect(page.locator('body')).not.toHaveClass(/cine-active/);
-  await expect(page.locator('body')).not.toHaveClass(/focus-mode/);
-  await expect(page.locator('body')).toHaveAttribute('data-route', 'map');
-  // Exit runs the real close APIs, so button state is released too.
-  await expect(page.locator('#analytics-panel')).toBeHidden();
-  await expect(page.locator('#markets-panel')).toBeHidden();
-  await expect(page.locator('#analytics-btn')).not.toHaveClass(/active/);
-  await expect(page.locator('#markets-btn')).not.toHaveClass(/active/);
-
-  const after = await page.evaluate(() => ({
-    dock: [...document.querySelectorAll('.dock-btn[data-layer]')].map((b) => [b.dataset.layer, b.classList.contains('active')]),
-    status: statusFilter, color: colorFilter, region: regionFilter
-  }));
-  expect(after).toEqual(before);
+  const prevented = await page.evaluate(() => {
+    const event = new KeyboardEvent('keydown', {
+      key: 'f', code: 'KeyF', ctrlKey: true, bubbles: true, cancelable: true
+    });
+    document.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(prevented).toBe(false);
 });
 
 // Regression: a desktop workspace must never render content taller than its
@@ -567,19 +540,6 @@ for (const height of [900, 760]) {
     }
   });
 }
-
-test('the film only drives controls the dock actually has', async ({ page }) => {
-  await open(page);
-  // Every layer a beat toggles must exist. The step-card walkthrough this
-  // replaced drove a "flows" control that had been deleted, so the step ran,
-  // narrated a visual change, and did nothing.
-  const layers = await page.evaluate(() =>
-    [...document.querySelectorAll('.dock-btn[data-layer]')].map((b) => b.dataset.layer));
-  for (const layer of ['facilities', 'pipelines', 'hubs', 'announced', 'flows']) {
-    expect(layers, `beat toggles data-layer="${layer}"`).toContain(layer);
-  }
-  expect(await page.evaluate(() => typeof setDock)).toBe('undefined');
-});
 
 test('Compare pins without closing the panel and its rows open side-by-side panels', async ({ page }) => {
   await open(page);

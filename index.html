@@ -149,7 +149,6 @@
 <div class="glass" id="map-mode-switch" role="group" aria-label="Explore actions">
   <button id="analytics-btn" class="mode-btn" type="button">Insights</button>
   <button id="markets-btn" class="mode-btn" type="button">Markets</button>
-  <button id="demo-btn" type="button" aria-label="Play the H2ELIOS film">Film</button>
 </div>
 
 <!-- Left: layer dock -->
@@ -255,22 +254,6 @@
   <div id="analytics-markets" class="stock-list"></div>
 </div>
 
-<!-- Feature demo: walks through hydrogen projects and demonstrates what the
-     globe itself can do, driving the real controls rather than replaying a
-     recording. Superseded the older separate project-narration "Tour" card. -->
-<div class="glass" id="demo-card" hidden>
-  <div class="tour-progress" id="demo-progress"></div>
-  <h3 id="demo-title"></h3>
-  <p id="demo-text"></p>
-  <div class="tour-nav">
-    <button id="demo-prev" type="button" title="Previous" aria-label="Previous walkthrough step">←</button>
-    <button id="demo-play" type="button" title="Pause" aria-label="Pause walkthrough">❚❚</button>
-    <span id="demo-step-label"></span>
-    <button id="demo-next" type="button" title="Next" aria-label="Next walkthrough step">→</button>
-    <button id="demo-exit" type="button" title="Exit demo" aria-label="Exit walkthrough">✕</button>
-  </div>
-</div>
-
 <!-- Minimized panels dock here (see js/01-core.js minimizePanel()). -->
 <div id="minimized-tray" aria-label="Minimized panels"></div>
 
@@ -366,7 +349,6 @@
      "js/20-spikes.js",
      "js/19-pipeline-ribbons.js",
      "js/19-command-arcs.js",
-     "js/25-cinematic.js",
      "js/23-spatial-shell.js",
      "js/24-geology-intelligence.js"
    ].forEach((path) => H2ELIOS_ASSETS.script(path));

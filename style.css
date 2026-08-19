@@ -1041,42 +1041,6 @@ button { font-family: inherit; color: inherit; }
 .badge-atrisk { color: var(--red); border-color: rgba(229, 99, 92, 0.4); background: rgba(229, 99, 92, 0.08); }
 .badge-other { color: var(--text-muted); border-color: var(--line); }
 
-/* ---------- Demo card shell ----------
-   Class names (.tour-progress/.tour-nav/.tour-dot) predate the removal of
-   the separate project-narration "Tour" card that used to share this shell
-   with #demo-card — kept as-is rather than renamed, since renaming here
-   would mean touching every call site in js/22-demo.js for zero visible
-   change. */
-#demo-card {
-  left: 50%; bottom: 62px; transform: translateX(-50%);
-  width: min(500px, calc(100vw - 32px));
-  padding: 14px 16px 11px;
-  border-radius: var(--r-lg);
-  background: var(--panel-strong);
-  z-index: 30;
-  animation: rise 0.34s var(--motion-spring);
-}
-@keyframes rise { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
-
-.tour-progress { display: flex; gap: 3px; margin-bottom: 9px; }
-.tour-dot { height: 2px; flex: 1; border-radius: 1px; background: rgba(120, 160, 200, 0.15); transition: background 0.3s; }
-.tour-dot.done { background: var(--cyan); }
-
-#demo-card h3 {
-  font-family: var(--font);
-  margin: 0 0 5px; font-size: 13.5px; letter-spacing: 0.02em;
-  color: var(--text-hi);
-}
-#demo-card p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.6; color: var(--text); }
-
-.tour-nav { display: flex; align-items: center; gap: 7px; }
-.tour-nav button {
-  font-size: 11px; padding: 5px 11px;
-  background: transparent; color: var(--text);
-  border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer;
-}
-.tour-nav button:hover { border-color: var(--line-accent); color: var(--text-hi); }
-
 /* ---------- Popups / map chrome ---------- */
 .maplibregl-popup-content {
   background: var(--panel-strong) !important;
@@ -1586,6 +1550,21 @@ button { font-family: inherit; color: inherit; }
 }
 .markets-fallback { font-size: 11px; line-height: 1.6; color: var(--text-muted); padding: 8px 0; }
 .markets-fallback a { color: var(--cyan); }
+.markets-status {
+  margin: 2px 4px 8px;
+  color: var(--text-faint);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+.markets-status[data-market-state="live"] { color: var(--cyan); }
+.markets-equities-widget {
+  height: 480px;
+  overflow: hidden;
+  border: var(--glass-edge);
+  border-radius: var(--r-md);
+  background: rgba(3, 8, 15, 0.45);
+}
+.markets-equities-widget iframe { width: 100% !important; height: 100% !important; border: 0; }
 .stock-row {
   display: grid; grid-template-columns: 44px 1fr 52px 56px; align-items: center; gap: 6px;
   margin: 6px 0; padding: 2px 4px; border-radius: 4px; font-size: 11px;
@@ -2227,22 +2206,6 @@ button { font-family: inherit; color: inherit; }
   #search-capsule { width: 38px; }
   #search-capsule input { display: none; }
 }
-
-/* ==========================================================================
-   Feature demo card overrides — on top of the shared #demo-card shell above
-   (originally built to also serve a separate project-narration "Tour" card,
-   since removed as redundant with this one).
-   ========================================================================= */
-#demo-card .tour-dot.done { background: var(--violet); }
-#demo-play {
-  min-width: 30px;
-  background: rgba(167, 139, 250, 0.14);
-  color: var(--violet);
-  border-color: rgba(167, 139, 250, 0.4);
-  font-weight: 600;
-}
-#demo-step-label { flex: 1; text-align: center; font-size: 10.5px; color: var(--text-muted); font-family: var(--font); }
-#demo-exit { margin-left: auto; }
 
 /* ==========================================================================
    Liquid Glass — sub-tab surfaces
@@ -3144,8 +3107,7 @@ select:disabled { opacity: 0.42; cursor: default; }
 .right-panel-slot,
 #analytics-panel,
 #markets-panel,
-#regional-ai-panel,
-#demo-card {
+#regional-ai-panel {
   border-radius: var(--mac-outer-radius);
 }
 .dashboard-card,
@@ -4652,8 +4614,7 @@ html[data-theme="light"] *::-webkit-scrollbar-thumb:hover { background: rgba(60,
   .freshness-indicator,
   #search-capsule kbd { display: none; }
   #ribbon-zone-b { min-width: 0; justify-content: flex-start; overflow: visible; }
-  #map-mode-switch .mode-switch-sep,
-  #demo-btn { display: none; }
+  #map-mode-switch .mode-switch-sep { display: none; }
   #search-capsule { width: 34px; padding: 0 8px; }
   #search-capsule input { width: 0; opacity: 0; }
   #search-capsule:focus-within { position: fixed; top: 10px; left: calc(var(--sidebar-width) + 8px); right: 8px; width: auto; z-index: 1800; }
@@ -4974,6 +4935,26 @@ html[data-theme="light"] .sensitivity-cell { color: #fff; filter: saturate(.82) 
 }
 *::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); background-clip: padding-box; }
 
+/* Side-by-side project comparison is one visual unit. The snapshot row still
+   carried the old 118px map-toolbar offset while the live inspector moved to
+   the shell's 74px top edge, and the shorter record collapsed to its content.
+   Aligning the boxes and equalizing their working height removes the accidental
+   stair-step without forcing mobile's single bottom-sheet layout into a grid. */
+@media (min-width: 721px) {
+  #snapshot-row {
+    top: 74px;
+    right: 16px;
+    align-items: stretch;
+    max-height: calc(100vh - 90px);
+  }
+  body:has(#snapshot-row .detail-snapshot) #detail-card:not([hidden]),
+  #snapshot-row .detail-snapshot {
+    height: calc(100vh - 90px);
+    max-height: calc(100vh - 90px) !important;
+    box-sizing: border-box;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
@@ -4981,214 +4962,4 @@ html[data-theme="light"] .sensitivity-cell { color: #fff; filter: saturate(.82) 
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* ===========================================================================
-   Cinematic walkthrough
-   Chrome that exists only while the film runs. Everything here sits above the
-   app and below nothing: the point is that the product fills the frame and the
-   interface furniture gets out of the way.
-   ======================================================================== */
-#cine {
-  position: fixed;
-  inset: 0;
-  z-index: 4000;
-  pointer-events: none;
-  font-family: var(--font);
-}
-
-/* The film drives the map itself, so stray clicks would fight the camera
-   mid-beat. Only the exit affordance stays live. */
-body.cine-active #app-sidebar,
-body.cine-active #command-ribbon,
-body.cine-active .right-panel-slot,
-body.cine-active #comparison-tray,
-body.cine-active #selection-chip,
-body.cine-active .maplibregl-ctrl-group,
-body.cine-active .map-zoom-cluster { pointer-events: none; }
-body.cine-active { cursor: none; }
-
-/* Letterbox. Slides in rather than appearing, so the frame reads as a shot
-   being composed instead of a black bar dropping onto the page. */
-.cine-bar {
-  position: absolute;
-  left: 0; right: 0;
-  height: 7vh;
-  background: #04070d;
-  transform: scaleY(0);
-  animation: cineBarIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.cine-bar-top { top: 0; transform-origin: top; }
-.cine-bar-bottom { bottom: 0; transform-origin: bottom; }
-@keyframes cineBarIn { to { transform: scaleY(1); } }
-
-.cine-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 52%, transparent 42%, rgba(2, 5, 11, 0.55) 100%);
-}
-
-/* ---- Boot ---- */
-.cine-boot {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 26px;
-  background: #04070d;
-  transition: opacity 0.7s ease;
-}
-.cine-boot.is-out { opacity: 0; }
-.cine-boot-mark { width: min(320px, 34vw); opacity: 0.96; }
-.cine-boot-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-height: 96px;
-  align-items: center;
-}
-.cine-boot-line {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-variant-numeric: tabular-nums;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.45s ease, transform 0.45s ease;
-}
-.cine-boot-line.is-in { opacity: 1; transform: none; }
-.cine-boot-bar {
-  width: min(320px, 34vw);
-  height: 2px;
-  background: rgba(255, 255, 255, 0.10);
-  border-radius: 999px;
-  overflow: hidden;
-}
-#cine-boot-fill {
-  width: 0;
-  height: 100%;
-  background: linear-gradient(90deg, var(--cyan), #7fe6f2);
-  box-shadow: 0 0 12px var(--cyan);
-  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* ---- Lower third ---- */
-.cine-caption {
-  position: absolute;
-  left: clamp(28px, 6vw, 96px);
-  bottom: calc(7vh + clamp(34px, 7vh, 88px));
-  max-width: min(760px, 62vw);
-  opacity: 0;
-  transform: translateY(14px);
-  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.cine-caption.is-in { opacity: 1; transform: none; }
-.cine-kicker {
-  display: inline-block;
-  margin-bottom: 10px;
-  padding: 4px 10px;
-  color: var(--cyan);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  border: 1px solid color-mix(in srgb, var(--cyan) 40%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--cyan) 10%, transparent);
-}
-.cine-headline {
-  color: #f2f7ff;
-  font-size: clamp(24px, 3.1vw, 46px);
-  font-weight: 600;
-  line-height: 1.14;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-  text-shadow: 0 2px 30px rgba(2, 6, 14, 0.85);
-}
-
-/* ---- Runtime progress + exit ---- */
-.cine-progress {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.08);
-}
-#cine-progress-fill {
-  width: 0;
-  height: 100%;
-  background: var(--cyan);
-  box-shadow: 0 0 10px var(--cyan);
-  transition: width 0.6s linear;
-}
-.cine-exit {
-  position: absolute;
-  top: calc(7vh + 16px);
-  right: 20px;
-  padding: 5px 11px;
-  color: var(--text-tertiary);
-  font: 600 10px/1 var(--font);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: rgba(4, 7, 13, 0.6);
-  border: 1px solid var(--separator);
-  border-radius: 999px;
-  cursor: pointer;
-  pointer-events: auto;
-  opacity: 0.5;
-  transition: opacity var(--t-hover) ease;
-}
-.cine-exit:hover, .cine-exit:focus-visible { opacity: 1; }
-
-@media (prefers-reduced-motion: reduce) {
-  .cine-bar { animation: none; transform: scaleY(1); }
-  .cine-caption, .cine-boot-line, #cine-boot-fill, #cine-progress-fill { transition: none; }
-}
-
-/* ---- The trigger ---- */
-#demo-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 30px;
-  padding: 0 13px 0 11px;
-  color: var(--text-primary);
-  font: 600 11.5px/1 var(--font);
-  background: color-mix(in srgb, var(--cyan) 14%, var(--material-control));
-  border: 1px solid color-mix(in srgb, var(--cyan) 38%, transparent);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background var(--t-hover) ease, border-color var(--t-hover) ease;
-}
-#demo-btn::before {
-  content: "";
-  width: 0; height: 0;
-  border-left: 7px solid var(--cyan);
-  border-top: 4.5px solid transparent;
-  border-bottom: 4.5px solid transparent;
-}
-#demo-btn:hover, #demo-btn:focus-visible {
-  background: color-mix(in srgb, var(--cyan) 24%, var(--material-control));
-  border-color: color-mix(in srgb, var(--cyan) 60%, transparent);
-}
-#demo-btn[hidden] { display: none; }
-
-/* The film is meant to be screen-recorded. A cursor parked over the globe and
-   a zoom cluster floating in the corner both read as "someone's screen" rather
-   than as a product film, and the canvas sets its own cursor so the rule has to
-   reach into it. Focus mode already removes the sidebar and ribbon; these are
-   the map's own controls, which it does not own. */
-body.cine-active,
-body.cine-active *,
-body.cine-active .maplibregl-canvas-container.maplibregl-interactive,
-body.cine-active .maplibregl-canvas { cursor: none !important; }
-
-body.cine-active .map-zoom-cluster,
-body.cine-active .maplibregl-ctrl-top-left,
-body.cine-active .maplibregl-ctrl-top-right,
-body.cine-active #attribution {
-  opacity: 0;
-  transition: opacity 0.5s ease;
 }

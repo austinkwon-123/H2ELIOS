@@ -485,7 +485,7 @@ function removeMinimizedChip(panelId) {
 // comparison snapshots are explicitly meant to stay open WHILE a new
 // project is selected, so both can now be on screen together and land
 // exactly on top of each other. Nudge the row left, out from under the
-// live panel's 400px width, whenever one is actually showing. A
+// live panel's rendered width, whenever one is actually showing. A
 // MutationObserver rather than editing every call site that shows/hides
 // these three panels (spread across 01-core.js, 05-detail.js,
 // 16-ai-features.js, 03-filters.js) — it reacts to the `hidden` attribute
@@ -493,9 +493,20 @@ function removeMinimizedChip(panelId) {
 function updateSnapshotRowOffset() {
   const row = document.getElementById("snapshot-row");
   if (!row) return;
-  const livePanelOpen = ["detail-card", "regional-ai-panel", "markets-panel"]
-    .some((id) => { const el = document.getElementById(id); return el && !el.hidden; });
-  row.style.right = livePanelOpen ? "428px" : "";
+  const livePanel = ["detail-card", "regional-ai-panel", "markets-panel"]
+    .map((id) => document.getElementById(id))
+    .find((panel) => panel && !panel.hidden);
+  if (!livePanel) {
+    row.style.right = "";
+    return;
+  }
+  // The cinematic comparison intentionally narrows inspectors on compact
+  // desktop recordings. Measuring the actual box keeps the 12px gutter true
+  // there and at the normal 400px desktop width; a hard-coded 428px offset
+  // made the row drift as soon as either panel's responsive width changed.
+  const rect = livePanel.getBoundingClientRect();
+  const rightInset = Math.max(0, window.innerWidth - rect.right);
+  row.style.right = (rightInset + rect.width + 12) + "px";
 }
 (function watchRightPanelSlots() {
   const ids = ["detail-card", "regional-ai-panel", "markets-panel"];
@@ -505,6 +516,7 @@ function updateSnapshotRowOffset() {
     if (el) observer.observe(el, { attributes: true, attributeFilter: ["hidden"] });
   });
 })();
+window.addEventListener("resize", updateSnapshotRowOffset);
 
 // FLIP transition: animates `el` (already in its FINAL position in the DOM)
 // growing/shrinking out of `fromRect` instead of just popping into existence

@@ -30,6 +30,45 @@ const STOCK_TICKERS = [
 let marketsInterval = null;
 let lastQuotes = {}; // symbol -> { c, dp } from the previous poll, for flash-on-update diffing
 
+const TRADINGVIEW_STOCKS = [
+  { s: "NASDAQ:PLUG", d: "Plug Power" },
+  { s: "NYSE:BE", d: "Bloom Energy" },
+  { s: "NASDAQ:BLDP", d: "Ballard Power" },
+  { s: "NASDAQ:HTOO", d: "Fusion Fuel Green" },
+  { s: "OTC:AIQUY", d: "Air Liquide" },
+  { s: "NASDAQ:FCEL", d: "FuelCell Energy" },
+  { s: "NYSE:APD", d: "Air Products" },
+  { s: "NASDAQ:LIN", d: "Linde" },
+  { s: "NYSE:CMI", d: "Cummins" },
+  { s: "NYSE:GTLS", d: "Chart Industries" }
+];
+
+// The browser must not receive the private Finnhub key, but that makes a
+// server without outbound network access a hard stop for the custom rows.
+// TradingView is already the source of the comparison chart directly above
+// this watchlist, so its official market-overview embed is the honest fallback:
+// real quotes, same provider already on screen, and no new runtime dependency.
+function renderTradingViewEquities(el) {
+  el.dataset.quoteProvider = "tradingview";
+  el.innerHTML = `<div class="markets-status" data-market-state="live">Live equities · TradingView</div><div class="markets-equities-widget" data-symbols="${TRADINGVIEW_STOCKS.map((stock) => stock.s).join(",")}"><div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div></div></div>`;
+  const script = document.createElement("script");
+  script.src = "https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js";
+  script.async = true;
+  script.text = JSON.stringify({
+    colorTheme: document.documentElement.dataset.theme === "light" ? "light" : "dark",
+    dateRange: "1D",
+    locale: "en",
+    isTransparent: true,
+    showFloatingTooltip: false,
+    showSymbolLogo: true,
+    showChart: false,
+    width: "100%",
+    height: "480",
+    tabs: [{ title: "Hydrogen equities", symbols: TRADINGVIEW_STOCKS, originalTitle: "Hydrogen equities" }]
+  });
+  el.querySelector(".tradingview-widget-container").appendChild(script);
+}
+
 // Preferred path: the backend proxy at /api/quotes, where the key lives in a
 // server-side env var and never reaches the browser. Returns a symbol->quote
 // map, or null when there is no backend (static hosting) or it has no key
@@ -57,6 +96,29 @@ async function fetchQuote(symbol) {
 async function renderMarkets() {
   const el = document.getElementById("analytics-markets");
   if (!el) return;
+  if (el.dataset.quoteProvider === "tradingview") return;
+
+  // Keep the watchlist visible while the quote service resolves. The old
+  // empty container made a healthy-but-slow request look as if Markets had no
+  // ticker feature at all, and an expired key replaced the entire watchlist
+  // with setup prose. Dashes are an honest unavailable value; the symbols are
+  // still useful context and never pretend to be a live price.
+  const rows = (quotesBySymbol) => STOCK_TICKERS.map(({ symbol, name }) => {
+    const q = quotesBySymbol && quotesBySymbol[symbol];
+    const up = q && (q.dp || 0) >= 0;
+    const prev = q && lastQuotes[symbol];
+    const changed = prev && (prev.c !== q.c || prev.dp !== q.dp);
+    const flashClass = changed ? (up ? " flash-up" : " flash-down") : "";
+    return `<div class="stock-row${flashClass}" data-symbol="${escapeAttr(symbol)}">
+      <span class="stock-symbol">${escapeHtml(symbol)}</span>
+      <span class="stock-name">${escapeHtml(name)}</span>
+      <span class="stock-price">${q && q.c != null ? q.c.toFixed(2) : "—"}</span>
+      <span class="stock-change ${q ? (up ? "up" : "down") : "pending"}">${q && q.dp != null ? (up ? "+" : "") + q.dp.toFixed(2) + "%" : "—"}</span>
+    </div>`;
+  }).join("");
+  if (!el.querySelector(".stock-row")) {
+    el.innerHTML = `<div class="markets-status" data-market-state="loading">Connecting to live quotes…</div>${rows(null)}`;
+  }
 
   try {
     // Try the server proxy first; only fall back to a browser-side key.
@@ -68,31 +130,16 @@ async function renderMarkets() {
       const settled = await Promise.allSettled(STOCK_TICKERS.map((t) => fetchQuote(t.symbol).then((q) => ({ ...t, q }))));
       quotes = settled.filter((r) => r.status === "fulfilled").map((r) => r.value);
     } else {
-      // Neither route available. Says what to do, and names both options
-      // rather than only the one that leaks a key into page source.
-      el.innerHTML = `<div class="markets-fallback">Live quotes need a free Finnhub key — set <code>FINNHUB_KEY</code> in <code>.env</code> and run the backend, or add it to <code>js/config.js</code> for a static build. <a href="https://finnhub.io/register" target="_blank" rel="noopener">Get one free</a></div>`;
+      renderTradingViewEquities(el);
       return;
     }
     if (!quotes.length) throw new Error("All ticker quotes failed");
-    el.innerHTML = quotes.map(({ symbol, name, q }) => {
-      const up = (q.dp || 0) >= 0;
-      // Flash the row if this poll's price or % actually differs from the
-      // last one - not on every render, so opening the panel fresh (no
-      // prior quote to compare against) never flashes.
-      const prev = lastQuotes[symbol];
-      const changed = prev && (prev.c !== q.c || prev.dp !== q.dp);
-      const flashClass = changed ? (up ? " flash-up" : " flash-down") : "";
-      return `<div class="stock-row${flashClass}">
-        <span class="stock-symbol">${escapeHtml(symbol)}</span>
-        <span class="stock-name">${escapeHtml(name)}</span>
-        <span class="stock-price">${q.c != null ? q.c.toFixed(2) : "—"}</span>
-        <span class="stock-change ${up ? "up" : "down"}">${q.dp != null ? (up ? "+" : "") + q.dp.toFixed(2) + "%" : "—"}</span>
-      </div>`;
-    }).join("");
+    const bySymbol = Object.fromEntries(quotes.map(({ symbol, q }) => [symbol, q]));
+    el.innerHTML = `<div class="markets-status" data-market-state="live">Live · ${quotes.length}/${STOCK_TICKERS.length} symbols</div>${rows(bySymbol)}`;
     quotes.forEach(({ symbol, q }) => { lastQuotes[symbol] = { c: q.c, dp: q.dp }; });
   } catch (err) {
     console.warn("Markets fetch failed:", err);
-    el.innerHTML = `<div class="markets-fallback">Live quotes unavailable — check your connection or API key.</div>`;
+    renderTradingViewEquities(el);
   }
 }
 
@@ -341,6 +388,11 @@ function closeMarketsPanel() {
     // keep playing off-screen; the next open recreates the live surfaces.
     document.getElementById("analytics-markets-chart")?.replaceChildren();
     document.getElementById("analytics-markets-video")?.replaceChildren();
+    const equities = document.getElementById("analytics-markets");
+    if (equities) {
+      equities.replaceChildren();
+      delete equities.dataset.quoteProvider;
+    }
     marketsChartLoaded = false;
     marketsVideoLoaded = false;
   }

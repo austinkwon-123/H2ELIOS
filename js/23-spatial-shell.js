@@ -119,7 +119,7 @@ function syncSpatialMapPadding() {
   // Focus mode translates the sidebar and the ribbon off-screen. They keep
   // their widths while hidden, so padding measured from offsetWidth reserved
   // 232px for furniture nobody can see and pushed the globe a sixth of the way
-  // off centre — most visible in the film, which runs entirely in focus mode.
+  // off centre — most visible during full-screen focus-mode camera moves.
   const focused = document.body.classList.contains("focus-mode");
   const sidebar = focused ? null : document.getElementById("app-sidebar");
   const inspector = document.querySelector(".right-panel-slot:not([hidden])");
@@ -347,7 +347,6 @@ function createToolbarMenu() {
     <button type="button" role="menuitemradio" data-shell-action="theme-light" data-theme-choice="light"><span>Light</span><span class="menu-check" aria-hidden="true">✓</span></button>
     <button type="button" role="menuitemradio" data-shell-action="theme-dark" data-theme-choice="dark"><span>Dark</span><span class="menu-check" aria-hidden="true">✓</span></button>
     <div class="menu-separator" role="separator"></div>
-    <button type="button" role="menuitem" data-shell-action="start-demo"><span>Start walkthrough</span></button>
     <button type="button" role="menuitem" data-shell-action="geology-reference"><span>Geology reference</span></button>
     <button type="button" role="menuitem" data-shell-action="reset-layout"><span>Reset layout</span></button>`;
   document.body.appendChild(menu);
@@ -374,8 +373,6 @@ function createToolbarMenu() {
       applyThemePreference(action.replace("theme-", ""));
     } else if (action === "geology-reference" && typeof openGeologyPanel === "function") {
       openGeologyPanel();
-    } else if (action === "start-demo") {
-      document.getElementById("demo-btn")?.click();
     } else if (action === "reset-layout") {
       setFocusMode(false);
       setSidebarExpanded(true);

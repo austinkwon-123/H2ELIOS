@@ -523,7 +523,7 @@ void main() {
     if (route && typeof selectFacility === "function") selectFacility(route.sourceProps, [e.lngLat.lng, e.lngLat.lat]);
   });
 
-  // Exposed for verification and for 22-demo.js.
+  // Exposed for verification and other scripted consumers.
   window.H2GArcs = {
     debug() {
       return {
