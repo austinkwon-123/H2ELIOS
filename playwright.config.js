@@ -2,6 +2,7 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
+  testMatch: '**/*.spec.js',
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
@@ -11,7 +12,10 @@ module.exports = defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:8000',
     browserName: 'chromium',
-    channel: 'chrome',
+    // Local runs use real Chrome for visual parity with the recorded product;
+    // CI uses Playwright's pinned Chromium so a runner image update cannot
+    // silently change the browser underneath the test suite.
+    channel: process.env.CI ? undefined : 'chrome',
     headless: true,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure'

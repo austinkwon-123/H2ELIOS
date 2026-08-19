@@ -1,68 +1,123 @@
-# H₂Grid — Global Hydrogen Network Observatory
+<div align="center">
+  <img src="assets/h2elios-lockup.svg" alt="H2ELIOS" width="360" />
 
-Single canonical build. **This folder is the only working copy** — edit these files
-in place; no version folders, no zips.
+  <p><strong>A 3D spatial observatory for the global hydrogen industry.</strong></p>
 
-## Run
-```
-cd H2Grid && python -m http.server 8000   # open http://localhost:8000
-```
-Needs internet: MapLibre GL v5 (CDN), CARTO tiles, Google Fonts, DOE AFDC feed.
+  [![CI](https://github.com/austinkwon-123/H2ELIOS/actions/workflows/ci.yml/badge.svg)](https://github.com/austinkwon-123/H2ELIOS/actions/workflows/ci.yml)
+  ![Vanilla JavaScript](https://img.shields.io/badge/frontend-vanilla%20JavaScript-f7df1e?logo=javascript&logoColor=111)
+  ![MapLibre GL](https://img.shields.io/badge/globe-MapLibre%20GL-396cb2)
+  ![PostgreSQL](https://img.shields.io/badge/data-PostgreSQL%20%2B%20PostGIS-4169e1?logo=postgresql&logoColor=fff)
+</div>
 
-## File map
-```
-index.html            markup + script/style load order
-style.css             design tokens + all UI styling (mission-control dark)
-hud.css               boot / reticle / scanline accents
-build-iea.py          regenerates js/iea-data.js from the IEA Excel databases
-build-h2inframap.js   snapshots six public H2InfraMap ArcGIS domain layers;
-                        keeps provider fields, provenance and precision warning
-build-eu-stations.js  regenerates js/eu-stations-data.js from the IPCEI Clean
-                        Hydrogen Observatory refuelling-stations dataset
-build-breakeven.js    regenerates js/breakeven-data.js from the IPCEI Clean
-                        Hydrogen Observatory break-even price datasets (2022-2025)
-build-news.py          regenerates js/news-data.js from hydrogen-relevant RSS feeds
-js/
-  data.js             curated 138 verified nodes (hand-edited, cited)
-  h2inframap-data.js  generated H2InfraMap facilities + pipeline geometries;
-                        merges into the existing static map collections on load;
-                        all routes stay in 2D and long corridors get one 3D path
-  iea-data.js         3,338 IEA "announced" records (generated — don't hand-edit)
-  eu-stations-data.js 177 EU/UK/EFTA refuelling stations, IPCEI Clean Hydrogen
-                        Observatory (generated — don't hand-edit)
-  breakeven-data.js   break-even H2 prices 2022-2025 by country/sector, IPCEI
-                        Clean Hydrogen Observatory (generated — don't hand-edit)
-  news-data.js        cached hydrogen news headlines (generated — don't hand-edit)
-  01-core.js          config, tokens, globe init, state, geometry, utils, load,
-                        theme, idle spin
-  02-layers.js        network web, hubs, flow arcs, point/line builders, animations
-  03-filters.js       status/region/color filters, layer dock, legend
-                        (owns TOGGLE_MAP, REGION_GROUPS)
-  04-search.js        facility search, header counters, intel ticker
-  05-detail.js        click/hover, inspector, project-statistics + relationships
-  06-tour.js          10-stop guided fly-through
-  07-live.js          DOE AFDC live stations, star-field zoom fade
-  iea-layer.js        IEA announced-tier clustering (extends filters)
-  hud.js              boot sequence, targeting reticle, decode-text
-  08-analytics.js     analytics panel — network bars, live stock tracker, news feed
-  09-router.js        hash-based tab router (page show/hide, tab nav, map.resize on return)
-  10-calculator.js    hydrogen calculator (Tools tab) — 5 independent live-recompute
-                        sub-calcs: unit conversion, efficiency, CAPEX/OPEX, LCOH, current density
-  smoke-test.js       headless test (node js/smoke-test.js, needs jsdom)
+H2ELIOS combines an interactive MapLibre globe, custom WebGL rendering, and
+linked analytical workspaces to explore hydrogen projects, infrastructure,
+economics, technology, demand, policy, and project timelines.
+
+The frontend deliberately has no framework, bundler, or build step. Its custom
+capacity spikes and 3D pipeline ribbons are rendered through hand-written GLSL
+layers, while an optional Express/Postgres backend supplies viewport-scoped
+analytics for 3,338 announced projects.
+
+## Highlights
+
+- MapLibre GL v5 globe with dark and light themes.
+- Custom WebGL capacity spikes and globe-aware 3D pipeline ribbons.
+- 3,338 announced-project records plus curated and European infrastructure
+  layers with source attribution and precision flags.
+- Seven linked workspaces: Explore, Economics, Technology, Demand, Policy,
+  Timeline, and Calculator.
+- Project comparison, responsive inspectors, map-to-workspace handoffs, and
+  accessible keyboard navigation.
+- Live viewport analytics through Express, PostgreSQL, PostGIS, and TimescaleDB.
+- Live market video, comparison chart, and hydrogen equity watchlist with an
+  automatic TradingView fallback.
+- Playwright browser coverage and Node unit/data-contract tests.
+
+## Run it on any computer
+
+Requirements: [Git](https://git-scm.com/), Node.js 22+, and an internet
+connection for the map tiles and third-party live surfaces.
+
+```bash
+git clone https://github.com/austinkwon-123/H2ELIOS.git
+cd H2ELIOS
+npm ci
+npm start
 ```
 
-## Editing rules (important)
-- Modules are **classic scripts sharing one global scope** — `const map`, helpers,
-  and state from `01-core.js` are visible everywhere. Do **not** wrap modules in
-  IIFEs/ES-modules or the shared globals break.
-- **Load order = dependency order.** `iea-layer.js` needs `TOGGLE_MAP` (filters) and
-  patches `applyFilters`; `hud.js` patches `selectFacility`/`showDetail` (detail) —
-  both must stay last.
-- Refresh IEA data: drop new IEA `.xlsx` files in Downloads, rerun `build-iea.py`.
-- Refresh H2InfraMap data: run `node build-h2inframap.js`. The source ArcGIS
-  items publish no licence or terms-of-use text; the generated metadata records
-  that explicitly, and imported coordinates remain marked approximate.
-- Refresh hydrogen news: rerun `python3 build-news.py` (set `ANTHROPIC_API_KEY`
-  for LLM-written one-line summaries; without it, falls back to each feed's own
-  snippet). Regenerates `js/news-data.js` — review the diff before committing,
-  it isn't automatic.
+Open <http://127.0.0.1:8000>.
+
+That is enough for the complete static-data experience. Postgres and API keys
+are optional: when they are absent, H2ELIOS starts normally and labels the live
+surfaces that are unavailable instead of crashing.
+
+## Optional live backend
+
+Copy the environment template, start the bundled database, apply migrations,
+and import the IEA snapshot:
+
+```bash
+cp .env.example .env
+docker compose up -d db
+npm run db:migrate
+npm run db:seed
+npm start
+```
+
+On PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
+
+Optional keys:
+
+- `FINNHUB_KEY` in `.env` enables server-proxied equity quotes.
+- `NREL_API_KEY` in `js/config.js` enables the DOE AFDC station feed. Copy
+  `js/config.example.js` first; browser configuration is public by design.
+
+Never commit `.env` or `js/config.js`.
+
+## Tests
+
+```bash
+npm run test:unit      # store, import, and server/data contracts
+npm run test:ui        # Playwright interaction and responsive-layout tests
+npm test               # both suites
+```
+
+The live viewport test skips itself when Postgres is unavailable. That skip is
+intentional; all static and interface behavior remains testable without a
+database.
+
+## Architecture
+
+| Area | Files | Responsibility |
+| --- | --- | --- |
+| Shell and globe | `index.html`, `style.css`, `js/01-core.js`–`js/07-live.js` | Layout, MapLibre lifecycle, layers, filtering, search, project detail, live stations |
+| Analysis | `js/08-analytics.js`–`js/17-visualization.js` | Markets and the linked economics, technology, demand, policy, timeline, and calculator workspaces |
+| Custom 3D | `js/19-command-arcs.js`, `js/19-pipeline-ribbons.js`, `js/20-spikes.js` | GLSL corridors, pipeline ribbons, and capacity geometry |
+| Spatial shell | `js/23-spatial-shell.js`, `js/24-geology-intelligence.js` | Responsive navigation, focus mode, panel ownership, and geology context |
+| Backend | `server.js`, `api/`, `db/migrations/`, `etl/` | Static hosting, JSON APIs, spatial schema, and dataset import |
+| Verification | `tests/`, `playwright.config.js`, `.github/workflows/ci.yml` | Unit, data-contract, browser, accessibility, and CI coverage |
+
+Scripts in `js/` are classic scripts sharing one global scope. Their order in
+`index.html` is dependency order; converting a single file to an ES module will
+break that contract.
+
+## Data and attribution
+
+The application combines IEA project data, DOE/NREL station data, IPCEI Clean
+Hydrogen Observatory datasets, H2InfraMap ArcGIS layers, GEM references,
+OpenStreetMap/CARTO basemaps, and cited company or project sources. Each source
+retains its own terms. Approximate records are marked as approximate in the
+generated data rather than presented as surveyed locations.
+
+The H2InfraMap ArcGIS items used by the snapshot publish no license or
+terms-of-use text. The generated metadata records that absence explicitly; do
+not interpret repository visibility as a new license grant for source data.
+
+## Contributing and deployment
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture constraints and pull
+request expectations. See [DEPLOY.md](DEPLOY.md) for static and full-stack
+deployment options.
+
+No project-wide software license is currently granted. Source code and bundled
+datasets therefore remain subject to their existing rights and source terms.

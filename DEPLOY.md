@@ -1,46 +1,86 @@
-# H₂Grid OS — Preview & Deploy (v8 · Observatory)
+# Deploying H2ELIOS
 
-Static site, no build step. Runtime files: `index.html`, `style.css`, `hud.css`,
-`app.js`, `iea-layer.js`, `hud.js`, `data.js`, `iea-data.js`.
-Dev-only: `smoke-test.js`, `build-iea.py`.
+H2ELIOS can run in two modes. Choose based on whether the deployment needs the
+Postgres-backed viewport API.
 
-## Preview
+## Static mode
+
+Static hosting serves `index.html`, the CSS files, `assets/`, and `js/` exactly
+as committed. There is no frontend build command or generated bundle.
+
+Static mode includes the globe, bundled datasets, all seven workspaces,
+comparison, 3D layers, the calculator, and third-party market surfaces. The
+Live viewport panel reports unavailable API data because `/api/*` is absent.
+
+Suitable hosts include GitHub Pages, Cloudflare Pages, Netlify, and any plain
+HTTP server. Configure the publish directory as the repository root and leave
+the build command empty.
+
+## Full-stack mode
+
+Use a Node-capable host when Live viewport analytics or server-proxied Finnhub
+quotes are required.
+
+### Runtime
+
+- Node.js 22+
+- `npm ci`
+- Start command: `npm start`
+- Environment: `HOST=0.0.0.0`, provider-assigned `PORT`
+
+The app starts without Postgres and serves its static baseline. Database-backed
+API routes return HTTP 503 until `DATABASE_URL` is configured.
+
+### Database
+
+The included `docker-compose.yml` provides PostgreSQL 16 with PostGIS and
+TimescaleDB for local or self-hosted environments:
+
+```bash
+cp .env.example .env
+docker compose up -d db
+npm run db:migrate
+npm run db:seed
 ```
-cd hydrogen-map-v8
-python -m http.server 8000   # open http://localhost:8000
+
+For a managed database, set `DATABASE_URL` to a PostgreSQL instance that
+supports PostGIS and TimescaleDB, then run the same migration and seed commands
+from a trusted deployment shell.
+
+### Secrets
+
+- `DATABASE_URL`: server-only Postgres connection string.
+- `FINNHUB_KEY`: optional server-only market quote key.
+- `NREL_API_KEY`: currently a browser-side free-tier key configured through
+  `js/config.js`; anything stored there is visible to visitors.
+
+Do not commit `.env`, `js/config.js`, database volumes, test reports, or browser
+traces. They are covered by `.gitignore`.
+
+## Verification
+
+Run before deployment:
+
+```bash
+npm ci
+npm run test:unit
+npx playwright install chromium
+npm run test:ui
 ```
-Internet required: MapLibre GL v5, CARTO tiles, Google Fonts, AFDC live fetch.
 
-## What's new in v6
-- **IEA announced tier (📡)**: all 3,338 records from the IEA Hydrogen Production
-  & Infrastructure Projects Databases (June 2026, CC BY 4.0) as a clustered
-  holographic layer — 2,402 at real reported coordinates, 936 flagged
-  country-approximate. Click clusters to expand, click points for details.
-  Status/region/color filters rebuild the clusters live.
-- **Three-tier counters**: 138 verified (hand-curated, cited), 678 mapped European
-  assets (H2InfraMap ArcGIS snapshot, locations approximate and indicative) and
-  3,338 announced (IEA). The sidebar footer computes its figures from the loaded
-  data rather than carrying them as copy, so they cannot drift after an import.
-- **JARVIS HUD**: boot sequence on load, rotating targeting reticle locks onto
-  selected facilities, decode-text effect on the detail sheet, HUD corner
-  brackets, scanline + vignette overlay (dark mode).
-- **Refresh pipeline**: rerun `python3 build-iea.py` whenever IEA updates the
-  databases (point paths at the new XLSX files) — regenerates `iea-data.js`.
+CI repeats these checks for pushes to `main` and for pull requests. A live API
+test skips when Postgres is intentionally absent; it runs when a reachable
+database is supplied.
 
-## Before public launch
-1. Swap `DEMO_KEY` in `app.js` for a free personal NREL key.
-2. `iea-data.js` is ~1.2 MB — enable gzip/brotli on your host (Netlify/Vercel do
-   this automatically; it compresses to ~180 KB).
-3. Keep the IEA CC BY 4.0 attribution visible (already in the footer + ticker link).
-4. Get a free Finnhub API key (https://finnhub.io/register) and set `FINNHUB_KEY`
-   in `js/08-analytics.js` to enable live quotes in the analytics panel's Markets
-   section — it ships empty and shows a "configure API key" fallback until you do.
+## Editing from another device
 
-## v7 visual system
-Single dark mission-control theme (light mode retired). All styling flows from
-CSS tokens in `:root` (`style.css`): surfaces `--bg-0/--panel`, hairlines
-`--line*`, text scale `--text-hi/--text/--text-muted/--text-faint`, accents
-`--cyan/--amber/--red`, radii `--r-sm/md/lg`. Hydrogen taxonomy colors are
-preserved untouched as data encoding (`--h-*`). Dock icons are monochrome
-outline SVGs; glow is layered (sharp core + faint halo) and reserved for
-active/selected elements.
+```bash
+git clone https://github.com/austinkwon-123/H2ELIOS.git
+cd H2ELIOS
+npm ci
+git switch -c your-name/change-description
+```
+
+After editing, commit and push the branch, then open a pull request into
+`main`. Never copy `.env` between devices through GitHub; configure secrets
+locally on each machine.

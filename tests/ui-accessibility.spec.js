@@ -72,8 +72,11 @@ test.describe('H2ELIOS responsive interaction contract', () => {
     expect.soft(await filter.getAttribute('tabindex')).toBe('-1');
 
     await toggle.click();
-    const expandedBox = await sidebar.boundingBox();
-    expect.soft(expandedBox.width).toBeGreaterThan(200);
+    // Width transitions from the compact rail to the full sidebar. Measuring
+    // on the click frame races that transition and intermittently reads 56px
+    // even though aria-expanded has already changed.
+    await expect.poll(async () => (await sidebar.boundingBox())?.width || 0)
+      .toBeGreaterThan(200);
     expect.soft(await toggle.getAttribute('aria-expanded')).toBe('true');
 
     await page.keyboard.press('Escape');
