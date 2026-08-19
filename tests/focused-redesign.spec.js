@@ -473,29 +473,68 @@ test('Live viewport recomputes count, capacity and gauge after the map moves', a
   expect(await page.evaluate(() => map.getStyle().layers.filter((l) => l.id === 'api-projects').length)).toBe(1);
 });
 
-test('walkthrough reaches every declared workspace and exits cleanly to Explore', async ({ page }) => {
+test('the film runs under two minutes and takes over the frame', async ({ page }) => {
   await open(page);
-  const routes = await page.evaluate(() => window.H2GDemo.routes);
-  expect(routes.length).toBeGreaterThanOrEqual(8);
-  expect(routes.length).toBeLessThanOrEqual(10);
-  // The hidden prototype workspace must not be part of the scripted tour.
-  expect(routes).not.toContain('companies');
 
-  for (let i = 0; i < routes.length; i++) {
-    await page.evaluate((n) => window.H2GDemo.go(n), i);
-    await page.waitForTimeout(routes[i] === 'tools' ? 2400 : 700);
-    await expect(page.locator('body'), `step ${i + 1} should land on ${routes[i]}`)
-      .toHaveAttribute('data-route', routes[i]);
-  }
+  const film = await page.evaluate(() => ({
+    beats: window.H2GDemo.beats,
+    runtimeMs: window.H2GDemo.runtimeMs
+  }));
+  // The runtime is the contract. This is made to be recorded and posted, and a
+  // demo film that runs long is one nobody finishes watching.
+  expect(film.runtimeMs).toBeLessThan(120000);
+  expect(film.beats.length).toBeGreaterThanOrEqual(6);
+  expect(film.beats).toContain('corridors');
 
+  // Deliberately not awaited: start() resolves only when the whole film ends,
+  // so returning its promise would block page.evaluate for the full runtime.
+  await page.evaluate(() => { window.H2GDemo.start(); });
+  await page.waitForTimeout(1200);
+  // Chrome is present and the shell has stepped out of the way.
+  await expect(page.locator('#cine')).toBeVisible();
+  await expect(page.locator('#cine-boot')).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/cine-active/);
+  await expect(page.locator('body')).toHaveClass(/focus-mode/);
+
+  // Past the boot sequence a caption is showing and the runtime bar has moved.
+  await page.waitForTimeout(6500);
+  await expect(page.locator('#cine-caption')).toHaveClass(/is-in/);
+  await expect(page.locator('#cine-headline')).not.toBeEmpty();
+  expect(await page.evaluate(() =>
+    parseFloat(document.getElementById('cine-progress-fill').style.width))).toBeGreaterThan(0);
+});
+
+test('exiting the film restores the app it borrowed', async ({ page }) => {
+  await open(page);
+  const before = await page.evaluate(() => ({
+    dock: [...document.querySelectorAll('.dock-btn[data-layer]')].map((b) => [b.dataset.layer, b.classList.contains('active')]),
+    status: statusFilter, color: colorFilter, region: regionFilter
+  }));
+
+  // Deliberately not awaited: start() resolves only when the whole film ends,
+  // so returning its promise would block page.evaluate for the full runtime.
+  await page.evaluate(() => { window.H2GDemo.start(); });
+  // Land inside a beat that has muted layers and applied a colour filter, so
+  // the restore has something real to undo rather than a no-op.
+  await page.waitForTimeout(9000);
   await page.evaluate(() => window.H2GDemo.stop());
+  await page.waitForTimeout(1500);
+
+  await expect(page.locator('#cine')).toHaveCount(0);
+  await expect(page.locator('body')).not.toHaveClass(/cine-active/);
+  await expect(page.locator('body')).not.toHaveClass(/focus-mode/);
   await expect(page.locator('body')).toHaveAttribute('data-route', 'map');
-  await expect(page.locator('#demo-card')).toBeHidden();
-  // Exit must run the real close APIs, so button state is released too.
+  // Exit runs the real close APIs, so button state is released too.
   await expect(page.locator('#analytics-panel')).toBeHidden();
   await expect(page.locator('#markets-panel')).toBeHidden();
   await expect(page.locator('#analytics-btn')).not.toHaveClass(/active/);
   await expect(page.locator('#markets-btn')).not.toHaveClass(/active/);
+
+  const after = await page.evaluate(() => ({
+    dock: [...document.querySelectorAll('.dock-btn[data-layer]')].map((b) => [b.dataset.layer, b.classList.contains('active')]),
+    status: statusFilter, color: colorFilter, region: regionFilter
+  }));
+  expect(after).toEqual(before);
 });
 
 // Regression: a desktop workspace must never render content taller than its
@@ -529,16 +568,17 @@ for (const height of [900, 760]) {
   });
 }
 
-test('walkthrough narration does not promise controls that no longer exist', async ({ page }) => {
+test('the film only drives controls the dock actually has', async ({ page }) => {
   await open(page);
-  // "flows" was removed and is now back, driving the corridor arcs. The
-  // original point of this test stands either way: narration must not promise
-  // a control the dock does not have, so assert the control exists rather than
-  // that it is absent.
-  await expect(page.locator('.dock-btn[data-layer="flows"]')).toHaveCount(1);
-  const usesRemovedDock = await page.evaluate(() =>
-    window.H2GDemo.routes.length > 0 && typeof setDock !== 'undefined');
-  expect(usesRemovedDock).toBe(false);
+  // Every layer a beat toggles must exist. The step-card walkthrough this
+  // replaced drove a "flows" control that had been deleted, so the step ran,
+  // narrated a visual change, and did nothing.
+  const layers = await page.evaluate(() =>
+    [...document.querySelectorAll('.dock-btn[data-layer]')].map((b) => b.dataset.layer));
+  for (const layer of ['facilities', 'pipelines', 'hubs', 'announced', 'flows']) {
+    expect(layers, `beat toggles data-layer="${layer}"`).toContain(layer);
+  }
+  expect(await page.evaluate(() => typeof setDock)).toBe('undefined');
 });
 
 test('Compare pins without closing the panel and its rows open side-by-side panels', async ({ page }) => {

@@ -116,10 +116,15 @@ function syncSpatialMapPadding() {
   if (typeof map === "undefined" || !map || typeof map.setPadding !== "function") return;
   const desktop = window.innerWidth > 720;
   const onMap = currentWorkspaceRoute() === "map";
-  const sidebar = document.getElementById("app-sidebar");
+  // Focus mode translates the sidebar and the ribbon off-screen. They keep
+  // their widths while hidden, so padding measured from offsetWidth reserved
+  // 232px for furniture nobody can see and pushed the globe a sixth of the way
+  // off centre — most visible in the film, which runs entirely in focus mode.
+  const focused = document.body.classList.contains("focus-mode");
+  const sidebar = focused ? null : document.getElementById("app-sidebar");
   const inspector = document.querySelector(".right-panel-slot:not([hidden])");
   const padding = desktop && onMap ? {
-    top: 58,
+    top: focused ? 0 : 58,
     right: inspector ? inspector.offsetWidth + 32 : 0,
     // The globe's visual centre sits below its geographic target at orbital
     // zooms. Bottom padding raises the sphere into the desktop's primary
