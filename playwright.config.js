@@ -6,7 +6,12 @@ module.exports = defineConfig({
   fullyParallel: false,
   forbidOnly: true,
   retries: 0,
-  timeout: 30_000,
+  // A GitHub runner has two shared cores; starting two MapLibre/WebGL pages at
+  // once starves Chromium badly enough that navigation itself can hit 30s.
+  // Serialize only in CI and widen the ceiling there. Assertions and local
+  // real-Chrome timings remain unchanged, so this is not a retry-based mask.
+  workers: process.env.CI ? 1 : undefined,
+  timeout: process.env.CI ? 60_000 : 30_000,
   expect: { timeout: 5_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
