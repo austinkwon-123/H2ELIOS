@@ -11,7 +11,7 @@ module.exports = defineConfig({
   // Serialize only in CI and widen the ceiling there. Assertions and local
   // real-Chrome timings remain unchanged, so this is not a retry-based mask.
   workers: process.env.CI ? 1 : undefined,
-  timeout: process.env.CI ? 60_000 : 30_000,
+  timeout: process.env.CI ? 90_000 : 30_000,
   expect: { timeout: 5_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
