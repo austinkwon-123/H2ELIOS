@@ -94,7 +94,14 @@ test('collapsing the sidebar re-centres the globe instead of leaving it undernea
   // until some unrelated event happened to re-sync.
   const settle = async (expanded) => {
     await page.evaluate((e) => setSidebarExpanded(e, false), expanded);
-    await page.waitForTimeout(800);
+    // A saturated CI renderer can delay both transitionend and MapLibre's
+    // padding update well past a fixed sleep. Wait for the actual contract:
+    // no width animation remains and the map owns the settled sidebar width.
+    await expect.poll(() => page.evaluate(() => {
+      const sidebar = document.getElementById('app-sidebar');
+      const animating = sidebar.getAnimations().some((animation) => animation.playState === 'running');
+      return animating ? null : Math.abs(map.getPadding().left - sidebar.offsetWidth);
+    })).toBe(0);
     return page.evaluate(() => ({
       padding: map.getPadding().left,
       sidebar: document.getElementById('app-sidebar').offsetWidth
